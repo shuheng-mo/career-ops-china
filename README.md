@@ -27,6 +27,8 @@
 
 ### 适合谁
 
+⚠️注意：求职方向仅供参考，你可以自己更改或者系统会根据你 cv.md 里的经历和技能自动检测 archetype，如果 JD 对齐度高但不完全匹配预置 archetype，也会给出合理的评估和建议。
+
 - **求职方向**：数据工程 / 数据治理 / 数据仓库 / 大模型应用 / AI Infra / 后端（数据/AI 方向）/ 平台架构 / 大数据算法
 - **目标 base**：北京 / 上海 / 深圳 / 杭州 / 苏州 / 南京 / 广州（其他城市也可，但门户预置主要覆盖一线和 AI 中心）
 - **目标公司**：互联网大厂 + 大模型独角兽 + 数据/AI 创业中小厂 + 海外华人公司
@@ -41,36 +43,42 @@
 
 ## 它的工作原理
 
-```text
-                  ┌─────────────────────────────────┐
-                  │      Claude Code Agent           │
-                  │    (按 CLAUDE.md + modes/* 行动) │
-                  └──────────┬──────────────────────┘
-                             │
-       ┌─────────────────────┼─────────────────────────┐
-       │                     │                          │
-┌──────▼──────┐    ┌────────▼────────┐    ┌───────────▼──────┐
-│ 单岗位评估    │    │ 门户扫描         │    │ 批量处理          │
-│ (auto-pipe) │    │ (scan)           │    │ (batch)           │
-└──────┬──────┘    └────────┬────────┘    └───────────┬──────┘
-       │                     │                          │
-       │             ┌──────▼──────┐             ┌────▼─────┐
-       │             │ pipeline.md │             │ N workers│
-       │             │ (URL 收件箱)  │             │ (claude -p)
-       │             └─────────────┘             └────┬─────┘
-       │                                                │
-┌──────▼────────────────────────────────────────────────▼──┐
-│                       输出 Pipeline                       │
-│  ┌──────────┐   ┌──────────┐   ┌────────────────────┐  │
-│  │ Report.md │   │ ATS PDF  │   │ Tracker TSV         │  │
-│  │ (A-F 评估) │   │ (中文/A4) │   │ (merge-tracker)    │  │
-│  └──────────┘   └──────────┘   └────────────────────┘  │
-└────────────────────────┬─────────────────────────────────┘
-                          │
-                ┌────────▼──────────┐
-                │ data/applications.md│
-                │ (单一来源 tracker)  │
-                └────────────────────┘
+```mermaid
+flowchart TD
+    User(["👤 用户"])
+
+    User -->|贴 JD / URL| AutoPipe
+    User -->|/career-ops scan| ScanMode
+    User -->|/career-ops pipeline| ProcessInbox
+    User -->|/career-ops batch| BatchMode
+
+    ScanMode["🔍 scan 模式<br/>抓 portals.yml 50+ 公司<br/>过滤 deal-breakers"]
+    ScanMode --> Inbox
+
+    ProcessInbox["📂 pipeline 模式"] --> Inbox
+    Inbox[("📥 data/pipeline.md<br/>URL 待办收件箱")]
+    Inbox --> AutoPipe
+
+    BatchMode["⚡ batch 模式<br/>orchestrator"] --> Workers
+    Workers["N × claude -p workers<br/>(并行子进程)"]
+    Workers --> AutoPipe
+
+    AutoPipe{{"🎯 auto-pipeline<br/>━━━━━━━━━━━━━━━<br/>A · 角色摘要<br/>B · CV 匹配<br/>C · 级别策略<br/>D · 薪酬调研（看准/脉脉）<br/>E · 个性化方案<br/>F · 面试 STAR+R 故事"}}
+
+    AutoPipe --> Report["📄 reports/<br/>{NNN}-{slug}.md"]
+    AutoPipe --> PDF["📑 output/<br/>cv-{...}.pdf<br/>中文 A4 ATS"]
+    AutoPipe --> TSV["📊 batch/<br/>tracker-additions/<br/>{ID}.tsv"]
+
+    TSV -->|"merge-tracker.mjs"| Apps
+
+    Apps[("📚 data/applications.md<br/>单一来源 tracker")]
+
+    classDef hot fill:#5b8def,stroke:#3b5fc7,color:#fff,stroke-width:2px
+    classDef store fill:#2ea043,stroke:#1f7a32,color:#fff,stroke-width:2px
+    classDef output fill:#f0f4ff,stroke:#5b8def,color:#1a1a2e
+    class AutoPipe hot
+    class Apps,Inbox store
+    class Report,PDF,TSV output
 ```
 
 ### A-F 六块评估（核心）
@@ -86,7 +94,7 @@
 | **E 个性化方案** | Top 5 CV 修改 + Top 5 LinkedIn/脉脉资料修改 | — |
 | **F 面试准备** | 6-10 个 STAR+R 故事 + 主讲 case study + 红线问题预演 | 国内 HR 红线问题（离职原因/996/婚育） |
 
-### 8 个 archetype（中国大陆特化）
+### 8 个 archetype（中国大陆特化，仅供参考）
 
 | Archetype | 主题轴 | 公司在买什么 |
 |---|---|---|
@@ -122,7 +130,7 @@
 
 ```yaml
 deal_breakers:
-  - "华为（任何 BU、任何子公司）"
+  - "HUAWEI（任何 BU、任何子公司）"
   - "大小周"
   - "外包 / OD / 派遣"
 ```
@@ -203,6 +211,7 @@ claude
 > 「我是新用户，帮我配置 career-ops-china」
 
 Claude 会按 `CLAUDE.md` 里的 onboarding 流程引导你：
+
 - 索取你的简历（贴文本 / LinkedIn URL / 自述都行）
 - 询问 base 城市、目标岗位、期望薪资、deal-breakers
 - 把信息写入 `cv.md` 和 `config/profile.yml`
@@ -248,7 +257,7 @@ Claude：
 11. 显示总分 + 推荐动作 + 谈判 anchor
 ```
 
-实际示例报告：[`reports/001-kuaishou-llm-fintech-2026-04-07.md`](reports/001-kuaishou-llm-fintech-2026-04-07.md)（如存在）
+实际示例报告参考：[`reports/001-kuaishou-llm-fintech-2026-04-07.md`](reports/001-kuaishou-llm-fintech-2026-04-07.md)
 
 #### 例 B：扫描招聘门户
 
@@ -295,7 +304,7 @@ Claude：
 
 ### 5. cv.md 怎么写
 
-`cv.md` 是你简历的真理之源，所有评估和 PDF 生成都从它读。**已加入 .gitignore 不会被提交**。
+`cv.md` 是你简历的真理之源，所有评估和 PDF 生成都从它读。**已加入 .gitignore 不会被提交，可以放心写个人信息**。
 
 推荐结构（中文 CV 国内约定）：
 
@@ -602,7 +611,7 @@ node scan-helper.mjs "https://www.zhipin.com/job_detail/xxx.html" \
 | 想投远程岗 | 国内远程岗几乎不存在。海外华人公司有但门槛高 |
 | 没"大厂背景" | 双非 / 二本 / 没大厂经历 → 用真实项目和数据补 |
 | 想转大模型方向 | 强调"端到端落地经验"比"会调 LangChain"重要 |
-| 简历提了"外包/OD" | 别隐瞒，但用项目而不是 title 来 hook |
+| 简历提了"外包" | 别隐瞒，但用项目而不是 title 来 hook |
 | HR 问婚育/年龄/加班 | 这些问题违法但确实存在。系统会帮你准备得体的应对话术 |
 
 ---

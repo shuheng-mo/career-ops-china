@@ -1,4 +1,8 @@
-# Personal data (user fills these)
+# ============================================================
+# career-ops-china — gitignore
+# ============================================================
+
+# === Personal data (user fills these locally, never commit) ===
 data/applications.md
 data/pipeline.md
 data/scan-history.tsv
@@ -15,25 +19,44 @@ batch/tracker-additions/*.tsv
 jds/*
 !jds/.gitkeep
 
-# User config
+# === User config (copy from templates/*.example.yml) ===
 config/profile.yml
 portals.yml
 
-# Personal CV and proof points (privacy)
+# === Personal CV and proof points (privacy) ===
 cv.md
 article-digest.md
 interview-prep/story-bank.md
 
-# Generated
+# === Generated / build artifacts ===
 .resolved-prompt-*
 node_modules/
+career-dashboard
 
-# OS
+# === Logs ===
+logs/
+*.log
+npm-debug.log*
+
+# === Process files ===
+pids/
+*.pid
+*.pid.lock
+
+# === Environment files ===
+.env
+.env.*
+!.env.example
+
+# === npm / yarn cache ===
+.npm
+.yarn-integrity
+
+# === OS ===
 .DS_Store
 *.mov
 *.mp4
 
-# Claude Code local
+# === Claude Code local ===
 .claude/settings.local.json
 .claude/memory/
-career-dashboard

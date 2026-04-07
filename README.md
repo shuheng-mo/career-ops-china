@@ -1,4 +1,12 @@
-# Career-Ops
+# career-ops-china
+
+> **🇨🇳 中国大陆深度定制版** — 这是 [santifer/career-ops](https://github.com/santifer/career-ops) 的中国大陆求职市场定制 fork。所有 mode 文件已翻译为中文，archetype 适配数据工程 / 大模型应用 / 数据治理 / 后端 / 平台 / AI Infra 等中国市场常见岗位，薪酬调研源切换为 看准网 / 脉脉 / OfferShow / 知乎 / 一亩三分地 等中文源，预置 50+ 中国互联网大厂与 AI 独角兽门户配置。
+>
+> 详细改动见 [`CLAUDE.md`](CLAUDE.md) 和 [`templates/portals-china.example.yml`](templates/portals-china.example.yml)。
+
+---
+
+# Career-Ops（原版）
 
 **[:gb: English](#what-is-this)** | **[:es: Español](#es-versión-en-español)**
 

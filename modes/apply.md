@@ -1,107 +1,115 @@
-# Modo: apply — Asistente de Aplicación en Vivo
+# Mode: apply — 实时申请助手
 
-Modo interactivo para cuando el candidato está rellenando un formulario de aplicación en Chrome. Lee lo que hay en pantalla, carga el contexto previo de la oferta, y genera respuestas personalizadas para cada pregunta del formulario.
+候选人在浏览器里填申请表时的交互模式。读屏幕上的内容、加载之前的评估上下文、为表单的每个问题生成定制回答。
 
-## Requisitos
+## 前提
 
-- **Mejor con Playwright visible**: En modo visible, el candidato ve el navegador y Claude puede interactuar con la página.
-- **Sin Playwright**: el candidato comparte un screenshot o pega las preguntas manualmente.
+- **最佳：Playwright 可见模式**：候选人能看到浏览器，Claude 能和页面互动
+- **次选：无 Playwright**：候选人分享截图或手动贴问题
 
 ## Workflow
 
 ```
-1. DETECTAR    → Leer Chrome tab activa (screenshot/URL/título)
-2. IDENTIFICAR → Extraer empresa + rol de la página
-3. BUSCAR      → Match contra reports existentes en reports/
-4. CARGAR      → Leer report completo + Section G (si existe)
-5. COMPARAR    → ¿El rol en pantalla coincide con el evaluado? Si cambió → avisar
-6. ANALIZAR    → Identificar TODAS las preguntas del formulario visibles
-7. GENERAR     → Para cada pregunta, generar respuesta personalizada
-8. PRESENTAR   → Mostrar respuestas formateadas para copy-paste
+1. 检测     → 读 Chrome 当前 tab（screenshot/URL/title）
+2. 识别     → 从页面提取公司 + 岗位
+3. 搜索     → 在 reports/ 里找匹配
+4. 加载     → 读完整 report + Section G（如有）
+5. 比对     → 屏幕上的岗位是否和评估时一致？变了 → 提醒
+6. 分析     → 找到表单上所有问题
+7. 生成     → 对每个问题生成定制回答
+8. 呈现     → 格式化展示给候选人 copy-paste
 ```
 
-## Paso 1 — Detectar la oferta
+## Step 1 — 检测
 
-**Con Playwright:** Tomar snapshot de la página activa. Leer título, URL, y contenido visible.
+**Playwright：** 当前页面截屏。读 title、URL、可见内容。
 
-**Sin Playwright:** Pedir al candidato que:
-- Comparta un screenshot del formulario (Read tool lee imágenes)
-- O pegue las preguntas del formulario como texto
-- O diga empresa + rol para que lo busquemos
+**无 Playwright：** 让候选人：
+- 分享表单截图（Read tool 能读图）
+- 或粘贴问题文本
+- 或告诉公司+岗位让我们去搜
 
-## Paso 2 — Identificar y buscar contexto
+## Step 2 — 识别 + 搜索上下文
 
-1. Extraer nombre de empresa y título del rol de la página
-2. Buscar en `reports/` por nombre de empresa (Grep case-insensitive)
-3. Si hay match → cargar el report completo
-4. Si hay Section G → cargar los draft answers previos como base
-5. Si NO hay match → avisar y ofrecer ejecutar auto-pipeline rápido
+1. 从页面提取公司名和岗位 title
+2. 在 `reports/` Grep 公司名（不区分大小写，支持中英文双语）
+3. 有匹配 → 加载完整 report
+4. 有 Section G → 加载之前生成的 draft answers 作为基础
+5. 没匹配 → 告诉用户，提议先快速跑一次 auto-pipeline
 
-## Paso 3 — Detectar cambios en el rol
+## Step 3 — 检测岗位变化
 
-Si el rol en pantalla difiere del evaluado:
-- **Avisar al candidato**: "El rol ha cambiado de [X] a [Y]. ¿Quieres que re-evalúe o adapto las respuestas al nuevo título?"
-- **Si adaptar**: Ajustar las respuestas al nuevo rol sin re-evaluar
-- **Si re-evaluar**: Ejecutar evaluación A-F completa, actualizar report, regenerar Section G
-- **Actualizar tracker**: Cambiar título del rol en applications.md si procede
+如果屏幕上的岗位和评估时不一样：
+- **提醒候选人**："岗位从 [X] 变成了 [Y]，要重新评估还是直接适配回答？"
+- **适配方案**：调整回答到新 title，不重新评估
+- **重新评估**：跑完整 A-F，更新 report，重生成 Section G
+- **更新 tracker**：在 applications.md 里改岗位 title
 
-## Paso 4 — Analizar preguntas del formulario
+## Step 4 — 分析表单
 
-Identificar TODAS las preguntas visibles:
-- Campos de texto libre (cover letter, why this role, etc.)
-- Dropdowns (how did you hear, work authorization, etc.)
-- Yes/No (relocation, visa, etc.)
-- Campos de salario (range, expectation)
-- Upload fields (resume, cover letter PDF)
+找到所有可见问题：
+- 自由文本框（cover letter、为什么这个岗位 等）
+- 下拉框（如何得知这个岗位、工作授权 等）
+- 是/否（搬迁、签证、加班 等）
+- 薪资字段（区间、期望）
+- 上传字段（简历、求职信 PDF）
 
-Clasificar cada pregunta:
-- **Ya respondida en Section G** → adaptar la respuesta existente
-- **Nueva pregunta** → generar respuesta desde el report + cv.md
+每个问题分类：
+- **Section G 已答** → 适配现有答案
+- **新问题** → 从 report + cv.md 现场生成
 
-## Paso 5 — Generar respuestas
+## Step 5 — 生成回答
 
-Para cada pregunta, generar la respuesta siguiendo:
+每个问题按下面流程：
 
-1. **Contexto del report**: Usar proof points del bloque B, historias STAR del bloque F
-2. **Section G previa**: Si existe una respuesta draft, usarla como base y refinar
-3. **Tono "I'm choosing you"**: Mismo framework del auto-pipeline
-4. **Especificidad**: Referenciar algo concreto del JD visible en pantalla
-5. **career-ops proof point**: Incluir en "Additional info" si hay campo para ello
+1. **report 上下文**：用 Block B 的 proof points、Block F 的 STAR 故事
+2. **Section G 已有**：如果之前有草稿，作为基础重写
+3. **"我在选择你" tone**：和 auto-pipeline 同一套框架
+4. **具体性**：引用屏幕上 JD 的具体内容
+5. **career-ops proof point**：如果有 "Additional info" 字段，可以提
 
-**Formato de output:**
+**国内表单常见特殊问题：**
+- **能接受加班吗 / 能 996 吗？** → 不要硬拒也不要硬撑。"项目阶段可以配合冲刺，希望团队不是常态化加班"
+- **期望薪资？** → 给区间，留谈判空间
+- **多久能到岗？** → 留 buffer，不要写"立即"
+- **是否有其他在谈 offer？** → 实事求是，不要撒谎也不要全盘托出
+- **学历认证？** → 如果是双非或专升本，正面回答，不要回避
+- **婚育状态？**（违法但部分公司还在问）→ 候选人自己决定怎么答，可以礼貌不答
+
+**输出格式：**
 
 ```
-## Respuestas para [Empresa] — [Rol]
+## [公司] — [岗位] 申请回答
 
-Basado en: Report #NNN | Score: X.X/5 | Arquetipo: [tipo]
+基于：Report #NNN | Score: X.X/5 | Archetype: [type]
 
 ---
 
-### 1. [Pregunta exacta del formulario]
-> [Respuesta lista para copy-paste]
+### 1. [表单原问题]
+> [可直接 copy-paste 的回答]
 
-### 2. [Siguiente pregunta]
-> [Respuesta]
+### 2. [下一个问题]
+> [回答]
 
 ...
 
 ---
 
-Notas:
-- [Cualquier observación sobre el rol, cambios, etc.]
-- [Sugerencias de personalización que el candidato debería revisar]
+注意事项：
+- [关于岗位、变动等的观察]
+- [候选人需要二次审核的个性化建议]
 ```
 
-## Paso 6 — Post-apply (opcional)
+## Step 6 — 提交后（可选）
 
-Si el candidato confirma que envió la aplicación:
-1. Actualizar estado en `applications.md` de "Evaluada" a "Aplicado"
-2. Actualizar Section G del report con las respuestas finales
-3. Sugerir siguiente paso: `/career-ops contacto` para LinkedIn outreach
+如果候选人确认已提交：
+1. `applications.md` 中状态从 `Evaluated` 改为 `Applied`
+2. 更新 report 的 Section G 为最终回答
+3. 建议下一步：`/career-ops contacto` 做脉脉/LinkedIn 主动触达
 
-## Scroll handling
+## 滚屏处理
 
-Si el formulario tiene más preguntas que las visibles:
-- Pedir al candidato que haga scroll y comparta otro screenshot
-- O que pegue las preguntas restantes
-- Procesar en iteraciones hasta cubrir todo el formulario
+如果表单问题多于可见的：
+- 让候选人滚屏后再分享一张
+- 或者粘贴剩下的问题
+- 迭代处理直到覆盖整个表单

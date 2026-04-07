@@ -1,26 +1,68 @@
-# Modo: contacto — LinkedIn Power Move
+# Mode: contacto — 主动触达（脉脉 / LinkedIn / 微信）
 
-1. **Identificar targets** via WebSearch:
-   - Hiring manager del equipo
-   - Recruiter asignado
-   - 2-3 peers del equipo (gente con rol similar)
+中国大陆主动触达和西方差异很大。**默认走脉脉** — 国内 HR、程序员、产品几乎都在脉脉。LinkedIn 适合外企/海外岗。
 
-2. **Seleccionar target primario**: la persona que más se beneficiaría de que el candidato estuviera allí
+## 1. 找 target
 
-3. **Generar mensaje** con framework de 3 frases:
-   - **Frase 1 (Gancho)**: Algo específico sobre su empresa o reto actual con IA (NO genérico)
-   - **Frase 2 (Prueba)**: Mayor logro cuantificable del candidato relevante para ESE rol (ej: "I built an AI agent handling 90% of customer service at my company before selling it")
-   - **Frase 3 (Propuesta)**: Charla rápida, sin presión ("Would love to chat about [tema específico] for 15 min")
+**脉脉路径：**
+1. 在脉脉搜公司名，看在职员工
+2. 找 hiring manager（团队负责人）和 recruiter（招聘 HR）
+3. 找 2-3 个同岗位 peer（背景相似的人）
 
-4. **Versiones**:
-   - EN (default)
-   - ES (si empresa española)
+**LinkedIn 路径**（仅外企/海外岗）：
+1. 用 WebSearch：`site:linkedin.com/in {公司} {岗位关键词}`
+2. 找 hiring manager + recruiter + peers
 
-5. **Targets alternativos** con justificación de por qué son buenos second choices
+**注意：永远不要写出对方的电话号码或微信号。**
 
-**Reglas del mensaje:**
-- Máximo 300 caracteres (LinkedIn connection request limit)
-- NO corporate-speak
-- NO "I'm passionate about..."
-- Algo que haga que quieran responder
-- NUNCA compartir teléfono
+## 2. 选主 target
+
+选 **最受益于候选人加入** 的那个人 — 通常是 hiring manager（不是 HR）。HR 是过滤器，hiring manager 是决策者。
+
+## 3. 生成消息
+
+### 脉脉触达消息（中文）
+
+脉脉支持长一点的私信。3 段框架：
+
+**段 1（钩子，1-2 句）：** 关于他公司的具体事 — 最好是技术博客、开源项目、最近的 Talk、产品更新。**不要泛泛说"我对贵司很感兴趣"**。
+
+**段 2（证据，2-3 句）：** 候选人最相关的可量化成就。例如："我在 X 公司主导过 Y 项目，把 Z 指标从 A 提到了 B"。
+
+**段 3（提议，1 句）：** 低压力的请求 — "想请您 15 分钟聊聊，了解一下团队对 [话题] 的方向，方便加个微信吗？" 或 "如果方便，能帮我看看我的简历是否合适这个岗位吗？"
+
+**示例：**
+> 您好 [姓名]，
+>
+> 看到贵司最近在做 [具体方向] 的探索（在 [来源] 看到的）。我自己过去 N 年一直在 [相关领域]，独立从 0 主导过 [具体项目]，把 [指标] 从 X 提到 Y。
+>
+> 看到贵司在招 [岗位]，想冒昧请您 15 分钟聊一下团队的方向，看是否合适。如果方便的话，可以约个电话或者加个微信？
+
+**脉脉规则：**
+- 不要超过 5 行
+- 不要用「您好我对贵司充满热情」这种官腔
+- 必须有一个具体的、能验证的细节
+- 不要用 emoji（脉脉职场氛围偏正式）
+
+### LinkedIn 消息（英文，仅外企/海外岗）
+
+LinkedIn connection request 限 300 字符。3 句话框架：
+1. **Hook**：something specific about their company or current AI challenge (NOT generic)
+2. **Proof**：candidate's biggest quantifiable achievement relevant to THIS role
+3. **Ask**：a low-pressure 15-min chat
+
+### 微信触达（已经有微信号的情况）
+
+微信第一句就直奔主题，不要寒暄。
+
+> [姓名] 您好，我是 [候选人]，[同事 / 朋友] 推荐认识。看到贵司在招 [岗位]，我目前的方向和这个岗位高度相关，想请教您几个问题，方便聊一下吗？
+
+## 4. 准备 2-3 个备选 target
+
+每个 target 写一句"为什么是好的 second choice"。
+
+## 5. 触达后跟进策略
+
+- 发出去 3-5 天没回 → 不要刷屏
+- 一周后可以发一次 follow-up，提供新信息（如"刚发了一篇关于 X 的文章，可能对您团队有用"）
+- 还没回 → 换 target，不要纠结

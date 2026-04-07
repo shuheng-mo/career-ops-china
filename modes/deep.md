@@ -1,47 +1,105 @@
-# Modo: deep — Deep Research Prompt
+# Mode: deep — 公司深度调研 Prompt（中国大陆版）
 
-Genera un prompt estructurado para Perplexity/Claude/ChatGPT con 6 ejes:
+为目标公司生成一份结构化的调研 prompt，可以喂给 Claude / ChatGPT / Perplexity / Kimi 跑。**所有数据源都换成中国大陆可用的源。**
 
 ```
-## Deep Research: [Empresa] — [Rol]
+## 深度调研：[公司] — [岗位]
 
-Contexto: Estoy evaluando una candidatura para [rol] en [empresa]. Necesito información accionable para la entrevista.
+背景：我在评估 [公司] 的 [岗位]。需要可执行的信息来准备面试和谈判。请从下面 7 个维度回答，每个维度都给出来源链接。
 
-### 1. Estrategia AI
-- ¿Qué productos/features usan AI/ML?
-- ¿Cuál es su stack de AI? (modelos, infra, tools)
-- ¿Tienen blog de engineering? ¿Qué publican?
-- ¿Qué papers o talks han dado sobre AI?
+### 1. 业务与技术战略
+- 公司的核心业务是什么？营收/规模大概什么量级？
+- 数据/AI 在他们业务里的位置：核心驱动 还是 支撑工具？
+- 技术 stack：用什么数仓？什么大模型？开源还是自研？
+- 是否有公开的工程博客 / GitHub 组织 / 技术大会演讲？
+- 最近有没有发过技术 paper / 开源项目 / 公众号文章？
 
-### 2. Movimientos recientes (últimos 6 meses)
-- ¿Contrataciones relevantes en AI/ML/product?
-- ¿Acquisitions o partnerships?
-- ¿Product launches o pivots?
-- ¿Rondas de funding o cambios de liderazgo?
+**建议源：**
+- 公司官网 / 公众号 / 技术官博
+- InfoQ / 极客时间 / 51CTO / 掘金 — 搜公司名
+- GitHub `org:{公司英文名}` — 看开源贡献
+- B 站 — 搜公司名 + "技术分享" / "QCon" / "ArchSummit"
+- 知乎机构号 — 公司是否在知乎做过分享
 
-### 3. Cultura de engineering
-- ¿Cómo shipean? (cadencia de deploy, CI/CD)
-- ¿Mono-repo o multi-repo?
-- ¿Qué lenguajes/frameworks usan?
-- ¿Remote-first o office-first?
-- ¿Glassdoor/Blind reviews sobre eng culture?
+### 2. 近 6 个月动态
+- 最近的融资 / 上市 / 业务调整？
+- 关键人事变动（CTO / 算法负责人 / 数据负责人）？
+- 是在扩招还是在优化？目标团队是 +1 还是替补离职坑？
+- 有没有出过技术事故 / 法律风险 / PR 危机？
 
-### 4. Retos probables
-- ¿Qué problemas de scaling tienen?
-- ¿Reliability, cost, latency challenges?
-- ¿Están migrando algo? (infra, models, platforms)
-- ¿Qué pain points menciona la gente en reviews?
+**建议源：**
+- **脉脉职言区** — 搜公司名，看近 30 天的匿名讨论。**这是国内最快得到真实情况的源。**
+- 36 氪 / 虎嗅 / 钛媒体 — 公司新闻
+- 天眼查 / 企查查 — 工商变动、融资历史、关联公司
+- IT 桔子 — 创投数据库
 
-### 5. Competidores y diferenciación
-- ¿Quiénes son sus main competitors?
-- ¿Cuál es su moat/diferenciador?
-- ¿Cómo se posicionan vs competencia?
+### 3. 工程文化与工时
+- **工时强度**：996？11-9-6？大小周？双休？
+- 加班是默认还是看项目？
+- 远程友好度？请假难度？
+- 代码 review 文化？敏捷 / 双周会议？
+- mono-repo 还是多 repo？工程化水平如何？
+- onsite vs 远程比例？
 
-### 6. Ángulo del candidato
-Dado mi perfil (read from cv.md and profile.yml for specific experience):
-- ¿Qué valor único aporto a este equipo?
-- ¿Qué proyectos míos son más relevantes?
-- ¿Qué historia debería contar en la entrevista?
+**建议源（关键）：**
+- **看准网（kanzhun.com/{公司}）** — 国内最全的口碑站，看 总评分 + 工作时间 + 加班 + 工作环境
+- **脉脉职言** — 搜 "公司名 加班" / "公司名 工作强度"
+- **知乎** — "如何评价 {公司} 的工作强度" / "{公司} 996 吗"
+- **小红书** — 搜 "{公司} 上班"，会有真实日常分享
+- **匿名公司点评群**（豆瓣"加班加点对抗群"等）
+
+### 4. 这个岗位/团队的真实情况
+- 这是 BU 团队还是中台团队？汇报给谁？
+- 团队规模？团队 lead 的背景？是不是新立项？
+- 团队成功的标准是什么？OKR 大概长什么样？
+- 上一个干这个岗位的人去哪了？为什么离开？（脉脉常有线索）
+- 是否会出差？是否有夜间 on-call？
+
+**建议源：**
+- **领英 / 脉脉人脉** — 找已离职 / 在职的同岗位人，看履历变化
+- **Boss直聘的公司主页** — 看招聘的岗位结构，能反推团队规模
+- **脉脉同事圈** — 加入公司同事圈看内部讨论（需要邀请）
+
+### 5. 薪酬与谈判情报
+- 这个 title 在该公司大概对应什么职级（P/T/L）？
+- 这个职级的薪资带宽？base × N + 股票/期权？
+- 年终奖通常多少个月？是否绑定考核？
+- 期权 / RSU 的真实价值？是否上市？
+- 加签 / 签字费 是否常见？
+- 这个公司在谈判时一般有多少 buffer？
+
+**建议源：**
+- **看准网薪酬频道（kanzhun.com/salary）** — 各级别真实薪酬
+- **OfferShow（offershow.cn）** — 真实 offer 数据
+- **脉脉职言** — 搜 "公司 P7 包" / "公司 跳槽涨幅"
+- **职级对标表**（搜"互联网大厂职级对标 2024/2025"）
+- **知乎** — "X 公司 P7 薪资真实情况"
+
+### 6. 竞品与差异化
+- 主要竞品是哪些公司？
+- 该公司的 moat 是什么？技术 / 数据 / 流量 / 渠道？
+- 在 [我的领域：数据/大模型/平台] 上和竞品的差距？
+- 行业内对它的整体评价？
+
+**建议源：**
+- 36 氪行业报告 / 艾瑞咨询 / Gartner 中文报告
+- 知乎行业讨论
+- 脉脉行业圈
+
+### 7. 候选人切入角度
+鉴于我的背景（请读 cv.md 和 profile.yml 获取我的具体经历）：
+- 我能给这个团队带去什么独特价值？
+- 我哪些项目最该在面试时主讲？
+- 我应该讲什么故事？
+- 哪些 gap 是我必须主动 address 的？
+- 谈判时我有什么筹码？
 ```
 
-Personalizar cada sección con el contexto específico de la oferta evaluada.
+---
+
+## 使用方式
+
+1. **填空**：把 `[公司]` 和 `[岗位]` 替换成实际信息，把 `[我的领域]` 改成候选人主攻方向
+2. **跑 prompt**：可以分别跑在 Claude / Kimi / 通义 / 豆包 上对比结果
+3. **整合**：把 7 个维度的回答整合到 evaluation report 的 Block A 和 Block D
+4. **特别注意 Section 3（工时）和 Section 5（薪酬）** — 这两个在国内是入职后悔率最高的两个维度，必须查清楚

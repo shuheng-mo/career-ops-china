@@ -1,57 +1,68 @@
-# Modo: pipeline — Inbox de URLs (Second Brain)
+# Mode: pipeline — URL 收件箱（Second Brain）
 
-Procesa URLs de ofertas acumuladas en `data/pipeline.md`. El usuario agrega URLs cuando quiera y luego ejecuta `/career-ops pipeline` para procesarlas todas.
+处理 `data/pipeline.md` 中累积的待评估 URL。用户随时把 URL 加进去，然后跑 `/career-ops pipeline` 一次性全部处理。
 
 ## Workflow
 
-1. **Leer** `data/pipeline.md` → buscar items `- [ ]` en la sección "Pendientes"
-2. **Para cada URL pendiente**:
-   a. Calcular siguiente `REPORT_NUM` secuencial (leer `reports/`, tomar el número más alto + 1)
-   b. **Extraer JD** usando Playwright (browser_navigate + browser_snapshot) → WebFetch → WebSearch
-   c. Si la URL no es accesible → marcar como `- [!]` con nota y continuar
-   d. **Ejecutar auto-pipeline completo**: Evaluación A-F → Report .md → PDF (si score >= 3.0) → Tracker
-   e. **Mover de "Pendientes" a "Procesadas"**: `- [x] #NNN | URL | Empresa | Rol | Score/5 | PDF ✅/❌`
-3. **Si hay 3+ URLs pendientes**, lanzar agentes en paralelo (Agent tool con `run_in_background`) para maximizar velocidad.
-4. **Al terminar**, mostrar tabla resumen:
+1. **读** `data/pipeline.md` → 找 "Pendientes" / "待处理" 段里的 `- [ ]` 条目
+2. **对每个待处理 URL：**
+   a. 计算下一个 `REPORT_NUM`（读 `reports/`，找最大序号 + 1）
+   b. **提取 JD** → Playwright (browser_navigate + browser_snapshot) → WebFetch → WebSearch
+   c. 如果 URL 不可访问 → 标 `- [!]` 加备注，继续下一个
+   d. **跑完整 auto-pipeline**：A-F 评估 → Report .md → PDF（如果 score >= 3.0）→ Tracker
+   e. **从 "待处理" 移到 "已处理"**：`- [x] #NNN | URL | 公司 | 岗位 | Score/5 | PDF ✅/❌`
+3. **如果有 3+ 个待处理 URL**，启 Agent 并行（用 `run_in_background`）加速。**注意**：Playwright 不能并行（共享浏览器），用 Playwright 的 agent 顺序跑。
+4. **结束时**显示汇总表：
 
 ```
-| # | Empresa | Rol | Score | PDF | Acción recomendada |
+| # | 公司 | 岗位 | Score | PDF | 推荐动作 |
 ```
 
-## Formato de pipeline.md
+## pipeline.md 格式
 
 ```markdown
-## Pendientes
-- [ ] https://jobs.example.com/posting/123
-- [ ] https://boards.greenhouse.io/company/jobs/456 | Company Inc | Senior PM
-- [!] https://private.url/job — Error: login required
+## 待处理
+- [ ] https://jobs.bytedance.com/positions/123
+- [ ] https://www.deepseek.com/careers/data-engineer | DeepSeek | 数据工程师
+- [!] https://liepin.com/job/xxx — Error: 需要登录
 
-## Procesadas
-- [x] #143 | https://jobs.example.com/posting/789 | Acme Corp | AI PM | 4.2/5 | PDF ✅
-- [x] #144 | https://boards.greenhouse.io/xyz/jobs/012 | BigCo | SA | 2.1/5 | PDF ❌
+## 已处理
+- [x] #143 | https://jobs.bytedance.com/positions/789 | 字节跳动 | 数据开发 | 4.2/5 | PDF ✅
+- [x] #144 | https://www.zhipin.com/job_detail/xxx | 某公司 | 后端 | 2.1/5 | PDF ❌
 ```
 
-## Detección inteligente de JD desde URL
+## 国内 URL 的特殊处理
 
-1. **Playwright (preferido):** `browser_navigate` + `browser_snapshot`. Funciona con todas las SPAs.
-2. **WebFetch (fallback):** Para páginas estáticas o cuando Playwright no está disponible.
-3. **WebSearch (último recurso):** Buscar en portales secundarios que indexan el JD.
+| 域名 | 处理方式 |
+|------|---------|
+| `jobs.bytedance.com` / `talent.alibaba.com` / `careers.tencent.com` 等大厂自有域 | Playwright 直抓，通常 OK |
+| `zhipin.com`（Boss直聘） | **多数登录墙**，标 `[!]`，让用户手动贴 JD |
+| `lagou.com` | 列表可能可访问，详情常需登录 |
+| `liepin.com` | 同上 |
+| `maimai.cn`（脉脉招聘） | 必须登录 → `[!]` |
+| `linkedin.com/jobs` | 需要登录 → `[!]` 或让 Claude 用 chrome 模式 |
 
-**Casos especiales:**
-- **LinkedIn**: Puede requerir login → marcar `[!]` y pedir al usuario que pegue el texto
-- **PDF**: Si la URL apunta a un PDF, leerlo directamente con Read tool
-- **`local:` prefix**: Leer el archivo local. Ejemplo: `local:jds/linkedin-pm-ai.md` → leer `jds/linkedin-pm-ai.md`
+## 智能 JD 检测
 
-## Numeración automática
+1. **Playwright（首选）：** `browser_navigate` + `browser_snapshot`。能处理所有 SPA。
+2. **WebFetch（fallback）：** 静态页或 Playwright 不可用时。
+3. **WebSearch（最后手段）：** 在二级招聘站找 HTML 缓存。
 
-1. Listar todos los archivos en `reports/`
-2. Extraer el número del prefijo (e.g., `142-medispend...` → 142)
-3. Nuevo número = máximo encontrado + 1
+**特殊情况：**
+- **登录墙**：标 `[!]`，让用户手动贴 JD 文本
+- **PDF**：如果 URL 是 PDF，直接用 Read tool 读
+- **`local:` 前缀**：读本地文件。例：`local:jds/字节跳动-data-eng.md` → 读 `jds/字节跳动-data-eng.md`
 
-## Sincronización de fuentes
+## 自动编号
 
-Antes de procesar cualquier URL, verificar sync:
+1. 列出 `reports/` 所有文件
+2. 提取前缀的数字（如 `142-bytedance-...` → 142）
+3. 新编号 = 找到的最大值 + 1
+
+## 源同步检查
+
+处理任何 URL 之前，检查同步状态：
 ```bash
 node cv-sync-check.mjs
 ```
-Si hay desincronización, advertir al usuario antes de continuar.
+如果有 desync，警告用户后再继续。

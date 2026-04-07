@@ -19,6 +19,11 @@ jds/*
 config/profile.yml
 portals.yml
 
+# Personal CV and proof points (privacy)
+cv.md
+article-digest.md
+interview-prep/story-bank.md
+
 # Generated
 .resolved-prompt-*
 node_modules/

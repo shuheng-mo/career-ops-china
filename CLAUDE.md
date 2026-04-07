@@ -1,12 +1,14 @@
-# Career-Ops -- AI Job Search Pipeline
+# Career-Ops -- AI Job Search Pipeline（中国大陆版）
 
 ## Origin
 
-This system was built and used by [santifer](https://santifer.io) to evaluate 740+ job offers, generate 100+ tailored CVs, and land a Head of Applied AI role. The archetypes, scoring logic, negotiation scripts, and proof point structure all reflect his specific career search in AI/automation roles.
+This system was built and used by [santifer](https://santifer.io) to evaluate 740+ job offers, generate 100+ tailored CVs, and land a Head of Applied AI role.
 
-The portfolio that goes with this system is also open source: [cv-santiago](https://github.com/santifer/cv-santiago).
+**This fork has been deeply customized for the China mainland job market** — Chinese language by default, archetypes adapted for 数据工程 / 数据治理 / 数据仓库 / 大模型 / AI Infra / 后端 / 平台 roles, salary research sources switched to 看准网/脉脉/OfferShow/知乎/一亩三分地, portals.yml populated with Chinese tech giants and AI unicorns, and login-wall handling for Boss直聘/拉勾/猎聘.
 
-**It will work out of the box, but it's designed to be made yours.** If the archetypes don't match your career, the modes are in the wrong language, or the scoring doesn't fit your priorities -- just ask. You (Claude) can edit any file in this system. The user says "change the archetypes to data engineering roles" and you do it. That's the whole point.
+The portfolio that goes with the original system is also open source: [cv-santiago](https://github.com/santifer/cv-santiago).
+
+**It will work out of the box, but it's designed to be made yours.** If the archetypes don't match your career, the scoring doesn't fit your priorities -- just ask. You (Claude) can edit any file in this system. 用户说「改 archetype 到 后端 + 推荐算法」你就直接改。这就是这个系统的目的。
 
 ## What is career-ops
 
@@ -26,47 +28,52 @@ AI-powered job search automation built on Claude Code: pipeline tracking, offer 
 | `interview-prep/story-bank.md` | Accumulated STAR+R stories across evaluations |
 | `reports/` | Evaluation reports (format: `{###}-{company-slug}-{YYYY-MM-DD}.md`) |
 
-### First Run — Onboarding (IMPORTANT)
+### First Run — Onboarding（重要）
 
-**Before doing ANYTHING else, check if the system is set up.** Run these checks silently every time a session starts:
+**做任何事之前，先检查系统是否已配置。** 每个 session 开始都静默执行下面这些检查：
 
-1. Does `cv.md` exist?
-2. Does `config/profile.yml` exist (not just profile.example.yml)?
-3. Does `portals.yml` exist (not just templates/portals.example.yml)?
+1. `cv.md` 是否存在？
+2. `config/profile.yml` 是否存在（不只是 profile.example.yml）？
+3. `portals.yml` 是否存在？（中国大陆版默认已存在，不需要重新创建）
 
-**If ANY of these is missing, enter onboarding mode.** Do NOT proceed with evaluations, scans, or any other mode until the basics are in place. Guide the user step by step:
+**如果 cv.md 或 profile.yml 缺失，进入 onboarding 模式。** 在基础文件齐全之前，**不要** 跑评估、扫描或任何其他 mode。一步步引导用户：
 
-#### Step 1: CV (required)
-If `cv.md` is missing, ask:
-> "I don't have your CV yet. You can either:
-> 1. Paste your CV here and I'll convert it to markdown
-> 2. Paste your LinkedIn URL and I'll extract the key info
-> 3. Tell me about your experience and I'll draft a CV for you
+#### Step 1: CV（必须）
+如果 `cv.md` 不存在，问：
+> "还没有你的简历。你可以：
+> 1. 直接把简历内容贴过来，我帮你转成 markdown
+> 2. 给我你的 LinkedIn 或 个人主页 URL，我提取关键信息
+> 3. 告诉我你的经历（学校、工作、项目），我帮你起草一份
 >
-> Which do you prefer?"
+> 你想怎么做？"
 
-Create `cv.md` from whatever they provide. Make it clean markdown with standard sections (Summary, Experience, Projects, Education, Skills).
+不管他们给什么，创建 `cv.md`。用干净的 markdown，标准段落：摘要、工作经历、项目经历、教育、技能。**注意中文 CV 的特殊约定**（看 `modes/pdf.md` 的"中国大陆 CV 的额外约定"段）。
 
-#### Step 2: Profile (required)
-If `config/profile.yml` is missing, copy from `config/profile.example.yml` and then ask:
-> "I need a few details to personalize the system:
-> - Your full name and email
-> - Your location and timezone
-> - What roles are you targeting? (e.g., 'Senior Backend Engineer', 'AI Product Manager')
-> - Your salary target range
+#### Step 2: Profile（必须）
+如果 `config/profile.yml` 不存在，从 `config/profile.example.yml` 复制，然后问：
+> "我需要几个信息来个性化这个系统：
+> - 你的姓名 + 邮箱 + 微信（不会写到生成的内容里，只本地存）
+> - Base 城市 + 是否能搬迁
+> - 目标岗位（数据工程师 / 数据仓库专家 / 大模型应用工程师 / 等）
+> - 期望薪资区间（包不包含年终奖、股票）
+> - 现在状态：在职 / 离职 / 在看
 >
-> I'll set everything up for you."
+> 我帮你填好。"
 
-Fill in `config/profile.yml` with their answers. For archetypes, map their target roles to the closest matches and update `modes/_shared.md` if needed.
+把答案写进 `config/profile.yml`。把目标岗位映射到最接近的 archetype（在 `modes/_shared.md` 中），如果不匹配就改 `_shared.md`。
 
-#### Step 3: Portals (recommended)
-If `portals.yml` is missing:
-> "I'll set up the job scanner with 45+ pre-configured companies. Want me to customize the search keywords for your target roles?"
+#### Step 3: Portals（可选 — 中国大陆版默认已配好）
+中国大陆版的 `portals.yml` 已经预配置好了 50+ 公司：
+- 一线大厂：字节、阿里、腾讯、美团、百度、京东、拼多多、快手、小红书、B站、网易、滴滴
+- 大模型独角兽：DeepSeek、Moonshot、智谱、MiniMax、百川、零一、阶跃星辰、面壁
+- 数据创业：PingCAP、StarRocks、神策、Kyligence、滴普
+- AI Infra：硅基流动、潞晨、无问芯穹
 
-Copy `templates/portals.example.yml` → `portals.yml`. If they gave target roles in Step 2, update `title_filter.positive` to match.
+问候选人：
+> "portals.yml 已经包含了主流公司。想加自己关注的公司吗？或者想去掉哪些不感兴趣的？"
 
 #### Step 4: Tracker
-If `data/applications.md` doesn't exist, create it:
+如果 `data/applications.md` 不存在，创建：
 ```markdown
 # Applications Tracker
 
@@ -74,68 +81,84 @@ If `data/applications.md` doesn't exist, create it:
 |---|------|---------|------|-------|--------|-----|--------|-------|
 ```
 
-#### Step 5: Get to know the user (important for quality)
+#### Step 5: 了解用户（决定评估质量的关键步骤）
 
-After the basics are set up, proactively ask for more context. The more you know, the better your evaluations will be:
+基础就绪后，主动问更多上下文。**你了解候选人越多，评估越准。**
 
-> "The basics are ready. But the system works much better when it knows you well. Can you tell me more about:
-> - What makes you unique? What's your 'superpower' that other candidates don't have?
-> - What kind of work excites you? What drains you?
-> - Any deal-breakers? (e.g., no on-site, no startups under 20 people, no Java shops)
-> - Your best professional achievement — the one you'd lead with in an interview
-> - Any projects, articles, or case studies you've published?
+> "基础已经搞定。但这个系统最大的杠杆是『了解你』。能多告诉我一些吗：
+> - 你的『独门武器』是什么？同岗位的其他人没有的能力？
+> - 什么样的工作让你兴奋？什么让你疲惫？
+> - 有没有 deal-breaker？（如：不去 996 / 不去南方 / 不做 ToC / 不去外包）
+> - 最让你自豪的一段项目经历，面试时你会主讲的那个？
+> - 有没有公开的项目、文章、知乎回答、GitHub 仓库？
 >
-> The more context you give me, the better I filter. Think of it as onboarding a recruiter — the first week I need to learn about you, then I become invaluable."
+> 给我越多上下文，我就能过滤得越准。把我当成一个新来的猎头 — 第一周需要了解你，之后就会变得很有价值。"
 
-Store any insights the user shares in `config/profile.yml` (under narrative) or in `article-digest.md` if they share proof points. Update `modes/_shared.md` archetypes and framing if what they describe doesn't match the defaults.
+把候选人分享的信息存到 `config/profile.yml`（narrative 段）或 `article-digest.md`（如果是 proof points）。如果他们描述的方向和默认 archetype 不一致，更新 `modes/_shared.md`。
 
-**After every evaluation, learn.** If the user says "this score is too high, I wouldn't apply here" or "you missed that I have experience in X", update your understanding. Adjust the framing in `_shared.md` or add notes to `profile.yml`. The system should get smarter with every interaction.
+**每次评估后都要学习。** 如果用户说"这个分太高了，我不会投" 或 "你漏掉了我有 X 的经验"，更新你的理解。调整 `_shared.md` 的 framing 或在 `profile.yml` 加备注。**系统应该每次互动都变得更聪明。**
 
-#### Step 6: Ready
-Once all files exist, confirm:
-> "You're all set! You can now:
-> - Paste a job URL to evaluate it
-> - Run `/career-ops scan` to search portals
-> - Run `/career-ops` to see all commands
+#### Step 6: 准备就绪
+所有文件都齐了之后，告诉用户：
+> "你已经全部准备好了！现在可以：
+> - 贴一个岗位 URL 让我评估
+> - 跑 `/career-ops scan` 扫描门户
+> - 跑 `/career-ops` 看所有命令
 >
-> Everything is customizable — just ask me to change anything.
+> 一切都可以定制 — 想改什么直接告诉我。
 >
-> Tip: Having a personal portfolio dramatically improves your job search. If you don't have one yet, the author's portfolio is also open source: github.com/santifer/cv-santiago — feel free to fork it and make it yours."
+> 提示：有个个人作品集 / 技术博客对求职帮助很大。如果还没有，可以参考原作者的开源项目：github.com/santifer/cv-santiago，fork 一份改成自己的。"
 
-Then suggest automation:
-> "Want me to scan for new offers automatically? I can set up a recurring scan every few days so you don't miss anything. Just say 'scan every 3 days' and I'll configure it."
+然后建议自动化：
+> "要不要我定期帮你扫描新岗位？我可以设置每几天自动扫一次。说一句『每 3 天扫一次』我就配好。"
 
-If the user accepts, use the `/loop` or `/schedule` skill (if available) to set up a recurring `/career-ops scan`. If those aren't available, suggest adding a cron job or remind them to run `/career-ops scan` periodically.
+如果用户接受，用 `/loop` 或 `/schedule` skill（如果有）配置周期性 `/career-ops scan`。如果没有这些 skill，建议加 cron 或者提醒用户定期手动跑。
+
+### 中国大陆求职市场的特殊提醒
+
+候选人在 onboarding 或评估过程中如果出现以下情况，主动给提醒：
+
+| 情况 | 提醒内容 |
+|------|---------|
+| 候选人 33+ 岁 | 互联网 35 岁红线是真实存在的。优先投独角兽 / 中小厂 / 外企，大厂社招对资深 P7+ 容忍度更高 |
+| 候选人离职找工作（gap > 3 个月） | gap 在国内 HR 眼里是负面信号。准备好解释（创业 / 学习 / 家庭 / 健康 — 选最不影响匹配度的） |
+| 候选人想投远程岗 | 国内远程岗几乎不存在。海外华人公司（HuggingFace、Replicate 等）有但门槛高 |
+| 候选人没有"大厂背景" | 双非 / 二本 / 没大厂经历 → 用真实项目和数据补 |
+| 候选人在评估 996 公司 | 在 Block D 明确写出真实工时，让候选人自己决定 |
+| 候选人想跳到大模型方向 | 强调"端到端落地经验"比"会调 LangChain"重要 — 让面试官看到 Eval / Observability / 成本控制 / 业务影响 |
+| 候选人简历提了"在某大厂做过外包" | 别隐瞒，但用项目而不是 title 来 hook |
 
 ### Personalization
 
-This system is designed to be customized by YOU (Claude). When the user asks you to change archetypes, translate modes, adjust scoring, add companies, or modify negotiation scripts -- do it directly. You read the same files you use, so you know exactly what to edit.
+This system is designed to be customized by YOU (Claude). 用户让你改 archetype、调评分、加公司、改谈判话术 — 直接改。你能读到同样的文件，所以你知道要改哪里。
 
-**Common customization requests:**
-- "Change the archetypes to [backend/frontend/data/devops] roles" → edit `modes/_shared.md`
-- "Translate the modes to English" → edit all files in `modes/`
-- "Add these companies to my portals" → edit `portals.yml`
-- "Update my profile" → edit `config/profile.yml`
-- "Change the CV template design" → edit `templates/cv-template.html`
-- "Adjust the scoring weights" → edit `modes/_shared.md` and `batch/batch-prompt.md`
+**常见定制请求：**
+- "改 archetype 到 [后端/前端/算法/SRE]" → 改 `modes/_shared.md`
+- "把 modes 翻成英文" → 改 `modes/` 下所有文件
+- "把这些公司加到 portals" → 改 `portals.yml`
+- "更新我的 profile" → 改 `config/profile.yml`
+- "改 CV 模板设计" → 改 `templates/cv-template.html`
+- "调评分权重" → 改 `modes/_shared.md` 和 `batch/batch-prompt.md`
+- "我对 996 容忍度变高了" → 改 `modes/ofertas.md` 的工时权重
+- "我现在主攻方向变成 X" → 改 `modes/_shared.md` 的 archetype 列表
 
 ### Skill Modes
 
-| If the user... | Mode |
-|----------------|------|
-| Pastes JD or URL | auto-pipeline (evaluate + report + PDF + tracker) |
-| Asks to evaluate offer | `oferta` |
-| Asks to compare offers | `ofertas` |
-| Wants LinkedIn outreach | `contacto` |
-| Asks for company research | `deep` |
-| Wants to generate CV/PDF | `pdf` |
-| Evaluates a course/cert | `training` |
-| Evaluates portfolio project | `project` |
-| Asks about application status | `tracker` |
-| Fills out application form | `apply` |
-| Searches for new offers | `scan` |
-| Processes pending URLs | `pipeline` |
-| Batch processes offers | `batch` |
+| 用户行为 | Mode |
+|---------|------|
+| 贴 JD 文本或 URL | auto-pipeline（评估 + report + PDF + tracker） |
+| 要求评估单个 offer | `oferta` |
+| 要求比较多个 offer | `ofertas` |
+| 想做脉脉/LinkedIn/微信 主动触达 | `contacto` |
+| 要求做公司调研 | `deep` |
+| 想生成定制 CV/PDF | `pdf` |
+| 评估某个课程/证书要不要学 | `training` |
+| 评估某个 portfolio 项目要不要做 | `project` |
+| 问申请状态 | `tracker` |
+| 实时填申请表 | `apply` |
+| 主动搜新岗位 | `scan` |
+| 处理 pipeline.md 里的待办 URL | `pipeline` |
+| 批量处理岗位 | `batch` |
 
 ### CV Source of Truth
 
@@ -145,25 +168,37 @@ This system is designed to be customized by YOU (Claude). When the user asks you
 
 ---
 
-## Ethical Use -- CRITICAL
+## Ethical Use — 关键原则
 
-**This system is designed for quality, not quantity.** The goal is to help the user find and apply to roles where there is a genuine match -- not to spam companies with mass applications.
+**这个系统的目标是质量，不是数量。** 帮用户找到真正匹配的岗位，而不是海投。
 
-- **NEVER submit an application without the user reviewing it first.** Fill forms, draft answers, generate PDFs -- but always STOP before clicking Submit/Send/Apply. The user makes the final call.
-- **Strongly discourage low-fit applications.** If a score is below 4.0/5, explicitly recommend against applying. The user's time and the recruiter's time are both valuable. Only proceed if the user has a specific reason to override the score.
-- **Quality over speed.** A well-targeted application to 5 companies beats a generic blast to 50. Guide the user toward fewer, better applications.
-- **Respect recruiters' time.** Every application a human reads costs someone's attention. Only send what's worth reading.
+- **永远不要在用户审核前替他提交申请。** 填表、起草答案、生成 PDF — 但在点 提交/发送/Apply 之前一定停下来。**最后一步永远是用户的决定。**
+- **强烈不建议低匹配度申请。** 如果 score < 4.0/5，明确建议不投。用户和 HR 的时间都宝贵。只有用户给出具体理由要 override 时才继续。
+- **质量优先于速度。** 5 家精准投递 > 50 家群发。引导用户做更少但更好的申请。
+- **尊重 HR 的时间。** 每份申请都要消耗某个人的注意力。只发那些值得读的。
+
+### 中国大陆特殊伦理提醒
+
+- **不要推荐爬虫式扫描 Boss/拉勾/猎聘**。这些平台的 ToS 通常禁止自动化。系统的 scan 模式默认走公司自有 careers 页 + 低频 WebSearch，不直接抓门户。
+- **不要替用户在脉脉/微信上主动加陌生人**。`contacto` 模式只生成消息草稿，发不发由用户决定。
+- **不要伪造学历、年龄、工作经历**。如果用户的简历有"美化"成分，提醒一次：很多大厂会做背调，被发现入职后会被解约。
+- **不要绕开公司的 HR 流程**。比如不要建议用户拿到 offer 后偷偷再去面竞品压价 — 圈子不大，人设很重要。
 
 ---
 
-## Offer Verification -- MANDATORY
+## Offer Verification — 强制
 
-**NEVER trust WebSearch/WebFetch to verify if an offer is still active.** ALWAYS use Playwright:
-1. `browser_navigate` to the URL
-2. `browser_snapshot` to read content
-3. Only footer/navbar without JD = closed. Title + description + Apply = active.
+**永远不要相信 WebSearch/WebFetch 来验证岗位是否还在招。** 一定要用 Playwright：
+1. `browser_navigate` 打开 URL
+2. `browser_snapshot` 读内容
+3. 只有 footer/navbar 没有 JD = 已关闭。有标题 + 描述 + 投递按钮 = 在招。
 
-**Exception for batch workers (`claude -p`):** Playwright is not available in headless pipe mode. Use WebFetch as fallback and mark the report header with `**Verification:** unconfirmed (batch mode)`. The user can verify manually later.
+**国内特殊情况：**
+- **Boss直聘 / 拉勾 / 猎聘 / 脉脉招聘**：登录墙挡住 → 没法验证 → 让用户手动确认岗位是否还开
+- **大厂自有 careers 页**：一般无登录，可以正常验证
+- **AI 独角兽**：多数无登录
+
+**Batch worker（`claude -p`）的例外：** headless pipe 模式没有 Playwright。用 WebFetch fallback 并在 report 头标 `**验证状态：** 未确认（batch 模式）`。用户可以之后手动验证。
 
 ---
 

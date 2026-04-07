@@ -1,30 +1,53 @@
-# Modo: project — Evaluación de Proyecto Portfolio
+# Mode: project — Portfolio 项目评估
 
-Scoring 6 dimensiones (1-5):
+6 维度打分（1-5）：
 
-| Dimensión | Peso | 5 = ... | 1 = ... |
-|-----------|------|---------|---------|
-| Señal para roles target | 25% | Directamente demuestra skill del JD | No relacionado |
-| Unicidad | 20% | Nadie ha hecho esto | Todo el mundo lo tiene |
-| Demo-ability | 20% | Live demo en 2 min | Solo código, no visual |
-| Potencial de métricas | 15% | Métricas claras (latency, cost, accuracy) | Sin métricas posibles |
-| Tiempo a MVP | 10% | 1 semana | 3+ meses |
-| Potencial de historia STAR | 10% | Historia rica con trade-offs | Solo implementación |
+| 维度 | 权重 | 5 = ... | 1 = ... |
+|------|------|---------|---------|
+| 对目标岗位的信号 | 25% | 直接演示 JD 要的技能 | 完全不相关 |
+| 独特性 | 20% | 没人做过这个 | 满大街都是 |
+| 可演示性 | 20% | 有 live demo / 视频，2 分钟能看懂 | 只有代码，没有可视化 |
+| 量化指标潜力 | 15% | 有清晰指标（QPS / p99 / cost / 准确率） | 没有可量化指标 |
+| MVP 时间 | 10% | 1 周 | 3+ 个月 |
+| STAR 故事潜力 | 10% | 有丰富的 trade-off 可讲 | 只是实现 |
 
-## Requisitos de "Interview Pack"
+## "Interview Pack" 要求
 
-Para cada proyecto aprobado:
-1. **One-pager**: producto + arquitectura + métricas + plan de evaluación
-2. **Demo**: URL live o walkthrough grabado de 2 min
-3. **Postmortem**: qué funcionó, qué no, mitigaciones
+每个被认可的项目都要有：
+1. **One-pager**：产品定位 + 架构图 + 核心指标 + 评估方案
+2. **Demo**：可以 live 访问的 URL，或一段 2 分钟的录屏 walkthrough
+3. **Postmortem**：什么 work，什么不 work，怎么修
 
-## Plan 80/20
+**国内特有的：**
+- 最好有一篇 **公众号 / 知乎专栏 / 掘金文章** 写这个项目 — 国内 HR 会搜
+- 可以同步发到 **GitHub**，README 用中英双语，方便被外企 HR 看到
+- B 站发个录屏会有 bonus
 
-- Semana 1 → MVP con métrica core
-- Semana 2 → polish + interview pack
+## 80/20 计划
 
-## Veredictos
+- **第 1 周** → MVP，跑通核心指标
+- **第 2 周** → 抛光 + 写 one-pager + 录 demo + 写文章
 
-- **CONSTRUIR** → plan con milestones semanales
-- **SKIP** → por qué y qué hacer en su lugar
-- **PIVOTAR A [alternativa]** → variante más impactante
+## 推荐结论
+
+- **做** → 给周计划 + 每周 milestone
+- **不做** → 解释为什么 + 有什么更好的替代
+- **改方向到 [替代]** → 给出更高 ROI 的变体
+
+## 适合 数据/AI/平台 的项目方向
+
+**数据工程：** 自己搭一个真实的数据 pipeline（如：抓某个数据源 → Kafka → Flink → Doris → 自建可视化），写出每秒处理量、p99 延迟、降本数据。
+
+**数仓建模：** 选一个公开数据集（如 TPC-H / 真实电商数据），从 0 开始建分层（ODS/DWD/DWS/ADS），写迭代过程和取舍。
+
+**大模型应用：** 一个垂类的 RAG 助手（不是又一个 ChatPDF），有 Eval 报告、有用户量（哪怕只有 100 用户）、有效果迭代记录。
+
+**AI Infra：** 自己部署一个推理服务（vLLM / SGLang），做 benchmark，对比不同配置的吞吐和延迟，写技术博客。
+
+**后端 / 平台：** 自己搭一个能跑的中台（如订单系统、内容管理系统），强调高并发和可靠性。
+
+**关键原则：**
+1. **真实可访问** > 完美但只能本地跑
+2. **有数据** > 没数据
+3. **有迭代过程文档** > 一次性交付
+4. **能 2 分钟讲清楚** > 需要 30 分钟才能讲明白

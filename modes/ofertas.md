@@ -1,21 +1,31 @@
-# Modo: ofertas — Comparación Multi-Oferta
+# Mode: ofertas — 多 Offer 比较
 
-Scoring matrix de 10 dimensiones ponderadas:
+10 维加权打分矩阵：
 
-| Dimensión | Peso | Criterios 1-5 |
-|-----------|------|----------------|
-| Alineación North Star | 25% | 5=rol target exacto, 1=no relacionado |
-| Match CV | 15% | 5=90%+ match, 1=<40% match |
-| Nivel (senior+) | 15% | 5=staff+, 4=senior, 3=mid-senior, 2=mid, 1=junior |
-| Comp estimada | 10% | 5=top quartile, 1=below market |
-| Trayectoria crecimiento | 10% | 5=clear path to next level, 1=dead end |
-| Calidad remoto | 5% | 5=full remote async, 1=onsite only |
-| Reputación empresa | 5% | 5=top employer, 1=red flags |
-| Modernidad tech stack | 5% | 5=cutting edge AI/ML, 1=legacy |
-| Velocidad a oferta | 5% | 5=fast process, 1=6+ months |
-| Señales culturales | 5% | 5=builder culture, 1=bureaucratic |
+| 维度 | 权重 | 1-5 评分标准 |
+|------|------|-------------|
+| 北极星对齐度 | 25% | 5=完全对齐目标 archetype，1=不相关 |
+| CV 匹配度 | 15% | 5=90%+ 匹配，1=<40% |
+| 级别（资深+） | 15% | 5=专家/架构师，4=资深，3=高级，2=中级，1=初级 |
+| Comp（含工时换算） | 15% | 5=明显高于市场，1=明显低于市场（**含 996/大小周折算**） |
+| 成长路径 | 10% | 5=清晰晋升通道，1=死胡同 |
+| 工时与生活 | 10% | 5=双休不强制加班，3=偶尔加班，1=996/大小周 |
+| 公司稳定性 / 业务前景 | 10% | 5=头部稳，1=随时裁员风险 |
+| 技术栈现代度 | 5% | 5=前沿技术（大模型/湖仓一体），1=老旧 |
+| 流程速度 | 5% | 5=快流程（2-3 周），1=拖 6+ 个月 |
+| 文化信号 | 5% | 5=工程师文化，1=PUA / 官僚 |
 
-Para cada oferta: score en cada dimensión, score ponderado total.
-Ranking final + recomendación con consideraciones de time-to-offer.
+**注意权重分配的中国版改动：**
+- **Comp 从 10% 提到 15%** — 国内 comp 差异大
+- **工时从 5% 提到 10%** — 大小周/996 直接影响生活质量
+- **公司稳定性从 5% 提到 10%** — 国内裁员/优化频繁
+- **远程质量去掉了** — 国内远程岗几乎没有
 
-Pedir al usuario las ofertas si no están en contexto. Puede ser texto, URLs, o referencias a ofertas ya evaluadas en el tracker.
+每个 offer：每个维度打分 → 加权总分。
+最终排名 + 推荐，需要考虑：
+- 时间到 offer 的成本
+- 跨城市搬迁成本
+- 现有 offer 的截止时间
+- 心理上能否接受拒掉某个 offer
+
+如果 offer 没在上下文中，让用户提供。可以是文本、URL、或者 tracker 里已评估的引用。

@@ -9,48 +9,48 @@
 states:
   - id: evaluated
     label: Evaluated
-    aliases: [evaluada]
-    description: Offer evaluated with report, pending decision
+    aliases: [evaluada, 已评估, 评估完成, 待决定]
+    description: Offer evaluated with report, pending decision (已评估，待决定)
     dashboard_group: evaluated
 
   - id: applied
     label: Applied
-    aliases: [aplicado, enviada, aplicada, sent]
-    description: Application submitted
+    aliases: [aplicado, enviada, aplicada, sent, 已申请, 已投递, 已投, 投递]
+    description: Application submitted (已投递)
     dashboard_group: applied
 
   - id: responded
     label: Responded
-    aliases: [respondido]
-    description: Company has responded (not yet interview)
+    aliases: [respondido, 已回复, 有回应, HR已联系, hr联系]
+    description: Company has responded (HR 已加微信/约电话/约面试，但还没正式面试)
     dashboard_group: responded
 
   - id: interview
     label: Interview
-    aliases: [entrevista]
-    description: Active interview process
+    aliases: [entrevista, 面试中, 面试, 一面, 二面, 三面, hr面]
+    description: Active interview process (面试流程中)
     dashboard_group: interview
 
   - id: offer
     label: Offer
-    aliases: [oferta]
-    description: Offer received
+    aliases: [oferta, 拿到offer, 已offer, offer]
+    description: Offer received (拿到 offer)
     dashboard_group: offer
 
   - id: rejected
     label: Rejected
-    aliases: [rechazado, rechazada]
-    description: Rejected by company
+    aliases: [rechazado, rechazada, 被拒, 拒了, 拒信, 已拒]
+    description: Rejected by company (公司拒绝)
     dashboard_group: rejected
 
   - id: discarded
     label: Discarded
-    aliases: [descartado, descartada, cerrada, cancelada]
-    description: Discarded by candidate or offer closed
+    aliases: [descartado, descartada, cerrada, cancelada, 自己放弃, 已放弃, 撤回, 关闭]
+    description: Discarded by candidate or offer closed (自己撤回或岗位关闭)
     dashboard_group: discarded
 
   - id: skip
     label: SKIP
-    aliases: [no_aplicar, no aplicar, skip, monitor]
-    description: Doesn't fit, don't apply
+    aliases: [no_aplicar, no aplicar, skip, monitor, 不投, 跳过, skip]
+    description: Doesn't fit, don't apply (不匹配，不投)
     dashboard_group: skip

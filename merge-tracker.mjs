@@ -15,9 +15,11 @@
  */
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, renameSync, existsSync } from 'fs';
-import { join, basename } from 'path';
+import { join, basename, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-const CAREER_OPS = new URL('.', import.meta.url).pathname;
+// fileURLToPath handles spaces in path correctly (vs .pathname which encodes them as %20)
+const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
 // Support both layouts: data/applications.md (boilerplate) and applications.md (original)
 const APPS_FILE = existsSync(join(CAREER_OPS, 'data/applications.md'))
   ? join(CAREER_OPS, 'data/applications.md')
@@ -27,8 +29,8 @@ const MERGED_DIR = join(ADDITIONS_DIR, 'merged');
 const DRY_RUN = process.argv.includes('--dry-run');
 const VERIFY = process.argv.includes('--verify');
 
-// Canonical states and aliases
-const CANONICAL_STATES = ['Evaluada', 'Aplicado', 'Respondido', 'Entrevista', 'Oferta', 'Rechazado', 'Descartado', 'NO APLICAR'];
+// Canonical states (must match templates/states.yml — English labels)
+const CANONICAL_STATES = ['Evaluated', 'Applied', 'Responded', 'Interview', 'Offer', 'Rejected', 'Discarded', 'SKIP'];
 
 function validateStatus(status) {
   const clean = status.replace(/\*\*/g, '').replace(/\s+\d{4}-\d{2}-\d{2}.*$/, '').trim();
@@ -38,23 +40,36 @@ function validateStatus(status) {
     if (valid.toLowerCase() === lower) return valid;
   }
 
-  // Aliases
+  // Aliases — Spanish (legacy) + Chinese + common synonyms
   const aliases = {
-    'enviada': 'Aplicado', 'aplicada': 'Aplicado', 'applied': 'Aplicado', 'sent': 'Aplicado',
-    'cerrada': 'Descartado', 'descartada': 'Descartado', 'cancelada': 'Descartado',
-    'rechazada': 'Rechazado',
-    'no aplicar': 'NO APLICAR', 'no_aplicar': 'NO APLICAR', 'skip': 'NO APLICAR', 'monitor': 'NO APLICAR',
-    'condicional': 'Evaluada', 'hold': 'Evaluada', 'evaluar': 'Evaluada', 'verificar': 'Evaluada',
-    'geo blocker': 'NO APLICAR',
+    // Spanish legacy → English canonical
+    'evaluada': 'Evaluated', 'evaluar': 'Evaluated', 'condicional': 'Evaluated', 'hold': 'Evaluated', 'verificar': 'Evaluated',
+    'aplicado': 'Applied', 'aplicada': 'Applied', 'enviada': 'Applied', 'sent': 'Applied',
+    'respondido': 'Responded',
+    'entrevista': 'Interview',
+    'oferta': 'Offer',
+    'rechazado': 'Rejected', 'rechazada': 'Rejected',
+    'descartado': 'Discarded', 'descartada': 'Discarded', 'cerrada': 'Discarded', 'cancelada': 'Discarded',
+    'no aplicar': 'SKIP', 'no_aplicar': 'SKIP', 'monitor': 'SKIP',
+    'geo blocker': 'SKIP',
+    // Chinese aliases (matching templates/states.yml)
+    '已评估': 'Evaluated', '评估完成': 'Evaluated', '待决定': 'Evaluated',
+    '已申请': 'Applied', '已投递': 'Applied', '已投': 'Applied', '投递': 'Applied',
+    '已回复': 'Responded', '有回应': 'Responded', 'hr已联系': 'Responded',
+    '面试中': 'Interview', '面试': 'Interview', '一面': 'Interview', '二面': 'Interview', '三面': 'Interview',
+    '拿到offer': 'Offer', '已offer': 'Offer',
+    '被拒': 'Rejected', '拒了': 'Rejected', '已拒': 'Rejected', '拒信': 'Rejected',
+    '自己放弃': 'Discarded', '已放弃': 'Discarded', '撤回': 'Discarded', '关闭': 'Discarded',
+    '不投': 'SKIP', '跳过': 'SKIP',
   };
 
   if (aliases[lower]) return aliases[lower];
 
-  // DUPLICADO/Repost → Descartado
-  if (/^(duplicado|dup|repost)/i.test(lower)) return 'Descartado';
+  // DUPLICADO/Repost → Discarded
+  if (/^(duplicado|dup|repost)/i.test(lower)) return 'Discarded';
 
-  console.warn(`⚠️  Non-canonical status "${status}" → defaulting to "Evaluada"`);
-  return 'Evaluada';
+  console.warn(`⚠️  Non-canonical status "${status}" → defaulting to "Evaluated"`);
+  return 'Evaluated';
 }
 
 function normalizeCompany(name) {

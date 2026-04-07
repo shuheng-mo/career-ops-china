@@ -133,7 +133,7 @@ site:51job.com "数据平台" 高级
    - `pipeline.md` → URL 已在待办或已处理
 
 8. **每个新岗位通过过滤后：**
-   a. 加进 `pipeline.md` "Pendientes" / "待处理" 段：`- [ ] {url} | {company} | {title}`
+   a. 加进 `pipeline.md` "待处理" 段：`- [ ] {url} | {company} | {title}`
    b. 写入 `scan-history.tsv`：`{url}\t{date}\t{query_name}\t{title}\t{company}\tadded`
 
 9. **被过滤的：** `scan-history.tsv` 标 `skipped_title`

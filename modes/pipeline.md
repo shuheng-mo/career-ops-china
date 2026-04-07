@@ -4,7 +4,7 @@
 
 ## Workflow
 
-1. **读** `data/pipeline.md` → 找 "Pendientes" / "待处理" 段里的 `- [ ]` 条目
+1. **读** `data/pipeline.md` → 找 "待处理" 段里的 `- [ ]` 条目
 2. **对每个待处理 URL：**
    a. 计算下一个 `REPORT_NUM`（读 `reports/`，找最大序号 + 1）
    b. **提取 JD** → Playwright (browser_navigate + browser_snapshot) → WebFetch → WebSearch

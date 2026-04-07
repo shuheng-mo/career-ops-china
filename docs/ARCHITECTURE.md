@@ -103,7 +103,7 @@ Scripts maintain data consistency:
 
 The `dashboard/` directory contains a standalone Go TUI application that visualizes the pipeline:
 
-- Filter tabs: All, Evaluada, Aplicado, Entrevista, Top >=4, No Aplicar
+- Filter tabs: All, Evaluated, Applied, Interview, Top >=4, SKIP
 - Sort modes: Score, Date, Company, Status
 - Grouped/flat view
 - Lazy-loaded report previews

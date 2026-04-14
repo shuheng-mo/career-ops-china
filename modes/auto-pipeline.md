@@ -4,21 +4,52 @@
 
 ## Step 0 — 提取 JD
 
-如果输入是 **URL**（不是已经贴出来的 JD 文本），按下面顺序提取：
+**输入分类与处理（按推荐度排序）：**
 
-**优先级：**
+### ✅ 优先级 1：JD 截图（图片附件）— **国内主路径**
 
-1. **Playwright（首选）：** 多数招聘门户是 SPA。用 `browser_navigate` + `browser_snapshot` 渲染并读 JD。
-2. **WebFetch（fallback）：** 静态页面，或者公司自己的 careers 页。
-3. **WebSearch（最后手段）：** 用岗位名 + 公司搜，可能在二级招聘站找到 HTML 缓存。
+如果用户拖了截图进来：**直接读图提取 JD**。Claude 多模态能力直接 OCR + 理解。
 
-**国内特殊情况：**
-- **Boss直聘 / 拉勾 / 猎聘 / 脉脉招聘** 多数需要登录 → Playwright 默认抓不到 → 让候选人手动贴 JD 或截图
-- **大厂自有 careers 页**（字节/阿里/腾讯/美团/小红书 等）通常无需登录 → Playwright 可以直接抓
+无任何反爬风险，覆盖 Boss / Mokahr / 飞书 / 微信 / 脉脉 等所有"看得到但抓不到"的场景。
 
-**所有方法都失败时：** 让候选人手动贴 JD 文本或分享截图。
+### ✅ 优先级 2：JD 文本（粘贴）
 
-**如果输入是 JD 文本**（不是 URL）：直接用，不需要 fetch。
+直接用，不需要 fetch。
+
+### ⚠️ 优先级 3：URL — 国内大概率失败
+
+按下面顺序尝试，**但有铁律**：
+
+1. **WebFetch 一次** — 公司自有静态 careers 页 / V2EX / GitHub README / 知乎文章 通常能拿到
+2. **如果失败 / 拿到的是 SPA 壳 / 登录墙提示 → 立刻停止**
+
+**🛑 国内门户白名单（看到就不要尝试自动化）：**
+
+| 域名 | 行为 |
+|------|------|
+| `zhipin.com`（Boss直聘） | 直接告诉用户「Boss 反爬严，请截图」 |
+| `liepin.com` 详情页 | 同上 |
+| `lagou.com` 详情页 | 同上 |
+| `maimai.cn` | 同上 |
+| `mokahr.com` | 同上（DeepSeek 等独角兽 ATS） |
+| `*.feishu.cn` 表单 | 同上（飞书招聘表单） |
+| `mp.weixin.qq.com` | 试一次 WebFetch，失败立刻 yield |
+
+**绝对不要：** 反复 retry / 切换 user-agent / 加 cookies / 启 Playwright headful 等"绕反爬"操作。**国内反爬团队比你专业，徒劳。**
+
+### Yield 给用户的话术模板
+
+WebFetch 失败时一次性说清楚：
+
+```
+这个 URL 抓不到（{原因：登录墙 / SPA 壳 / 反爬}）。
+请用以下任一方式给我 JD：
+1. 截图 JD 区域（Cmd+Shift+4）→ 拖到对话框
+2. 复制 JD 全文 → 粘贴
+然后我自动跑完整 pipeline。
+```
+
+不要重试，不要换工具。直接 yield，等用户输入。
 
 ## Step 1 — A-F 评估
 完全按 `offer` mode 跑（读 `modes/offer.md` 的 A-F 六块）。

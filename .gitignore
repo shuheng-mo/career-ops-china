@@ -20,6 +20,12 @@ batch/tracker-additions/merged/
 jds/*
 !jds/.gitkeep
 
+# === Browser bookmarklet inbox（本地 JD 捕获，含真实公司数据）===
+inbox/*
+!inbox/.gitkeep
+!inbox/processed/.gitkeep
+tools/install.html
+
 # === User config (copy from templates/*.example.yml) ===
 config/profile.yml
 portals.yml

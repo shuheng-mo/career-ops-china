@@ -1,104 +1,87 @@
-# Mode: scan — 门户扫描器（中国大陆版）
+# Mode: scan — 招聘线索发现器（中国大陆版）
 
-扫描配置好的招聘门户和公司 careers 页，按标题相关性过滤，把新职位塞进 pipeline 等待评估。
+> **⚠️ 重要范式变更（2026-04 重写）**
+>
+> **scan 是「线索发现」工具，不是「JD 提取」工具。**
+>
+> 国内主流平台（Boss直聘 / 拉勾 / 猎聘 / 脉脉 / Mokahr / 飞书表单）有**严苛的反爬 + 反复制 + 登录墙 + SPA**，自动化提取 JD 在 99% 场景下不可行，硬撑只会浪费时间。
+>
+> scan 的现实定位：
+> 1. ✅ 发现"哪些公司在招"、"岗位标题大致是什么"、"在哪个 URL"
+> 2. ❌ **不**承诺取到 JD 全文
+> 3. ✅ 把发现的 URL 列表交给用户，**用户用截图/手动复制方式把 JD 给 Claude**
 
-## 推荐执行方式
+---
 
-作为 subagent 跑，避免污染主上下文：
+## 中国大陆推荐工作流（**主路径**）
 
 ```
-Agent(
-    subagent_type="general-purpose",
-    prompt="[本文件内容 + 具体数据]",
-    run_in_background=True
-)
+┌──────────────────────────────────────────────────────────────┐
+│ 用户日常发现岗位的 5 种方式（按推荐度排序）                 │
+├──────────────────────────────────────────────────────────────┤
+│ 1. 截图 JD → 拖到对话框 → /career-ops auto-pipeline          │
+│    ✅ 覆盖率 100%（Boss/Mokahr/飞书/微信/脉脉 全适用）        │
+│    ✅ 5 秒/岗位，零反爬风险                                  │
+│                                                              │
+│ 2. 复制 JD 全文 → 粘贴到对话框 → auto-pipeline                │
+│    ✅ 适用于允许复制的网站（liepin 部分页 / V2EX / 知乎）    │
+│                                                              │
+│ 3. 邮件订阅（Boss/拉勾/猎聘 关键词推送）→ 邮箱里能看到 JD     │
+│    → 用 lark-mail 或转发到 Claude                            │
+│    ✅ 完全被动，每天自动流入                                 │
+│                                                              │
+│ 4. 内推贴 / 公众号 / V2EX → 完整 JD 公开                     │
+│    → 复制 URL，auto-pipeline 通常能直接 WebFetch              │
+│                                                              │
+│ 5. /career-ops scan（本 mode）→ 仅获取 URL + 标题列表        │
+│    → 用户对感兴趣的岗位用方式 1 / 2 取 JD                    │
+│    ⚠️ 不要期待 scan 直接给你 JD                              │
+└──────────────────────────────────────────────────────────────┘
 ```
+
+**给 Claude 的核心规则：**
+> 任何时候用户说「评估这个岗位」+ 给了 URL，**先尝试 WebFetch 一次**。如果失败（登录墙 / SPA / 反爬），**立即停止尝试自动化**，告诉用户：「这个 URL 抓不到 JD，请截图给我或复制 JD 文本」。**不要在国内门户上反复挣扎。**
+
+---
+
+## scan 实际能做什么
+
+| 能 | 不能 |
+|----|------|
+| ✅ 用 Playwright 抓**大厂自有 careers 页**的岗位列表（标题 + URL，多数无登录） | ❌ 抓 Boss直聘 / 拉勾 / 猎聘 / Mokahr 的 JD 详情 |
+| ✅ 用 WebSearch 在搜索引擎层面**发现**岗位 URL（`site:` 过滤） | ❌ 验证 Boss/拉勾的岗位是否还在招 |
+| ✅ 监听公开渠道：V2EX 招聘版、GitHub 招聘 README、知乎招聘文章、公众号文章 URL | ❌ 抓取脉脉/微信公众号/飞书表单内容 |
+| ✅ 把发现的 URL 写进 `pipeline.md`，标注是否需要人工取 JD（`[ ]` 可取 / `[!]` 需人工） | ❌ 替用户筛选 JD 内容（因为大部分时候根本抓不到） |
+| ✅ 维护 `scan-history.tsv` 去重 | — |
+
+---
 
 ## 配置
 
 读 `portals.yml`：
-- `search_queries` — WebSearch queries 带 `site:` 过滤（广度发现）
-- `tracked_companies` — 直接抓的公司列表，每条带 `careers_url`
+- `search_queries` — WebSearch queries（广度发现）
+- `tracked_companies` — 大厂直抓列表，每条带 `careers_url`
 - `title_filter` — positive/negative/seniority_boost 关键词
 
-## 中国大陆特殊情况 ⚠️
+---
 
-国内招聘门户和西方差异很大，**默认 Playwright 抓取大概率会失败**。原因：
+## 国内平台 — 实际表现速查
 
-| 平台 | 问题 | 应对 |
-|------|------|------|
-| **Boss直聘（zhipin.com）** | 必须登录才能看 JD；强反爬（滑块/IP 封禁/手机验证） | 不放进自动 scan，**只用「人工贴 URL → offer 评估」模式** |
-| **拉勾（lagou.com）** | 部分岗位需登录；反爬中等 | 可以用 WebSearch 发现，但 JD 提取常需要人工 |
-| **猎聘（liepin.com）** | 列表页可看，详情页要登录；反爬中等 | 同拉勾 |
-| **智联招聘（zhaopin.com）** | 列表可看，详情可看但反爬严 | 可以试 Playwright，频率必须低 |
-| **51job（51job.com）** | 反爬较弱 | OK |
-| **脉脉招聘** | 必须登录 | 不放进自动 scan |
-| **大厂自有 careers 页** | 多数无需登录（字节/阿里/腾讯/美团/快手/小红书 等） | ✅ **首选方式 — Playwright 直抓** |
-| **AI 独角兽 careers 页** | 多数无需登录，但有些是飞书表单嵌入 | ✅ Playwright 直抓 |
+| 平台 | scan 能做 | 备注 |
+|------|----------|------|
+| **大厂自有 careers**（字节/阿里/腾讯/美团/快手/小红书/B站 等） | ✅ Playwright 抓岗位列表 OK | 详情页可能 SPA → 列表足够，详情让用户截图 |
+| **AI 独角兽 careers**（DeepSeek/Moonshot/智谱/MiniMax 等） | ⚠️ 部分能抓，多数嵌入 Mokahr / 飞书表单 → 列表抓不完整 | 标题 + 入口 URL 给到用户，让用户自己进 |
+| **Boss直聘** | ❌ 列表 + 详情都登录墙 | **不要尝试 Playwright**。WebSearch 只能拿到 URL + 标题片段，详情让用户截图 |
+| **拉勾** | ⚠️ 列表偶尔可见，详情常需登录 | 同上 |
+| **猎聘** | ⚠️ 列表可见，详情登录墙 | 同上 |
+| **智联** | ⚠️ 反爬严，频率必须低 | 不推荐 |
+| **51job** | ✅ 反爬较弱 | 可以试，但岗位质量一般 |
+| **脉脉招聘** | ❌ 必须登录 | 不放进 scan |
+| **V2EX 招聘版** | ✅ WebFetch JD 全文 | 内推贴的 JD 多数公开完整 |
+| **GitHub 招聘 README**（如 `awesome-jobs`、各 AI 公司开源仓库的 hiring 段） | ✅ WebFetch | JD 全文公开 |
+| **公众号文章** | ⚠️ 部分 URL 能 WebFetch（要看是否 mp.weixin） | 抓不到的让用户复制 |
 
-**总策略：**
-1. **大厂和独角兽** 用 Playwright 直接抓 careers 页（Level 1）
-2. **门户站（Boss/拉勾/猎聘）** 只用 WebSearch 发现 URL，不尝试自动抓 JD（Level 3）
-3. **抓不到的 URL** 标记 `[!]` 留给人工
-
-### 复用登录态的高级方案（可选）
-
-如果你愿意让 Claude 用你的 Chrome 登录态：
-
-```bash
-# 用 Playwright 启动一个绑定你 Chrome user data 的实例
-npx playwright launch --user-data-dir="$HOME/Library/Application Support/Google/Chrome/Default"
-```
-
-或者在 Claude Code 里用 `claude --chrome` 模式（参考 `modes/batch.md`），让它复用你已登录的 Chrome 来浏览 Boss/脉脉。**但要注意：高频访问会被封号，频率自己掌握。**
-
-## 三层发现策略
-
-### Level 1 — Playwright 直抓（主力）
-
-**对每个 `tracked_companies` 中的公司：** 用 Playwright `browser_navigate` + `browser_snapshot` 直接打开 careers 页，读所有可见的 job listing，提取 title + URL。这是最可靠的方式：
-
-- 实时看到页面（不依赖 Google 缓存）
-- 能处理 SPA（飞书表单、自有 SPA 等）
-- 新岗位即时发现
-- 不依赖 Google 索引
-
-**每个公司必须有 `careers_url`。** 没有就找一次、存进 portals.yml、之后复用。
-
-**国内大厂的 careers 页大致模式：**
-- 字节跳动：`https://jobs.bytedance.com/experienced/position`
-- 阿里巴巴：`https://talent.alibaba.com/off-campus`
-- 腾讯：`https://careers.tencent.com/search.html`
-- 美团：`https://zhaopin.meituan.com/web/position`
-- 小红书：`https://job.xiaohongshu.com`
-- 快手：`https://campus.kuaishou.cn`（应届）/ `https://zhaopin.kuaishou.cn`（社招）
-- 拼多多：`https://careers.pinduoduo.com`
-- B 站：`https://jobs.bilibili.com`
-- 网易：`https://hr.163.com/job-list.html`
-
-### Level 2 — Greenhouse / Lever / Ashby API（仅少数中国公司）
-
-国内少数有海外业务的公司用 Greenhouse（如 PingCAP 部分海外岗）。绝大多数用自有 careers 页或飞书表单 — 这一层在中国大陆基本不适用，**默认禁用**。
-
-### Level 3 — WebSearch（广度发现）
-
-`search_queries` 用 `site:` 过滤覆盖各门户：
-
-**国内门户的常用 query 模式：**
-```
-site:zhipin.com "数据工程师" OR "大模型" 高级 OR 资深
-site:lagou.com "数据仓库" OR "数据治理" 资深
-site:liepin.com "AI Infra" OR "大模型" 北京 OR 上海
-site:51job.com "数据平台" 高级
-```
-
-**注意：** `site:zhipin.com` 等返回的链接可能是登录墙，提取到 URL 但取不到 JD 是常态。把这种 URL 加进 pipeline.md 标 `[!]`，等人工处理。
-
-**优先级：**
-1. Level 1：Playwright → 所有 `tracked_companies` 中 `enabled: true` 且有 `careers_url` 的公司
-2. Level 3：WebSearch → 所有 `enabled: true` 的 search_queries
-
-各层结果合并 + 去重。
+---
 
 ## Workflow
 
@@ -106,58 +89,70 @@ site:51job.com "数据平台" 高级
 2. **读历史：** `data/scan-history.tsv` → 已见过的 URL
 3. **读去重源：** `data/applications.md` + `data/pipeline.md`
 
-4. **Level 1 — Playwright 扫描**（每批 3-5 并行）：
-   对 `tracked_companies` 中 `enabled: true` 且有 `careers_url` 的每个公司：
-   a. `browser_navigate` 到 `careers_url`
-   b. `browser_snapshot` 读所有 job listing
-   c. 如果页面有筛选/部门，进入相关分类
-   d. 每个 listing 提取：`{title, url, company}`
-   e. 如果有翻页，遍历下一页
-   f. 累积候选列表
-   g. 如果 `careers_url` 失败（404/重定向），尝试 `scan_query` fallback，并标记需更新
+4. **Level 1 — Playwright 扫描大厂 careers**（每批 3-5 顺序，不并行）
+   对 `tracked_companies` 中 `enabled: true` 且有 `careers_url` 的公司：
+   - `browser_navigate` 到 `careers_url`
+   - `browser_snapshot` 读所有 job listing
+   - 提取 `{title, url, company}`
+   - **不尝试**进每个详情页（详情往往是 SPA 壳，浪费时间）
+   - 翻页累积候选
 
-5. **Level 3 — WebSearch queries**（可并行）：
+5. **Level 3 — WebSearch 广度发现**（可并行）
    对 `enabled: true` 的每个 query：
-   a. WebSearch 执行 `query`
-   b. 每个结果提取 `{title, url, company}`
-   c. 累积候选列表（与 Level 1 去重）
+   - WebSearch 执行
+   - 提取 `{title, url, company}`
+   - **不尝试** WebFetch Boss/拉勾/猎聘/脉脉详情页
 
-6. **按 title 过滤** 用 `portals.yml` 的 `title_filter`：
-   - 至少 1 个 `positive` 关键词命中（不区分大小写）
-   - 0 个 `negative` 命中
-   - `seniority_boost` 命中加权但非强制
+6. **过滤** 用 `portals.yml` 的 `title_filter`：positive 命中 + negative 排除
 
-7. **三重去重：**
-   - `scan-history.tsv` → URL 已见过
-   - `applications.md` → 公司+岗位归一化后已评估
-   - `pipeline.md` → URL 已在待办或已处理
+7. **去重**（三重）：scan-history.tsv + applications.md + pipeline.md
 
-8. **每个新岗位通过过滤后：**
-   a. 加进 `pipeline.md` "待处理" 段：`- [ ] {url} | {company} | {title}`
-   b. 写入 `scan-history.tsv`：`{url}\t{date}\t{query_name}\t{title}\t{company}\tadded`
+8. **写入 pipeline.md**（**注意：不带 JD，只带 URL + 标题 + 来源标签**）：
+   - 默认全部标 `[!]`（因为 99% 的 URL 取不到 JD）
+   - 仅当来源是 V2EX / GitHub / 公司自有静态页 → 标 `[ ]`（可 WebFetch）
+   - 标记格式：`- [!] {url} | {company} | {title} | {source} | 取 JD 方式：截图 / 复制`
 
-9. **被过滤的：** `scan-history.tsv` 标 `skipped_title`
-10. **重复的：** 标 `skipped_dup`
-11. **登录墙抓不到的：** 标 `needs_manual` 并加进 pipeline.md 用 `[!]` 标
+9. **写入 scan-history.tsv**：所有看见的 URL 都进，`status=added/skipped_title/skipped_dup/needs_manual`
 
-## title 提取（中文 JD）
+---
 
-中文搜索结果常见格式：
-- `"高级数据开发工程师 - 字节跳动 - 北京"`
-- `"数据仓库专家 | 阿里巴巴"`
-- `"大模型算法工程师 @ DeepSeek"`
-- `"Senior Data Engineer at PingCAP"`
+## 输出摘要（必须传递正确的预期）
 
-通用正则：`(.+?)(?:\s*[-—|@/]\s*|\s+at\s+|\s+在\s+)(.+?)$`
+```
+门户线索发现 — {YYYY-MM-DD}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+扫描公司 careers：N
+WebSearch query：N
+发现候选 URL：N
+title 过滤后：N
+去重后新增：N
 
-**注意：** 中文岗位名常见关键词包括「专家」「资深」「高级」「负责人」「架构师」「leader」「TL」 — 这些都应该进 `seniority_boost`。
+按"取 JD 方式"分类：
+  📄 可直接 WebFetch（V2EX/GitHub/公众号公开页）：N → 标 [ ]
+  📸 需用户截图（Boss/Mokahr/飞书/SPA 详情）：N → 标 [!]
+  📋 需用户复制（liepin/拉勾/部分 careers）：N → 标 [!]
 
-## 私链 / 抓不到的 JD
+新加入 pipeline.md：N
+  + {公司} | {岗位} | 来源 {portal} | 取 JD：{截图/复制/可抓}
+  ...
 
-如果遇到无法公开访问的 URL：
-1. 标 `[!]` 在 pipeline.md
-2. 让候选人手动贴 JD 文本到 `jds/{company}-{role-slug}.md`
-3. 在 pipeline.md 引用：`- [ ] local:jds/{company}-{role-slug}.md | {company} | {title}`
+▼ 下一步（强烈推荐）：
+  对每个感兴趣的岗位：
+  1. 打开 URL → Cmd+Shift+4 截图 JD 区域
+  2. 拖到对话框 → /career-ops（auto-pipeline 自动跑）
+  
+  千万不要等 scan 给你 JD — 它给不了。
+```
+
+---
+
+## 私链 / 完全无 URL 的岗位
+
+如果用户在脉脉私聊 / 微信群 / 内部转发里收到 JD：
+1. 用户截图或粘贴 JD → 直接 auto-pipeline
+2. 不需要写进 pipeline.md 的"待办"，直接处理掉
+
+---
 
 ## scan history
 
@@ -170,44 +165,42 @@ https://...	2026-04-07	Boss直聘 query	Java	某公司	skipped_title
 https://...	2026-04-07	Lagou query	数据	某公司	needs_manual
 ```
 
-## 输出摘要
+`needs_manual` 表示已发现但需要用户手动取 JD（默认 99% 的国内门户结果都是这个状态）。
 
-```
-门户扫描 — {YYYY-MM-DD}
-━━━━━━━━━━━━━━━━━━━━━━━━━━
-Query 执行：N
-找到岗位：N 总
-title 过滤后：N 相关
-重复：N（已评估或已在 pipeline）
-登录墙/抓不到：N（标 [!] 待人工）
-新加入 pipeline.md：N
-
-  + {公司} | {岗位} | {来源}
-  ...
-
-→ 跑 /career-ops pipeline 评估这些新岗位。
-```
+---
 
 ## careers_url 维护
 
-每个 `tracked_companies` 都需要一个 `careers_url` — 否则每次扫描都要重新搜。
+每个 `tracked_companies` 都需要一个 `careers_url`。
 
-**查不到 careers_url 时：**
-1. 试已知公司的常见 URL pattern
-2. 失败就 WebSearch：`"{公司}" careers OR 招聘 OR 加入我们`
-3. 用 Playwright 验证打开
-4. **找到了一定要写回 portals.yml**
-
-**careers_url 返回 404 或跳转时：**
+**careers_url 失效时：**
 1. 在输出摘要里标记
-2. 用 scan_query 做 fallback
-3. 标记需要人工更新
+2. 不要做 fallback 自动重搜（浪费 token），直接告诉用户「这家的 careers_url 失效了，要不要更新？」让用户来决定
+3. 用户给新 URL 后写回 portals.yml
+
+---
 
 ## portals.yml 维护原则
 
-- **新加公司必填 `careers_url`**
-- 发现新门户/新公司就加进来
+- 新加公司必填 `careers_url`
 - 噪音太大的 query 用 `enabled: false` 关掉
-- 关键词过滤随你的目标方向演化而调整
-- 想长期跟踪的公司加进 `tracked_companies`
 - 定期检查 `careers_url` — 公司换 ATS 是常事
+- **不要再添加纯 Boss/拉勾 search query**（除非真有必要 + 用户能手动跟进）— 反正取不到 JD
+
+---
+
+## 为什么这么改（给后来者的设计说明）
+
+旧版 scan 试图做 **"发现 + 提取 JD + 去重 + 评估准备"** 一条龙。在国内市场上，"提取 JD" 这一步**结构性失败率 > 90%**：
+
+- Boss 直聘 / 拉勾 / 猎聘 详情页 = 登录墙
+- DeepSeek / Moonshot / 阶跃 等独角兽 = Mokahr / 飞书表单
+- 字节 / 美团 / 小红书 careers 详情 = SPA 空壳
+- 脉脉 / 微信公众号 = 完全反爬
+
+继续在这条路上挣扎只会**累死 Claude，挫败用户**。新版的核心理念：
+
+1. **职责分离：** scan 只管"发现哪些岗位存在"。"取 JD"交给人（5 秒截图）+ Claude Vision（直接读图）。
+2. **诚实预期：** 输出摘要明确告诉用户哪些 URL 抓得到、哪些抓不到、对应取 JD 方式是什么。
+3. **零浪费：** 不在反爬战争里耗 Playwright/WebFetch。**抓不到立刻 yield 给用户。**
+4. **大厂 careers 仍然有价值：** 字节/阿里/腾讯 等的 careers 列表页能抓，至少能告诉用户「这家最近在招什么方向」。

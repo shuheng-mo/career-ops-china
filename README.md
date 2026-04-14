@@ -4,15 +4,16 @@
 >
 > 这是 [`santifer/career-ops`](https://github.com/santifer/career-ops) 的中国大陆求职市场深度定制 fork。**所有功能、archetype、数据源、模板都已为国内 AI / 数据 / 后端 / 平台 求职者重新设计**，核心改动包括：
 >
-> - **14 个 mode 文件** 全部翻译为中文，按国内招聘流程重写
+> - **16 个 mode 文件** 全部翻译为中文，按国内招聘流程重写（含新增 `inbox` mode）
 > - **8 个 archetype** 替换为数据工程 / 数据治理 / 数据仓库 / 大模型应用 / AI Infra / 后端 / 平台架构 / 大数据算法
 > - **薪酬调研源** 从 Glassdoor / Levels.fyi / Blind 切换到 **看准网 / 脉脉 / OfferShow / 知乎 / 一亩三分地 / leetcode.cn**
 > - **公司调研源** 改用 脉脉职言区 / 天眼查 / 企查查 / IT 桔子 / 36 氪 / 小红书
-> - **门户处理** 兼容国内招聘网站的登录墙与反爬（Boss 直聘 / 拉勾 / 猎聘）
+> - **🔑 Bookmarklet + Local Inbox 工作流**（新）：一键绕过 Boss 直聘 / 猎聘 / Mokahr / 大厂 SPA 的反爬 + 反复制 + 登录墙 — 浏览器点按钮 → 本地服务器接收 JSON → Claude 批量评估。**国内 JD 取数的正确范式**
+> - **门户处理范式** 放弃对国内反爬平台的自动化爬取，改为 **截图 / bookmarklet** 人机协作（Playwright / WebFetch 只用于公司自有静态页 + V2EX + GitHub）
 > - **预置 50+ 公司**：12 家一线互联网大厂 + 8 家大模型独角兽 + 数据创业 + AI Infra
 > - **触达模式** 从 LinkedIn 改为 脉脉 + 微信 双轨
 > - **CV 模板** 加入中文字体回退（PingFang SC / Microsoft YaHei / Noto Sans SC）
-> - **硬红线机制** 直接 SKIP 不接受的公司类型（用户可定义如华为/外包/大小周）
+> - **硬红线机制** 直接 SKIP 不接受的公司类型（用户可定义如华为/外包/大小周），含 **HR 派遣公司识别**（人瑞 / 中智 / FESCO / 外企德科 / 万宝盛华 / 科锐国际 等）
 > - **大厂职级对标** 加入阿里 P / 字节 / 腾讯 T / 美团 L 等职级映射表
 >
 > 原版 [`santifer/career-ops`](https://github.com/santifer/career-ops) 在 MIT License 下保留所有版权 — 见 [LICENSE](LICENSE)。
@@ -46,20 +47,30 @@
 ```mermaid
 flowchart TD
     User(["👤 用户"])
+    Browser(["🌐 浏览器<br/>Boss/猎聘/Mokahr/大厂 SPA"])
 
-    User -->|贴 JD / URL| AutoPipe
+    User -->|截图 JD 或贴文本| AutoPipe
     User -->|/career-ops scan| ScanMode
     User -->|/career-ops pipeline| ProcessInbox
     User -->|/career-ops batch| BatchMode
+    User -->|/career-ops inbox| InboxMode
 
-    ScanMode["🔍 scan 模式<br/>抓 portals.yml 50+ 公司<br/>过滤 deal-breakers"]
-    ScanMode --> Inbox
+    Browser -.->|点 bookmarklet| LocalServer
+    LocalServer["🔌 localhost:8787<br/>tools/jd-inbox-server.mjs"]
+    LocalServer -->|POST /jd| JDInbox
+    JDInbox[("📥 inbox/*.json<br/>JD 原始捕获")]
 
-    ProcessInbox["📂 pipeline 模式"] --> Inbox
-    Inbox[("📥 data/pipeline.md<br/>URL 待办收件箱")]
-    Inbox --> AutoPipe
+    InboxMode["📂 inbox 模式"] --> JDInbox
+    JDInbox --> AutoPipe
 
-    BatchMode["⚡ batch 模式<br/>orchestrator"] --> Workers
+    ScanMode["🔍 scan 模式（重定位）<br/>仅发现 URL + 标题<br/>不再尝试取 JD"]
+    ScanMode --> URLInbox
+
+    ProcessInbox["📂 pipeline 模式"] --> URLInbox
+    URLInbox[("📥 data/pipeline.md<br/>URL 待办")]
+    URLInbox --> AutoPipe
+
+    BatchMode["⚡ batch 模式"] --> Workers
     Workers["N × claude -p workers<br/>(并行子进程)"]
     Workers --> AutoPipe
 
@@ -76,9 +87,11 @@ flowchart TD
     classDef hot fill:#5b8def,stroke:#3b5fc7,color:#fff,stroke-width:2px
     classDef store fill:#2ea043,stroke:#1f7a32,color:#fff,stroke-width:2px
     classDef output fill:#f0f4ff,stroke:#5b8def,color:#1a1a2e
+    classDef bridge fill:#f59e0b,stroke:#b45309,color:#fff,stroke-width:2px
     class AutoPipe hot
-    class Apps,Inbox store
+    class Apps,JDInbox,URLInbox store
     class Report,PDF,TSV output
+    class LocalServer,Browser bridge
 ```
 
 ### A-F 六块评估（核心）
@@ -141,15 +154,17 @@ deal_breakers:
 
 国内门户和西方差异巨大，系统针对每种情况有不同策略：
 
-| 平台 | 问题 | 系统处理 |
-|------|------|--------|
-| **大厂 careers 自有页**（字节 / 阿里 / 腾讯 / 美团 / 网易 / 小红书 / B 站 等） | 多数 SPA，需 JS 渲染 | Playwright 渲染（需 `scan-helper.mjs` 桥接）|
-| **AI 独角兽 careers**（DeepSeek / 智谱 / Moonshot 等） | 多数静态页或简单 SPA | WebFetch / Playwright 都可 |
-| **Boss 直聘 / 拉勾 / 猎聘 详情页** | 强反爬 + 滑块验证 + 登录墙 | 只用 WebSearch 发现 URL，**JD 文本由用户手动复制**或用 `--user-data-dir` 复用已登录 Chrome |
-| **脉脉招聘 / LinkedIn** | 必须登录 | 同上 |
-| **V2EX 招聘版 / GitHub README 招聘** | 公开 | 直接 WebFetch |
+| 平台 | 问题 | 系统处理（2026-04 后） |
+|------|------|---------------------|
+| **V2EX 招聘 / GitHub README / 公司自有静态 careers** | 公开无限制 | ✅ WebFetch 直接取 |
+| **大厂 careers SPA**（字节 / 阿里 / 腾讯 / 美团 / 网易 / 小红书 / B 站 等） | JD 详情页 SPA 空壳 | ⚡ **浏览器 bookmarklet 主路径**（`tools/bookmarklets/dachang-spa.js`），或用户截图 |
+| **AI 独角兽 careers**（DeepSeek via Mokahr / Moonshot 飞书 / 智谱 / MiniMax 等） | Mokahr iframe / 飞书表单 | ⚡ **bookmarklet**（`mokahr.js`）或截图 |
+| **Boss 直聘 / 拉勾 / 猎聘** | 强反爬 + 滑块 + 登录墙 + 反复制 | ⚡ **bookmarklet 专用版本**（`boss-zhipin.js` / `liepin.js` / `lagou.js`），绕过反复制，结构化抽取 |
+| **脉脉招聘 / LinkedIn / 微信公众号** | 必须登录 / DOM 加密 | 📸 用户截图拖给 Claude |
 
-> 系统**不会**自动绕过登录墙或滑块。这是设计选择 — 既保护你的账号不被风控封禁，也尊重平台的 ToS。
+> **设计范式（2026-04 重写）：** 系统**放弃**对国内反爬平台的自动化爬取。用户在浏览器里已经看到的 JD，用 **1 次 bookmarklet 点击**（5 秒）即可结构化捕获到本地 inbox。这是中国市场唯一稳定可靠的取数方式 — Playwright / WebFetch 在 Boss / Mokahr / 飞书上的结构性失败率 > 90%。
+>
+> 详见 [`tools/README.md`](tools/README.md)。
 
 ---
 
@@ -217,15 +232,16 @@ Claude 会按 `CLAUDE.md` 里的 onboarding 流程引导你：
 - 把信息写入 `cv.md` 和 `config/profile.yml`
 - 提醒你 onboarding 完成，可以开始用
 
-### 3. 用 14 个命令模式
+### 3. 用 16 个命令模式
 
 | 模式 | 触发方式 | 做什么 |
 |------|---------|--------|
-| **auto-pipeline** | 直接贴 JD 文本或 URL | **完整流程**：A-F 评估 + 写 report + 生成 PDF + 入 tracker |
+| **auto-pipeline** | 直接贴 JD 文本 / 拖截图 / URL | **完整流程**：A-F 评估 + 写 report + 生成 PDF + 入 tracker（国内 URL 通常会让你改用截图/bookmarklet）|
+| **inbox** ⭐ | `/career-ops inbox` | **处理 bookmarklet 捕获的 JD**（读 `inbox/*.json` → 自动 auto-pipeline 每一个 → 移到 processed/）|
 | `offer` | `/career-ops offer` + JD | 只跑 A-F 评估，不自动生成 PDF |
 | `offers` | `/career-ops offers` | 多个 offer 加权对比 + 排名 |
 | `pdf` | `/career-ops pdf` | 单独生成 ATS 优化的定制 CV PDF |
-| `scan` | `/career-ops scan` | 扫描 portals.yml 里 50+ 公司，发现新岗位 |
+| `scan` | `/career-ops scan` | **线索发现**（仅 URL + 标题，不取 JD） — 取 JD 用 bookmarklet / 截图 |
 | `pipeline` | `/career-ops pipeline` | 批处理 data/pipeline.md 里的待办 URL |
 | `batch` | `/career-ops batch` | 用 N 个 worker 并行评估多个 JD |
 | `tracker` | `/career-ops tracker` | 查看申请状态汇总 |
@@ -234,6 +250,7 @@ Claude 会按 `CLAUDE.md` 里的 onboarding 流程引导你：
 | `deep` | `/career-ops deep` | 生成公司深度调研 prompt（用中文数据源）|
 | `training` | `/career-ops training` | 评估某课程/证书是否值得学 |
 | `project` | `/career-ops project` | 评估某 portfolio 项目的 ROI |
+| `story-sync` ⭐ | `/career-ops story-sync` | 扫 reports/* 抽 Block F → 累积到 `interview-prep/story-bank.md`（语义去重 + 主题分组）|
 
 ### 4. 完整使用示例（基于真实使用流程）
 
@@ -259,21 +276,43 @@ Claude：
 
 实际示例报告参考：[`reports/001-kuaishou-llm-fintech-2026-04-07.md`](reports/001-kuaishou-llm-fintech-2026-04-07.md)
 
-#### 例 B：扫描招聘门户
+#### 例 B：扫描招聘门户（线索发现）
 
 ```
 用户：/career-ops scan
 
-Claude：
+Claude（2026-04 重定位后）：
 1. 启动 subagent（避免污染主上下文）
-2. 跑 portals.yml 里所有 enabled 的 search_queries（Boss/拉勾/猎聘）
-3. WebFetch + Playwright 抓 tracked_companies 的 careers 页（大厂 + AI 独角兽）
+2. 跑 portals.yml 里 enabled 的 search_queries 发现 URL（不尝试取 JD 内容）
+3. Playwright 抓 tracked_companies 的 careers 列表页（仅标题 + URL）
 4. 按 title_filter 过滤
-5. 按 deal_breakers 过滤（华为/外包/大小周直接 SKIP）
+5. 按 deal_breakers 过滤（华为/外包/大小周/HR 派遣公司直接 SKIP）
 6. 三重去重（scan-history / applications / pipeline）
-7. 写新发现的岗位到 data/pipeline.md（带优先级 P1/P2/P3）
-8. 显示汇总：按 archetype 分类、按公司分类、警告标注
+7. 写新发现的岗位到 data/pipeline.md（带优先级 P1/P2/P3 + [!] 标记取 JD 方式）
+8. 显示汇总 + 明确提示"下一步请用 bookmarklet 或截图取每个 JD"
+
+⚠️ scan 不再承诺取到 JD — 国内反爬平台（Boss/Mokahr/飞书）99% 失败。
+   scan 仅发现"有哪些岗位在招"，JD 内容由用户用 bookmarklet 点击捕获。
 ```
+
+#### 例 E：Bookmarklet + Inbox（国内主路径，推荐）
+
+```
+一次性设置（5 分钟）：
+1. 启服务器：npm run inbox-server（保持运行，端口 8787）
+2. 构建安装页：npm run build-bookmarklets
+3. 浏览器 open tools/install.html → 把彩色按钮拖到书签栏
+
+日常使用（每个 JD 5 秒）：
+1. 浏览器打开任意 JD 页（Boss / 猎聘 / 字节 careers / Mokahr 都行）
+2. 点对应 bookmarklet（通用 / Boss / 猎聘 / 拉勾 / Mokahr / 大厂 SPA）
+3. 看到 "✓ JD captured" = 本地 inbox/*.json 已就位
+4. 攒几个后回 Claude：/career-ops inbox
+   → Claude 批量评估（每个出 report + PDF + tracker TSV）
+5. 最后跑 node merge-tracker.mjs 合并 TSV 到 applications.md
+```
+
+全端到端绕过反爬 + 反复制，详见 [`tools/README.md`](tools/README.md)。
 
 #### 例 C：批量评估 pipeline
 
@@ -494,13 +533,14 @@ career-ops-china/
 │   ├── profile.example.yml         # ✅ 模板
 │   └── profile.yml                 # ⛔ gitignored — 你的个人配置
 │
-├── modes/                          # 14 个 mode 文件，全部中文
+├── modes/                          # 16 个 mode 文件，全部中文
 │   ├── _shared.md                  # 共享上下文：archetype + 规则
 │   ├── auto-pipeline.md            # 完整 pipeline（默认）
 │   ├── offer.md                    # 单岗位 A-F 评估
 │   ├── offers.md                   # 多 offer 对比
 │   ├── pdf.md                      # PDF 生成
-│   ├── scan.md                     # 门户扫描
+│   ├── scan.md                     # 门户扫描（线索发现，不取 JD）
+│   ├── inbox.md                    # ⭐ 处理 bookmarklet 捕获的 JD
 │   ├── pipeline.md                 # 批处理 URL inbox
 │   ├── batch.md                    # 并行批量处理
 │   ├── tracker.md                  # 申请状态查看
@@ -508,7 +548,8 @@ career-ops-china/
 │   ├── contact.md                  # 脉脉/微信/LinkedIn 触达
 │   ├── deep.md                     # 公司深度调研 prompt
 │   ├── training.md                 # 课程/证书评估
-│   └── project.md                  # portfolio 项目评估
+│   ├── project.md                  # portfolio 项目评估
+│   └── story-sync.md               # ⭐ 扫 reports 抽 STAR+R 累积到 story-bank
 │
 ├── templates/
 │   ├── cv-template.html            # ATS 优化的 CV HTML 模板（含中文字体回退）
@@ -533,7 +574,24 @@ career-ops-china/
 ├── output/                         # ⛔ gitignored — 生成的 PDF
 ├── jds/                            # ⛔ gitignored — 手动保存的 JD
 ├── interview-prep/
-│   └── story-bank.md               # ⛔ gitignored — 累积的 STAR 故事
+│   └── story-bank.md               # ⛔ gitignored — 累积的 STAR 故事（⚠️ 自动追加机制暂未接入）
+│
+├── tools/                          # ⭐ 2026-04 新增：浏览器 bookmarklet + 本地 inbox
+│   ├── README.md                   # tools 使用说明
+│   ├── jd-inbox-server.mjs         # localhost:8787 HTTP 服务器（接收 bookmarklet POST）
+│   ├── build-bookmarklets.mjs      # 从 .js 源码生成 install.html
+│   ├── install.html                # ⛔ gitignored — 拖到书签栏的安装页（自动生成）
+│   └── bookmarklets/               # 6 个 bookmarklets 源码
+│       ├── universal.js            # 通用（80% 场景）
+│       ├── boss-zhipin.js          # Boss 直聘（反复制专用）
+│       ├── liepin.js               # 猎聘
+│       ├── lagou.js                # 拉勾
+│       ├── mokahr.js               # Mokahr ATS（DeepSeek 等）
+│       └── dachang-spa.js          # 大厂 careers SPA 通用（字节/阿里/腾讯/美团/快手/...）
+│
+├── inbox/                          # ⛔ gitignored — bookmarklet 捕获的 JD JSON
+│   ├── jd-*.json                   # 待处理
+│   └── processed/                  # 已处理归档
 │
 ├── fonts/                          # Space Grotesk + DM Sans woff2
 ├── docs/                           # 英文技术文档（架构 / 安装 / 定制）
@@ -551,28 +609,74 @@ career-ops-china/
 
 ---
 
-## scan-helper.mjs（新增的 Playwright 桥）
+## 浏览器 Bookmarklet + 本地 Inbox（⭐ 2026-04 新增，国内主路径）
 
-这是 fork 新增的工具，解决"npm 装了 playwright 但 Claude Code 没有 Playwright MCP 工具"的问题。
+这是 fork 相对上游最大的范式改变 — **放弃对国内反爬平台的自动化爬取**，改成 **用户浏览器点按钮 → 本地服务器接收 → Claude 批量处理**。
+
+### 为什么？
+
+国内招聘平台（Boss 直聘 / 拉勾 / 猎聘 / Mokahr / 飞书表单 / 脉脉 / 微信公众号）有严苛的反爬 + 反复制 + 登录墙 + SPA + 滑块验证。Playwright / WebFetch / WebSearch 在这些平台上的**结构性失败率 > 90%**，硬撑只会拖累 session。
+
+但**用户在浏览器里已经看到的 JD**，DOM 始终可读（反爬只拦复制，不拦 JS 读取）。一个 bookmarklet 就能：
+1. 剥离 anti-copy CSS + event handlers
+2. 按站点特化 selector 结构化抽取 (`job_title` / `company` / `salary` / `description`)
+3. POST 到 `localhost:8787` 本地服务器
+4. 服务器写入 `inbox/*.json`
+5. Claude 跑 `/career-ops inbox` 批量评估
+
+### 6 个 bookmarklets 覆盖所有常见平台
+
+| Bookmarklet | 适用页面 |
+|-------------|---------|
+| 🌐 **universal** | V2EX / GitHub / 公司自有 careers 静态页 / 80% 场景 |
+| 💼 **boss-zhipin** | `zhipin.com` 详情页（反复制 + 结构化字段）|
+| 🎯 **liepin** | `liepin.com` 详情页 |
+| 🛒 **lagou** | `lagou.com` 详情页 |
+| 🔑 **mokahr** | `mokahr.com` / `app.mokahr.com`（DeepSeek 等独角兽 ATS）|
+| 🏢 **dachang-spa** | 字节 / 阿里 / 蚂蚁 / 腾讯 / 美团 / 快手 / 小红书 careers / B站 / 网易 / 京东 / 拼多多 / 百度 / 滴滴 / 智谱 / MiniMax / 阶跃 / 面壁 |
+
+### 一次性安装（5 分钟）
 
 ```bash
-# 用法：
-node scan-helper.mjs <URL> [--mode=jd|list] [--wait=5000] [--user-data-dir=PATH]
+# 1. 启本地 inbox 服务器（保持运行）
+npm run inbox-server
 
-# 例子：
-# 提取一个 JD 详情页的纯文本
-node scan-helper.mjs "https://jobs.bytedance.com/experienced/position/123" --mode=jd
+# 2. 构建安装页
+npm run build-bookmarklets
 
-# 列出一个 careers 列表页的所有岗位链接
-node scan-helper.mjs "https://hr.163.com/job-list.html" --mode=list
+# 3. 浏览器打开
+open tools/install.html
 
-# 复用你已登录的 Chrome 实例（绕过 Boss/拉勾的登录墙）
-node scan-helper.mjs "https://www.zhipin.com/job_detail/xxx.html" \
-  --mode=jd \
-  --user-data-dir="$HOME/Library/Application Support/Google/Chrome"
+# 4. 显示书签栏（⌘+Shift+B）+ 把彩色按钮拖进去
 ```
 
-⚠️ **`--user-data-dir` 涉及隐私权衡**：复用你的 Chrome profile 意味着脚本能读到你的所有 cookies。建议建一个**独立的求职 Chrome profile**，只在那里登录招聘网站，把那个 profile 路径传给脚本。
+### 日常使用（每个 JD 5 秒）
+
+```
+打开 JD 页 → 点 bookmarklet → ✓ 提示 → 攒几个 → /career-ops inbox
+```
+
+### 安全
+
+- 服务器只监听 `127.0.0.1`（localhost）
+- `inbox/*.json` 是本地 JD 数据，已 gitignored
+- bookmarklet 不发送任何数据到 Claude / Anthropic / 第三方，**只发本地**
+
+详细文档：[`tools/README.md`](tools/README.md)。
+
+---
+
+## scan-helper.mjs（遗留 Playwright 桥 — 已基本弃用）
+
+`scan-helper.mjs` 是更早为处理国内 SPA 写的 Playwright 桥，现在**已基本被 bookmarklet 取代**。仍保留供：
+- 处理完全公开的公司自有 careers 列表页（大厂 SPA 的列表层面，非详情层）
+- 离线批量脚本中
+
+```bash
+node scan-helper.mjs <URL> [--mode=jd|list] [--wait=5000]
+```
+
+⚠️ **不要用 `--user-data-dir` 复用你的日常 Chrome profile** — bookmarklet 走 user-triggered 路径，不触发反爬策略，比 Playwright 更稳定。
 
 ---
 

@@ -105,7 +105,7 @@
 如果候选人确认已提交：
 1. `applications.md` 中状态从 `Evaluated` 改为 `Applied`
 2. 更新 report 的 Section G 为最终回答
-3. 建议下一步：`/career-ops contacto` 做脉脉/LinkedIn 主动触达
+3. 建议下一步：`/career-ops contact` 做脉脉/LinkedIn 主动触达
 
 ## 滚屏处理
 

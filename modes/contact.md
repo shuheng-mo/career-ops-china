@@ -1,4 +1,4 @@
-# Mode: contacto — 主动触达（脉脉 / LinkedIn / 微信）
+# Mode: contact — 主动触达（脉脉 / LinkedIn / 微信）
 
 中国大陆主动触达和西方差异很大。**默认走脉脉** — 国内 HR、程序员、产品几乎都在脉脉。LinkedIn 适合外企/海外岗。
 

@@ -158,12 +158,12 @@ deal_breakers:
 | # | 区别 | 文件 |
 |---|------|------|
 | 1 | 8 个 archetype 替换为中国数据/AI 岗位类型 | `modes/_shared.md` |
-| 2 | A-F 评估流程全中文重写，加入国内 HR 红线问题 | `modes/oferta.md` |
-| 3 | Block D 薪酬源换为看准网/脉脉/OfferShow/知乎/一亩三分地 | `modes/oferta.md` |
+| 2 | A-F 评估流程全中文重写，加入国内 HR 红线问题 | `modes/offer.md` |
+| 3 | Block D 薪酬源换为看准网/脉脉/OfferShow/知乎/一亩三分地 | `modes/offer.md` |
 | 4 | 7 维公司调研改用脉脉职言/天眼查/IT 桔子/36 氪/小红书 | `modes/deep.md` |
 | 5 | 扫描器处理 Boss/拉勾/猎聘 登录墙 + 反爬 | `modes/scan.md` |
-| 6 | 触达模式从 LinkedIn 改为脉脉 + 微信双轨 | `modes/contacto.md` |
-| 7 | 10 维评分权重重新分配（Comp/工时/稳定性 提权，远程删除） | `modes/ofertas.md` |
+| 6 | 触达模式从 LinkedIn 改为脉脉 + 微信双轨 | `modes/contact.md` |
+| 7 | 10 维评分权重重新分配（Comp/工时/稳定性 提权，远程删除） | `modes/offers.md` |
 | 8 | 评估完整 Section G 加入国内表单特有问题（婚育/996/学历认证等） | `modes/auto-pipeline.md`, `modes/apply.md` |
 | 9 | PDF 生成加入中国 CV 约定（学历位置/量化结果/技术栈）+ 中文字体回退 | `modes/pdf.md`, `templates/cv-template.html` |
 | 10 | portals-china.example.yml 预置 50+ 中国公司 | `templates/portals-china.example.yml` |
@@ -222,15 +222,15 @@ Claude 会按 `CLAUDE.md` 里的 onboarding 流程引导你：
 | 模式 | 触发方式 | 做什么 |
 |------|---------|--------|
 | **auto-pipeline** | 直接贴 JD 文本或 URL | **完整流程**：A-F 评估 + 写 report + 生成 PDF + 入 tracker |
-| `oferta` | `/career-ops oferta` + JD | 只跑 A-F 评估，不自动生成 PDF |
-| `ofertas` | `/career-ops ofertas` | 多个 offer 加权对比 + 排名 |
+| `offer` | `/career-ops offer` + JD | 只跑 A-F 评估，不自动生成 PDF |
+| `offers` | `/career-ops offers` | 多个 offer 加权对比 + 排名 |
 | `pdf` | `/career-ops pdf` | 单独生成 ATS 优化的定制 CV PDF |
 | `scan` | `/career-ops scan` | 扫描 portals.yml 里 50+ 公司，发现新岗位 |
 | `pipeline` | `/career-ops pipeline` | 批处理 data/pipeline.md 里的待办 URL |
 | `batch` | `/career-ops batch` | 用 N 个 worker 并行评估多个 JD |
 | `tracker` | `/career-ops tracker` | 查看申请状态汇总 |
 | `apply` | `/career-ops apply` | 实时申请表助手（读屏幕 + 生成回答） |
-| `contacto` | `/career-ops contacto` | 脉脉/微信/LinkedIn 主动触达消息草稿 |
+| `contact` | `/career-ops contact` | 脉脉/微信/LinkedIn 主动触达消息草稿 |
 | `deep` | `/career-ops deep` | 生成公司深度调研 prompt（用中文数据源）|
 | `training` | `/career-ops training` | 评估某课程/证书是否值得学 |
 | `project` | `/career-ops project` | 评估某 portfolio 项目的 ROI |
@@ -426,11 +426,11 @@ tracked_companies:
 | 你说的话 | Claude 会改 |
 |---------|-----------|
 | "把 archetype 加一个 SRE 方向" | `modes/_shared.md` |
-| "我现在不在意工时了，把权重调小" | `modes/ofertas.md` |
+| "我现在不在意工时了，把权重调小" | `modes/offers.md` |
 | "加这 5 家公司到 portals" | `portals.yml` |
 | "更新我的简历，加一段 X 项目" | `cv.md` |
 | "把 PDF 模板的颜色改成蓝色" | `templates/cv-template.html` |
-| "我对 996 容忍度变高了" | `modes/ofertas.md` |
+| "我对 996 容忍度变高了" | `modes/offers.md` |
 | "我现在主攻方向变成后端" | `modes/_shared.md` |
 | "把 deal-breaker 的『大小周』移除" | `config/profile.yml` |
 
@@ -497,15 +497,15 @@ career-ops-china/
 ├── modes/                          # 14 个 mode 文件，全部中文
 │   ├── _shared.md                  # 共享上下文：archetype + 规则
 │   ├── auto-pipeline.md            # 完整 pipeline（默认）
-│   ├── oferta.md                   # 单岗位 A-F 评估
-│   ├── ofertas.md                  # 多 offer 对比
+│   ├── offer.md                    # 单岗位 A-F 评估
+│   ├── offers.md                   # 多 offer 对比
 │   ├── pdf.md                      # PDF 生成
 │   ├── scan.md                     # 门户扫描
 │   ├── pipeline.md                 # 批处理 URL inbox
 │   ├── batch.md                    # 并行批量处理
 │   ├── tracker.md                  # 申请状态查看
 │   ├── apply.md                    # 实时申请表助手
-│   ├── contacto.md                 # 脉脉/微信/LinkedIn 触达
+│   ├── contact.md                  # 脉脉/微信/LinkedIn 触达
 │   ├── deep.md                     # 公司深度调研 prompt
 │   ├── training.md                 # 课程/证书评估
 │   └── project.md                  # portfolio 项目评估

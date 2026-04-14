@@ -1,4 +1,4 @@
-# Mode: oferta — 单岗位完整评估（A-F 六块）
+# Mode: offer — 单岗位完整评估（A-F 六块）
 
 候选人贴一个职位（文本或 URL）时，**必须按顺序输出 A-F 六个 block**。
 

@@ -37,16 +37,8 @@ const CANONICAL_STATUSES = [
 ];
 
 const ALIASES = {
-  // Spanish legacy
-  'evaluada': 'evaluated', 'aplicado': 'applied', 'aplicada': 'applied',
-  'enviada': 'applied', 'sent': 'applied',
-  'respondido': 'responded',
-  'entrevista': 'interview',
-  'oferta': 'offer',
-  'rechazado': 'rejected', 'rechazada': 'rejected',
-  'descartado': 'discarded', 'descartada': 'discarded',
-  'cerrada': 'discarded', 'cancelada': 'discarded',
-  'no aplicar': 'skip', 'no_aplicar': 'skip', 'monitor': 'skip',
+  'sent': 'applied',
+  'monitor': 'skip',
   // Chinese (matches templates/states.yml)
   '已评估': 'evaluated', '已申请': 'applied', '已投递': 'applied', '投递': 'applied',
   '已回复': 'responded', '面试中': 'interview', '面试': 'interview',

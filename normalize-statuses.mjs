@@ -5,9 +5,8 @@
  * Maps all non-canonical statuses to canonical ones per templates/states.yml:
  *   Evaluated, Applied, Responded, Interview, Offer, Rejected, Discarded, SKIP
  *
- * Recognizes three input families and converts all to English canonical:
+ * Recognizes two input families and converts all to English canonical:
  *   - English canonical (already correct)
- *   - Spanish legacy aliases from upstream career-ops (Evaluada, Aplicado, etc.)
  *   - Chinese aliases (已评估, 已投递, 面试中, etc.)
  *
  * Also strips markdown bold (**) and dates from the status field,
@@ -29,37 +28,22 @@ const APPS_FILE = existsSync(join(CAREER_OPS, 'data/applications.md'))
 const DRY_RUN = process.argv.includes('--dry-run');
 
 // Canonical status mapping.
-// Regex patterns detect a mix of: English canonical, Spanish legacy aliases
-// (from upstream career-ops), and Chinese aliases. All map to English canonical
-// (matches templates/states.yml).
+// Regex patterns detect a mix of English canonical and Chinese aliases.
+// All map to English canonical (matches templates/states.yml).
 function normalizeStatus(raw) {
   // Strip markdown bold
   let s = raw.replace(/\*\*/g, '').trim();
   const lower = s.toLowerCase();
 
   // Duplicate/repost variants → Discarded
-  if (/^duplicado/i.test(s) || /^dup\b/i.test(s)) {
+  if (/^dup\b/i.test(s)) {
     return { status: 'Discarded', moveToNotes: raw.trim() };
   }
 
-  // Spanish "cerrada/cancelada/descartada" (closed/cancelled) → Discarded
-  if (/^cerrada$/i.test(s)) return { status: 'Discarded' };
-  if (/^cancelada/i.test(s)) return { status: 'Discarded' };
-  if (/^descartada$/i.test(s)) return { status: 'Discarded' };
-
-  // Spanish "rechazada/rechazado" (rejected) → Rejected
-  if (/^rechazada$/i.test(s)) return { status: 'Rejected' };
-  if (/^rechazado\s+\d{4}/i.test(s)) return { status: 'Rejected' };
-
-  // Spanish "aplicado" with date → Applied (strip date)
-  if (/^aplicado\s+\d{4}/i.test(s)) return { status: 'Applied' };
-
-  // Conditional/hold/monitor variants (Spanish + English) → Evaluated
+  // Conditional/hold/monitor variants → Evaluated
   if (/^condicional$/i.test(s)) return { status: 'Evaluated' };
   if (/^hold$/i.test(s)) return { status: 'Evaluated' };
   if (/^monitor$/i.test(s)) return { status: 'Evaluated' };
-  if (/^evaluar$/i.test(s)) return { status: 'Evaluated' };
-  if (/^verificar$/i.test(s)) return { status: 'Evaluated' };
 
   // Geo blocker → SKIP
   if (/geo.?blocker/i.test(s)) return { status: 'SKIP' };
@@ -79,17 +63,10 @@ function normalizeStatus(raw) {
     if (lower === c.toLowerCase()) return { status: c };
   }
 
-  // Alias map: Spanish legacy + Chinese (matches templates/states.yml)
+  // Alias map: Chinese + English variants (matches templates/states.yml)
   const aliases = {
-    // Spanish legacy → English canonical
-    'evaluada': 'Evaluated',
-    'aplicado': 'Applied', 'aplicada': 'Applied', 'enviada': 'Applied', 'sent': 'Applied',
-    'respondido': 'Responded',
-    'entrevista': 'Interview',
-    'oferta': 'Offer',
-    'rechazado': 'Rejected', 'rechazada': 'Rejected',
-    'descartado': 'Discarded', 'descartada': 'Discarded', 'cerrada': 'Discarded',
-    'no aplicar': 'SKIP', 'no_aplicar': 'SKIP', 'skip': 'SKIP',
+    'sent': 'Applied',
+    'skip': 'SKIP',
     // Chinese aliases
     '已评估': 'Evaluated', '评估完成': 'Evaluated', '待决定': 'Evaluated',
     '已申请': 'Applied', '已投递': 'Applied', '已投': 'Applied', '投递': 'Applied',
@@ -143,7 +120,7 @@ for (let i = 0; i < lines.length; i++) {
   const oldStatus = rawStatus;
   parts[6] = result.status;
 
-  // Move DUPLICADO info to notes if needed
+  // Move duplicate marker info to notes if needed
   if (result.moveToNotes && parts[9]) {
     const existing = parts[9] || '';
     if (!existing.includes(result.moveToNotes)) {

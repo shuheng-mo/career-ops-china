@@ -1,4 +1,4 @@
-# Mode: ofertas — 多 Offer 比较
+# Mode: offers — 多 Offer 比较
 
 10 维加权打分矩阵：
 

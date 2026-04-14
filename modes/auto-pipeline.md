@@ -21,10 +21,10 @@
 **如果输入是 JD 文本**（不是 URL）：直接用，不需要 fetch。
 
 ## Step 1 — A-F 评估
-完全按 `oferta` mode 跑（读 `modes/oferta.md` 的 A-F 六块）。
+完全按 `offer` mode 跑（读 `modes/offer.md` 的 A-F 六块）。
 
 ## Step 2 — 写 report .md
-保存到 `reports/{###}-{company-slug}-{YYYY-MM-DD}.md`（格式见 `modes/oferta.md`）。
+保存到 `reports/{###}-{company-slug}-{YYYY-MM-DD}.md`（格式见 `modes/offer.md`）。
 
 ## Step 3 — 生成 PDF
 按 `modes/pdf.md` 跑完整 pipeline。

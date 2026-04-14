@@ -343,7 +343,7 @@ func (m *PipelineModel) applyFilterAndSort() {
 		case filterAll:
 			filtered = append(filtered, app)
 		case filterTop:
-			if app.Score >= 4.0 && norm != "no_aplicar" {
+			if app.Score >= 4.0 && norm != "skip" {
 				filtered = append(filtered, app)
 			}
 		default:
@@ -545,7 +545,7 @@ func (m PipelineModel) countForFilter(filter string) int {
 		case filterAll:
 			count++
 		case filterTop:
-			if app.Score >= 4.0 && norm != "no_aplicar" {
+			if app.Score >= 4.0 && norm != "skip" {
 				count++
 			}
 		default:

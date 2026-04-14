@@ -23,7 +23,7 @@ const DRY_RUN = process.argv.includes('--dry-run');
 
 // Status advancement order (higher = more advanced in pipeline)
 // Applied > Rejected because active application > terminal state
-// Lowercase keys; matches both English canonical and Spanish/Chinese aliases
+// Lowercase keys; English canonical only (Chinese aliases are normalized upstream)
 const STATUS_RANK = {
   // English canonical
   'skip': 0,
@@ -34,15 +34,6 @@ const STATUS_RANK = {
   'responded': 4,
   'interview': 5,
   'offer': 6,
-  // Spanish legacy aliases
-  'no aplicar': 0,
-  'descartado': 0,
-  'rechazado': 1,
-  'evaluada': 2,
-  'aplicado': 3,
-  'respondido': 4,
-  'entrevista': 5,
-  'oferta': 6,
 };
 
 function normalizeCompany(name) {

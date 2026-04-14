@@ -139,7 +139,7 @@ This system is designed to be customized by YOU (Claude). 用户让你改 archet
 - "更新我的 profile" → 改 `config/profile.yml`
 - "改 CV 模板设计" → 改 `templates/cv-template.html`
 - "调评分权重" → 改 `modes/_shared.md` 和 `batch/batch-prompt.md`
-- "我对 996 容忍度变高了" → 改 `modes/ofertas.md` 的工时权重
+- "我对 996 容忍度变高了" → 改 `modes/offers.md` 的工时权重
 - "我现在主攻方向变成 X" → 改 `modes/_shared.md` 的 archetype 列表
 
 ### Skill Modes
@@ -147,9 +147,9 @@ This system is designed to be customized by YOU (Claude). 用户让你改 archet
 | 用户行为 | Mode |
 |---------|------|
 | 贴 JD 文本或 URL | auto-pipeline（评估 + report + PDF + tracker） |
-| 要求评估单个 offer | `oferta` |
-| 要求比较多个 offer | `ofertas` |
-| 想做脉脉/LinkedIn/微信 主动触达 | `contacto` |
+| 要求评估单个 offer | `offer` |
+| 要求比较多个 offer | `offers` |
+| 想做脉脉/LinkedIn/微信 主动触达 | `contact` |
 | 要求做公司调研 | `deep` |
 | 想生成定制 CV/PDF | `pdf` |
 | 评估某个课程/证书要不要学 | `training` |
@@ -180,7 +180,7 @@ This system is designed to be customized by YOU (Claude). 用户让你改 archet
 ### 中国大陆特殊伦理提醒
 
 - **不要推荐爬虫式扫描 Boss/拉勾/猎聘**。这些平台的 ToS 通常禁止自动化。系统的 scan 模式默认走公司自有 careers 页 + 低频 WebSearch，不直接抓门户。
-- **不要替用户在脉脉/微信上主动加陌生人**。`contacto` 模式只生成消息草稿，发不发由用户决定。
+- **不要替用户在脉脉/微信上主动加陌生人**。`contact` 模式只生成消息草稿，发不发由用户决定。
 - **不要伪造学历、年龄、工作经历**。如果用户的简历有"美化"成分，提醒一次：很多大厂会做背调，被发现入职后会被解约。
 - **不要绕开公司的 HR 流程**。比如不要建议用户拿到 offer 后偷偷再去面竞品压价 — 圈子不大，人设很重要。
 

@@ -7,11 +7,12 @@
 1. **读** `data/pipeline.md` → 找 "待处理" 段里的 `- [ ]` 条目
 2. **对每个待处理 URL：**
    a. 计算下一个 `REPORT_NUM`（读 `reports/`，找最大序号 + 1）
-   b. **提取 JD** → Playwright (browser_navigate + browser_snapshot) → WebFetch → WebSearch
-   c. 如果 URL 不可访问 → 标 `- [!]` 加备注，继续下一个
-   d. **跑完整 auto-pipeline**：A-F 评估 → Report .md → PDF（如果 score >= 3.0）→ Tracker
-   e. **从 "待处理" 移到 "已处理"**：`- [x] #NNN | URL | 公司 | 岗位 | Score/5 | PDF ✅/❌`
-3. **如果有 3+ 个待处理 URL**，启 Agent 并行（用 `run_in_background`）加速。**注意**：Playwright 不能并行（共享浏览器），用 Playwright 的 agent 顺序跑。
+   b. **先判断域名** — 如果命中"国内门户硬跳过规则"，直接标 `- [!]` 跳过，**不调用任何工具**
+   c. **提取 JD** — **单次尝试**：国内大厂 careers 域用 Playwright `browser_navigate` + `browser_snapshot`；公开页（V2EX / GitHub / 公众号）用 WebFetch。**失败就停**，不要 fallback 到下一级工具
+   d. 不可访问 / 反爬 / 登录墙 → 标 `- [!] 需人工取 JD（截图/复制）`，继续下一个
+   e. JD 拿到后跑完整 auto-pipeline：A-F 评估 → Report .md → PDF（score ≥ 3.0）→ Tracker
+   f. **从 "待处理" 移到 "已处理"**：`- [x] #NNN | URL | 公司 | 岗位 | Score/5 | PDF ✅/❌`
+3. **串行处理**：Playwright 不能并行（共享浏览器）；WebFetch 也不建议并行 — 串行便于出错时停下、便于看 token 消耗。
 4. **结束时**显示汇总表：
 
 ```
@@ -31,26 +32,40 @@
 - [x] #144 | https://www.zhipin.com/job_detail/xxx | 某公司 | 后端 | 2.1/5 | PDF ❌
 ```
 
-## 国内 URL 的特殊处理
+## 国内门户硬跳过规则（2026-04 新增，节流关键）
 
-| 域名 | 处理方式 |
-|------|---------|
-| `jobs.bytedance.com` / `talent.alibaba.com` / `careers.tencent.com` 等大厂自有域 | Playwright 直抓，通常 OK |
-| `zhipin.com`（Boss直聘） | **多数登录墙**，标 `[!]`，让用户手动贴 JD |
-| `lagou.com` | 列表可能可访问，详情常需登录 |
-| `liepin.com` | 同上 |
-| `maimai.cn`（脉脉招聘） | 必须登录 → `[!]` |
-| `linkedin.com/jobs` | 需要登录 → `[!]` 或让 Claude 用 chrome 模式 |
+**下列域名一律不自动化 JD 提取** — 直接在 pipeline.md 标 `[!] 需人工取 JD`，让用户 bookmarklet / 截图 / 复制后走 inbox 流程。**不要调用 Playwright / WebFetch / WebSearch 里的任何一个。**
 
-## 智能 JD 检测
+| 域名 | 原因 |
+|------|------|
+| `zhipin.com`（Boss直聘） | 反爬 + 登录墙 |
+| `lagou.com` | 反爬 + 登录墙 |
+| `liepin.com` | 登录墙 |
+| `mokahr.com` / `*.mokahr.com` | SPA + 反爬，AI 独角兽常用 |
+| `feishu.cn` / `*.feishu.cn` | 飞书表单反爬 |
+| `maimai.cn`（脉脉招聘） | 必须登录 |
+| `linkedin.com/jobs` | 登录墙 |
+| `mp.weixin.qq.com`（部分） | 公众号动态页，看情况可 WebFetch，失败就立即 yield |
 
-1. **Playwright（首选）：** `browser_navigate` + `browser_snapshot`。能处理所有 SPA。
-2. **WebFetch（fallback）：** 静态页或 Playwright 不可用时。
-3. **WebSearch（最后手段）：** 在二级招聘站找 HTML 缓存。
+**实现要点：** 走到 Step 2b 先做 URL 域名匹配。命中 → 跳到 2d 标 `[!]`，**本条目不产生任何工具调用**。
 
-**特殊情况：**
-- **登录墙**：标 `[!]`，让用户手动贴 JD 文本
-- **PDF**：如果 URL 是 PDF，直接用 Read tool 读
+## JD 提取规则（非硬跳过域名）
+
+对不在上表里的 URL（大厂 careers 自有域、V2EX、GitHub、公众号公开页等）：
+
+1. **大厂 careers 自有域**（`jobs.bytedance.com` / `talent.alibaba.com` / `careers.tencent.com` / `zhaopin.meituan.com` 等）：Playwright `browser_navigate` + `browser_snapshot`，**一次**
+2. **公开静态页**（V2EX / GitHub / `*.xxx.com/jobs/`）：WebFetch，**一次**
+3. 其余陌生域：WebFetch 试**一次**
+
+**所有情况下：一次失败立即 yield**。
+- **禁止** Playwright → WebFetch 自动 fallback
+- **禁止** WebFetch → WebSearch 自动 fallback
+- **禁止** 同一 URL 换参数 / 换 User-Agent / 换路径重试
+
+失败写 `[!]`，用户需要时会明确说"再试一次"或"用截图"。
+
+**特殊情况（沿用）：**
+- **PDF URL**：用 Read tool 读
 - **`local:` 前缀**：读本地文件。例：`local:jds/字节跳动-data-eng.md` → 读 `jds/字节跳动-data-eng.md`
 
 ## 自动编号

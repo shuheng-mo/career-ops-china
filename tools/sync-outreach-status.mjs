@@ -21,7 +21,7 @@ const OUTREACH = join(ROOT, "outreach");
 const TRACKER = join(ROOT, "data", "applications.md");
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const FILE_RE = /^(\d{1,3})-([a-z0-9-]+)-(boss|maimai|linkedin|wechat)-(\d{4}-\d{2}-\d{2})\.md$/;
+const FILE_RE = /^(\d{1,3})-([a-z0-9-]+)-(boss|maimai|linkedin|wechat|portal|email)-(\d{4}-\d{2}-\d{2})\.md$/;
 
 function parseOutreach(path) {
   const content = readFileSync(path, "utf8");

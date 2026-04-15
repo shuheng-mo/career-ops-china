@@ -8,7 +8,13 @@
 
 **文件名：** `{报告编号}-{公司slug}-{渠道}-{日期}.md`
 - 编号对齐 `reports/` 里对应的评估报告（让 outreach ↔ report 可互相追溯）
-- 渠道用 `boss` / `maimai` / `linkedin` / `wechat`
+- 渠道：
+  - `boss` — Boss 直聘对 HR 首条消息
+  - `maimai` — 脉脉 warm outreach（找 hiring manager / peer 要内推）
+  - `linkedin` — 外企/海外
+  - `wechat` — 已加微信的跟进
+  - `portal` — SPA 官方投递的自填话术（Mokahr / 飞书表单 / 企业 careers 的 "推荐理由 / 自我介绍 / 申请原因" 文本框）
+  - `email` — V2EX / 知乎内推贴、邮箱直投的正文
 - 示例：`outreach/026-topquant-boss-2026-04-15.md`
 
 **文件结构模板：**

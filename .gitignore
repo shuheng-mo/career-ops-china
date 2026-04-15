@@ -8,6 +8,8 @@ data/pipeline.md
 data/scan-history.tsv
 reports/*.md
 !reports/.gitkeep
+outreach/*.md
+!outreach/.gitkeep
 output/*
 !output/.gitkeep
 batch/logs/*

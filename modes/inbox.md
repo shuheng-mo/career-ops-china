@@ -73,8 +73,20 @@
 |------|------|------|
 | 1 | `extracted.description` | 主 JD 内容（如果 bookmarklet 抽到了结构化字段）|
 | 2 | `extracted.raw_text` | 兜底，整页文本，从中识别 JD |
-| — | `url`, `company`, `job_title` | 用于 report 头、PDF 命名、tracker 字段 |
-| — | `platform` | 标记来源，写进 report 验证状态段 |
+| — | `url` | **report 头 `**URL：**` 字段必须填 `json.url` 的真实网页 URL**。不要写 "bookmarklet 文件 xxx.json"、不要写 "Boss 直聘详情页"、不要写本地文件路径 |
+| — | `company`, `job_title` | 用于 report 头、PDF 命名、tracker 字段 |
+| — | `platform` | 标记来源，写进 report 验证状态段（和 URL 分开，不要混） |
+
+**反面示例（绝对不要）：**
+```
+**URL：** Boss 直聘详情页（bookmarklet 文件 `jd-20260415-144918-boss-zhipin-xxx.json`）
+```
+**正面示例：**
+```
+**URL：** https://www.zhipin.com/job_detail/bee0238dad00b91c03x63dm0GFBR.html?securityId=...
+**来源：** boss-zhipin (via /career-ops inbox, bookmarklet 捕获 2026-04-15 14:49)
+```
+原因：报告里的 URL 是给未来的候选人点回去复查岗位用的。JSON 文件名只在本地有意义，换台电脑/下次复查就失效。
 
 **特别注意：** Mokahr / Boss 等反爬平台抓到的 `extracted.*` 可能字段缺失或不准。**永远先看 raw_text** 找 JD 真实内容，不要被空字段误导。
 

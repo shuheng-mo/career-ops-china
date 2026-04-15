@@ -10,7 +10,8 @@
     "pdf": "node tools/generate-pdf.mjs",
     "sync-check": "node tools/cv-sync-check.mjs",
     "inbox-server": "node tools/jd-inbox-server.mjs",
-    "build-bookmarklets": "node tools/build-bookmarklets.mjs"
+    "build-bookmarklets": "node tools/build-bookmarklets.mjs",
+    "sync-outreach": "node tools/sync-outreach-status.mjs"
   },
   "keywords": ["ai", "job-search", "claude-code", "career", "automation"],
   "author": "Santiago Fernández de Valderrama <hi@santifer.io> (https://santifer.io)",

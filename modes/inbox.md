@@ -5,17 +5,45 @@
 
 ## Workflow
 
+### Phase 0 — 本地 Triage（零工具调用）
+
 1. **列文件：** `ls inbox/*.json | sort`（排除 .gitkeep 和 processed/）
 2. **如果空：** 告诉用户 inbox 为空，提示安装 / 使用 bookmarklet 的方法
-3. **如果有 1 个：** 直接处理（不启 subagent）
-4. **如果有 3+ 个：** 启 subagent 并行处理（同 batch mode 风格）
-5. **每个文件：**
-   a. `Read` JSON
-   b. 用 `extracted.description`（如非空且 >200 字）作为 JD，否则用 `extracted.raw_text`
-   c. 计算 `REPORT_NUM`（reads `reports/`，max + 1）
-   d. 跑 auto-pipeline 完整 A-F 评估 + report + PDF（score >= 3.0）+ tracker TSV
-   e. 处理完 `mv inbox/{file}.json inbox/processed/{file}.json`
-6. **结束：** 输出汇总表 + 提示用户跑 `npm run merge`（即 `node tools/merge-tracker.mjs`）
+3. **对每个 JSON 提取元信息**（title / company / real_company via HR 反推 / salary / location / deal-breaker flag）
+4. **分类到 4 个桶**：
+   - **A. 完整评估**：用户确认处理的高优先级
+   - **B. 批量 Discarded**：title 过关但用户决定不做完整评估（P3 低优 / "华为"误报 / 其他 keep 类）
+   - **C. SKIP（Deal-breaker）**：真派遣 / 真华为系 / 明确命中候选人 deal-breaker
+   - **D. Title-skip**：title 过滤不过关（AI 产品经理 / 数据分析师 / 应届实习 等）
+
+### Phase 1 — 交互式确认（Token 控制）
+
+如果桶 A 候选数 ≥ 5，向用户列清单让选：
+- `[a] 仅 top 4`（按 priority 排）
+- `[b] top 7`
+- `[c] 全跑 {N}`
+- `[d] 自选编号`
+
+### Phase 2 — 处理（按桶执行，每个桶都要完整闭环）
+
+| 桶 | 处理 | TSV | Report | PDF | 归档 |
+|----|------|-----|--------|-----|------|
+| **A 完整评估** | A-F 评估 | ✅ 1 行 | ✅ 完整 | 视 Score / 用户决定 | mv processed/ |
+| **B 批量 Discarded** | 无评估 | ✅ 1 行 notes=原因 | ❌ 无 | ❌ | **mv processed/** |
+| **C SKIP（Deal-breaker）** | 无评估 | ✅ 1 行 notes=派遣方 | ❌ 无 | ❌ | **mv processed/** |
+| **D Title-skip** | 无 | ❌ 不进 applications.md | ❌ | ❌ | **mv processed/** |
+
+### 🚨 铁律：inbox 结束时必须清零
+
+**所有被 triage 过（无论哪个桶）的 JSON 都必须 mv 到 `inbox/processed/`。**
+
+- 不能有"看过但不处理"的 JSON 留在 inbox — 那下次 `/career-ops inbox` 会重复 triage 浪费 token
+- 不能有"用户选了 top 4 处理，剩下 10 个留原位" — 剩下 10 个按桶 B 批量 Discarded 处理
+- 唯一留 inbox 的情况：**该 JSON 从未被 triage 过**（比如正在处理时用户又抓了新 JD）
+
+### Phase 3 — 合并
+
+输出汇总表 + 提示用户跑 `npm run merge`（即 `node tools/merge-tracker.mjs`）
 
 ## JSON Schema（inbox 文件格式）
 

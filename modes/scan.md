@@ -59,8 +59,9 @@
 ## 配置
 
 读 `portals.yml`：
-- `search_queries` — WebSearch queries（广度发现）
-- `tracked_companies` — 大厂直抓列表，每条带 `careers_url`
+- `scan_defaults` — token 节流开关（`scan_company_queries_enabled` / `dedup_window_days` / `interactive_confirm`）
+- `search_queries` — WebSearch queries（广度发现），每条带 `priority: high|low`
+- `tracked_companies` — 大厂直抓列表，每条带 `careers_url`，部分带 `scan_query`（公司级，默认不跑）
 - `title_filter` — positive/negative/seniority_boost 关键词
 
 ---
@@ -85,23 +86,66 @@
 
 ## Workflow
 
-1. **读配置：** `portals.yml`
-2. **读历史：** `data/scan-history.tsv` → 已见过的 URL
+### Phase 0 — 准备候选集（不耗 token，全是本地 I/O）
+
+1. **读配置：** `portals.yml`（`scan_defaults` + `search_queries` + `tracked_companies` + `title_filter`）
+2. **读历史：** `data/scan-history.tsv` → 已见过的 URL + **每个 query 最近执行时间**
 3. **读去重源：** `data/applications.md` + `data/pipeline.md`
 
-4. **Level 1 — Playwright 扫描大厂 careers**（每批 3-5 顺序，不并行）
-   对 `tracked_companies` 中 `enabled: true` 且有 `careers_url` 的公司：
-   - `browser_navigate` 到 `careers_url`
-   - `browser_snapshot` 读所有 job listing
-   - 提取 `{title, url, company}`
-   - **不尝试**进每个详情页（详情往往是 SPA 壳，浪费时间）
-   - 翻页累积候选
+4. **事前去重（query 级，最近 N 天内跑过就跳过）：**
+   - 窗口：`scan_defaults.dedup_window_days`（默认 7 天）
+   - 扫 `scan-history.tsv` 找每个 `query name` 最后一次 `first_seen` 的日期
+   - 如果距今 < N 天 → 该 query 标记 `skipped_recent_run`，**不进候选集**
+   - 这一步在 WebSearch 之前做，直接省下大头 token
 
-5. **Level 3 — WebSearch 广度发现**（可并行）
-   对 `enabled: true` 的每个 query：
-   - WebSearch 执行
-   - 提取 `{title, url, company}`
-   - **不尝试** WebFetch Boss/拉勾/猎聘/脉脉详情页
+5. **构建候选清单：**
+   - 全局 `search_queries` 中 `enabled: true` 且未被事前去重跳过的 → 按 `priority` 分 `high` / `low`
+   - `tracked_companies` 中 `enabled: true` 且有 `careers_url` → 加入 `careers_scan` 组
+   - 公司级 `scan_query`（`tracked_companies[*].scan_query`）：**仅当** `scan_defaults.scan_company_queries_enabled: true` 才并入，否则忽略
+
+### Phase 1 — 交互式确认（强制，除非 `scan_defaults.interactive_confirm: false`）
+
+在任何 WebSearch / Playwright 调用**之前**，先输出如下摘要让用户选：
+
+```
+scan 候选集 — {YYYY-MM-DD}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WebSearch query：
+  🔴 high priority：N 条（强烈推荐）
+  🟡 low priority ：M 条（补充面）
+  ⏸ 跳过（7 天内已跑）：K 条
+公司 careers 直抓：C 家（Playwright snapshot）
+公司级 scan_query：X 条 {若全局开关关闭则写"(已跳过，开关关闭)"}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+预估工具调用：约 {N_high} ~ {N_high+N_low+C} 次
+预估输入 token：~ {估算值}（high only 模式） / ~ {更大的估算} （全跑）
+
+请选择：
+  [h] 仅跑 high priority（推荐，最省 token）
+  [y] 全跑（high + low）
+  [c] 仅跑 careers 直抓，跳过 WebSearch
+  [n] 取消
+```
+
+**等用户明确选择后**再进入 Phase 2。**不要假设用户想全跑**。
+
+### Phase 2 — 执行（按用户选择的范围）
+
+**Level 1 — Playwright 扫描大厂 careers**（用户选了 `y` / `h` / `c` 时执行；`n` 跳过）
+对候选的 tracked_companies：
+- `browser_navigate` 到 `careers_url`
+- `browser_snapshot` 读所有 job listing
+- 提取 `{title, url, company}`
+- **不尝试**进每个详情页（详情往往是 SPA 壳，浪费时间）
+- 翻页累积候选（首页 + 至多第 2 页；再翻就停）
+
+**Level 3 — WebSearch 广度发现**（用户选了 `y` 跑全部 / `h` 仅跑 high；`c` / `n` 跳过）
+对候选 query：
+- WebSearch 执行（串行，不要并行 — 便于观察 token 消耗）
+- 提取 `{title, url, company}`
+- **不尝试** WebFetch Boss/拉勾/猎聘/脉脉详情页
+
+### Phase 3 — 过滤 + 写入
 
 6. **过滤** 用 `portals.yml` 的 `title_filter`：positive 命中 + negative 排除
 
@@ -112,7 +156,8 @@
    - 仅当来源是 V2EX / GitHub / 公司自有静态页 → 标 `[ ]`（可 WebFetch）
    - 标记格式：`- [!] {url} | {company} | {title} | {source} | 取 JD 方式：截图 / 复制`
 
-9. **写入 scan-history.tsv**：所有看见的 URL 都进，`status=added/skipped_title/skipped_dup/needs_manual`
+9. **写入 scan-history.tsv**：所有看见的 URL 都进，`status=added/skipped_title/skipped_dup/needs_manual/skipped_recent_run`
+   - **Query 级记录也要写** — 每个实际执行过的 query 写一行 `query_run\t{name}\t{timestamp}`，供下次事前去重读取
 
 ---
 
@@ -121,8 +166,15 @@
 ```
 门户线索发现 — {YYYY-MM-DD}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-扫描公司 careers：N
-WebSearch query：N
+[资源消耗]
+  WebSearch 次数：N
+  Playwright snapshot 次数：M
+  事前去重跳过（7 天内已跑）：K
+  用户选择模式：{h / y / c}
+
+[发现]
+扫描公司 careers：C
+执行 WebSearch query：Q
 发现候选 URL：N
 title 过滤后：N
 去重后新增：N
@@ -144,6 +196,8 @@ title 过滤后：N
   千万不要等 scan 给你 JD — 它给不了。
 ```
 
+**把 `[资源消耗]` 段放在最上面，让用户每次都看到本次 token 代价。**
+
 ---
 
 ## 私链 / 完全无 URL 的岗位
@@ -156,14 +210,26 @@ title 过滤后：N
 
 ## scan history
 
-`data/scan-history.tsv` 记录所有见过的 URL：
+`data/scan-history.tsv` 同时记录两类：
 
+**（A）URL 级记录**（历史一直有的）：
 ```
 url	first_seen	portal	title	company	status
 https://...	2026-04-07	字节跳动 careers	数据工程师	字节跳动	added
 https://...	2026-04-07	Boss直聘 query	Java	某公司	skipped_title
 https://...	2026-04-07	Lagou query	数据	某公司	needs_manual
 ```
+
+status 取值：`added` / `skipped_title` / `skipped_dup` / `needs_manual`
+
+**（B）Query 级记录**（2026-04 新增，用于事前去重）：
+```
+query_run	{query_name}	{timestamp}	{priority}	{results_count}
+query_run	Boss直聘 — 数据工程	2026-04-15T10:23	high	18
+query_run	GitHub — 大模型公司招聘	2026-04-15T10:25	high	7
+```
+
+每次实际调用 WebSearch 的 query 都写一行。scan 启动时回读，`dedup_window_days` 内已跑过的 query 从候选集剔除。
 
 `needs_manual` 表示已发现但需要用户手动取 JD（默认 99% 的国内门户结果都是这个状态）。
 
@@ -186,6 +252,8 @@ https://...	2026-04-07	Lagou query	数据	某公司	needs_manual
 - 噪音太大的 query 用 `enabled: false` 关掉
 - 定期检查 `careers_url` — 公司换 ATS 是常事
 - **不要再添加纯 Boss/拉勾 search query**（除非真有必要 + 用户能手动跟进）— 反正取不到 JD
+- 新加的 query 默认标 `priority: low`；只有实测命中率 > 50% 才提升到 `high`
+- 公司级 `scan_query`（如 Manus 系、小创业公司）默认不跑；需要用户主动改 `scan_defaults.scan_company_queries_enabled: true` 才会纳入
 
 ---
 

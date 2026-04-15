@@ -4,15 +4,15 @@
  * scan-helper.mjs — 用 Playwright 桥接 SPA careers 页和 JD 详情页
  *
  * 用法:
- *   node scan-helper.mjs <URL> [--mode=jd|list] [--wait=5000] [--format=text|json]
+ *   node tools/scan-helper.mjs <URL> [--mode=jd|list] [--wait=5000] [--format=text|json]
  *
  * 模式:
  *   --mode=jd    （默认）提取整个页面的可见文本内容（适合 JD 详情页）
  *   --mode=list  提取页面中所有看起来像职位链接的 (title, url) 列表（适合 careers 列表页）
  *
  * 例:
- *   node scan-helper.mjs "https://jobs.bytedance.com/experienced/position/6820281790835951885" --mode=jd
- *   node scan-helper.mjs "https://www.zhipin.com/web/geek/job?query=数据" --mode=list
+ *   node tools/scan-helper.mjs "https://jobs.bytedance.com/experienced/position/6820281790835951885" --mode=jd
+ *   node tools/scan-helper.mjs "https://www.zhipin.com/web/geek/job?query=数据" --mode=list
  *
  * 输出: stdout（让 Bash 直接捕获）
  *
@@ -41,7 +41,7 @@ async function main() {
   }
 
   if (!url) {
-    console.error('Usage: node scan-helper.mjs <URL> [--mode=jd|list] [--wait=5000] [--format=text|json] [--user-data-dir=PATH]');
+    console.error('Usage: node tools/scan-helper.mjs <URL> [--mode=jd|list] [--wait=5000] [--format=text|json] [--user-data-dir=PATH]');
     process.exit(1);
   }
 

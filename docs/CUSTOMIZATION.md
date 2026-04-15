@@ -72,5 +72,5 @@ Save hooks in `.claude/settings.json`.
 
 The canonical states rarely need changing. If you add new states, update:
 1. `templates/states.yml`
-2. `normalize-statuses.mjs` (alias mappings)
+2. `tools/normalize-statuses.mjs` (alias mappings)
 3. `modes/_shared.md` (any references)

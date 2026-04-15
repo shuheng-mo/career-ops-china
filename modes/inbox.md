@@ -15,7 +15,7 @@
    c. 计算 `REPORT_NUM`（reads `reports/`，max + 1）
    d. 跑 auto-pipeline 完整 A-F 评估 + report + PDF（score >= 3.0）+ tracker TSV
    e. 处理完 `mv inbox/{file}.json inbox/processed/{file}.json`
-6. **结束：** 输出汇总表 + 提示用户跑 `node merge-tracker.mjs`
+6. **结束：** 输出汇总表 + 提示用户跑 `npm run merge`（即 `node tools/merge-tracker.mjs`）
 
 ## JSON Schema（inbox 文件格式）
 
@@ -64,7 +64,7 @@ inbox 处理 — {YYYY-MM-DD}
 | 004 | 字节 | 数据工程师 | 3.9/5 | ✅ | dachang-spa |
 | 005 | 某公司 | XX | 2.5/5 | ❌ | boss-zhipin |
 
-→ 跑 node merge-tracker.mjs 把 TSV 合并进 applications.md
+→ 跑 npm run merge（node tools/merge-tracker.mjs）把 TSV 合并进 applications.md
 ```
 
 ## 服务器使用提醒

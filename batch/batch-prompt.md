@@ -18,7 +18,7 @@
 | `modes/_shared.md` | 总是 | **8 大 archetype 定义、framing 规则、中国大陆薪酬源、北极星对齐、评分权重** |
 | `CLAUDE.md` | 如遇 TSV / tracker 格式疑问 | TSV 9 列规范和 canonical 状态 |
 | `templates/cv-template.html` | 生成 PDF 时 | HTML 模板 |
-| `generate-pdf.mjs` | 生成 PDF 时 | Puppeteer 脚本 |
+| `tools/generate-pdf.mjs` | 生成 PDF 时 | Puppeteer 脚本 |
 
 **核心规则：**
 - 永远不要写 cv.md
@@ -94,7 +94,7 @@ Body 是完整 A-F + 末尾 15-20 个 JD 关键词（供 ATS）。
 10. 用 `templates/cv-template.html` 生成 HTML → 写 `/tmp/cv-candidate-{slug}.html`
 11. 执行：
     ```bash
-    node generate-pdf.mjs /tmp/cv-candidate-{slug}.html output/cv-candidate-{slug}-{{DATE}}.pdf --format={letter|a4}
+    node tools/generate-pdf.mjs /tmp/cv-candidate-{slug}.html output/cv-candidate-{slug}-{{DATE}}.pdf --format={letter|a4}
     ```
 12. 报告：PDF 路径、页数、关键词覆盖率
 

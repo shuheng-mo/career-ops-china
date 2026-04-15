@@ -78,6 +78,6 @@
 
 处理任何 URL 之前，检查同步状态：
 ```bash
-node cv-sync-check.mjs
+node tools/cv-sync-check.mjs
 ```
 如果有 desync，警告用户后再继续。

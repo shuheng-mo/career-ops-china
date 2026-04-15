@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "AI-powered job search pipeline built on Claude Code",
   "scripts": {
-    "verify": "node verify-pipeline.mjs",
-    "normalize": "node normalize-statuses.mjs",
-    "dedup": "node dedup-tracker.mjs",
-    "merge": "node merge-tracker.mjs",
-    "pdf": "node generate-pdf.mjs",
-    "sync-check": "node cv-sync-check.mjs",
+    "verify": "node tools/verify-pipeline.mjs",
+    "normalize": "node tools/normalize-statuses.mjs",
+    "dedup": "node tools/dedup-tracker.mjs",
+    "merge": "node tools/merge-tracker.mjs",
+    "pdf": "node tools/generate-pdf.mjs",
+    "sync-check": "node tools/cv-sync-check.mjs",
     "inbox-server": "node tools/jd-inbox-server.mjs",
     "build-bookmarklets": "node tools/build-bookmarklets.mjs"
   },

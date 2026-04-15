@@ -195,7 +195,7 @@
 
 ### 2. 写入 tracker
 
-**永远** 写入 `data/applications.md` — 但是是通过 TSV 文件的方式（看 CLAUDE.md 中的 TSV 规范），由 `merge-tracker.mjs` 自动合并。
+**永远** 写入 `data/applications.md` — 但是是通过 TSV 文件的方式（看 CLAUDE.md 中的 TSV 规范），由 `tools/merge-tracker.mjs` 自动合并。
 
 字段：
 - 序号

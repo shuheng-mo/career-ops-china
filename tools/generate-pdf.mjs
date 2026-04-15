@@ -15,7 +15,9 @@ import { resolve, dirname } from 'path';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 
+// Script lives in tools/; project root (where fonts/ lives) is one level up.
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const projectRoot = resolve(__dirname, '..');
 
 async function generatePDF() {
   const args = process.argv.slice(2);
@@ -34,7 +36,7 @@ async function generatePDF() {
   }
 
   if (!inputPath || !outputPath) {
-    console.error('Usage: node generate-pdf.mjs <input.html> <output.pdf> [--format=letter|a4]');
+    console.error('Usage: node tools/generate-pdf.mjs <input.html> <output.pdf> [--format=letter|a4]');
     process.exit(1);
   }
 
@@ -56,7 +58,7 @@ async function generatePDF() {
   let html = await readFile(inputPath, 'utf-8');
 
   // Resolve font paths relative to career-ops/fonts/
-  const fontsDir = resolve(__dirname, 'fonts');
+  const fontsDir = resolve(projectRoot, 'fonts');
   html = html.replace(
     /url\(['"]?\.\/fonts\//g,
     `url('file://${fontsDir}/`

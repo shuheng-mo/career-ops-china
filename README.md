@@ -80,7 +80,7 @@ flowchart TD
     AutoPipe --> PDF["📑 output/<br/>cv-{...}.pdf<br/>中文 A4 ATS"]
     AutoPipe --> TSV["📊 batch/<br/>tracker-additions/<br/>{ID}.tsv"]
 
-    TSV -->|"merge-tracker.mjs"| Apps
+    TSV -->|"tools/merge-tracker.mjs"| Apps
 
     Apps[("📚 data/applications.md<br/>单一来源 tracker")]
 
@@ -183,8 +183,8 @@ deal_breakers:
 | 9 | PDF 生成加入中国 CV 约定（学历位置/量化结果/技术栈）+ 中文字体回退 | `modes/pdf.md`, `templates/cv-template.html` |
 | 10 | portals-china.example.yml 预置 50+ 中国公司 | `templates/portals-china.example.yml` |
 | 11 | states.yml 加入中文别名（已评估/已投递/面试中/被拒/不投 等） | `templates/states.yml` |
-| 12 | 4 个 .mjs 脚本修复 path-with-spaces bug + 加入英文 canonical states + 中文别名 | `merge-tracker.mjs`, `verify-pipeline.mjs`, `dedup-tracker.mjs`, `normalize-statuses.mjs` |
-| 13 | 新增 `scan-helper.mjs` Playwright 桥接脚本（处理国内 SPA careers 页） | `scan-helper.mjs` |
+| 12 | 4 个 .mjs 脚本修复 path-with-spaces bug + 加入英文 canonical states + 中文别名 | `tools/merge-tracker.mjs`, `tools/verify-pipeline.mjs`, `tools/dedup-tracker.mjs`, `tools/normalize-statuses.mjs` |
+| 13 | 新增 `tools/scan-helper.mjs` Playwright 桥接脚本（处理国内 SPA careers 页） | `tools/scan-helper.mjs` |
 | 14 | CLAUDE.md 加入中国求职市场的特殊提醒（35 岁红线/gap/996/外包/双非/婚育等） | `CLAUDE.md` |
 
 ### 不变的部分
@@ -309,7 +309,7 @@ Claude（2026-04 重定位后）：
 3. 看到 "✓ JD captured" = 本地 inbox/*.json 已就位
 4. 攒几个后回 Claude：/career-ops inbox
    → Claude 批量评估（每个出 report + PDF + tracker TSV）
-5. 最后跑 node merge-tracker.mjs 合并 TSV 到 applications.md
+5. 最后跑 npm run merge（node tools/merge-tracker.mjs）合并 TSV 到 applications.md
 ```
 
 全端到端绕过反爬 + 反复制，详见 [`tools/README.md`](tools/README.md)。
@@ -598,13 +598,17 @@ career-ops-china/
 ├── examples/                       # 上游样例（保留）
 ├── dashboard/                      # Go TUI 可视化看板（可选）
 │
-├── scan-helper.mjs                 # ⭐ 新增 — Playwright 桥接脚本
-├── generate-pdf.mjs                # HTML → PDF
-├── merge-tracker.mjs               # 合并 batch TSV → applications.md
-├── verify-pipeline.mjs             # 整合性检查
-├── dedup-tracker.mjs               # 去重
-├── normalize-statuses.mjs          # 状态归一化
-└── cv-sync-check.mjs               # cv.md 同步检查
+└── tools/                          # 所有 .mjs 脚本集中在这
+    ├── scan-helper.mjs             # ⭐ Playwright 桥接（已基本被 bookmarklet 取代）
+    ├── generate-pdf.mjs            # HTML → PDF
+    ├── merge-tracker.mjs           # 合并 batch TSV → applications.md
+    ├── verify-pipeline.mjs         # 整合性检查
+    ├── dedup-tracker.mjs           # 去重
+    ├── normalize-statuses.mjs      # 状态归一化
+    ├── cv-sync-check.mjs           # cv.md 同步检查
+    ├── jd-inbox-server.mjs         # bookmarklet 本地接收服务器
+    ├── build-bookmarklets.mjs      # 构建 install.html
+    └── bookmarklets/               # 6 个浏览器 bookmarklet 源
 ```
 
 ---
@@ -666,14 +670,14 @@ open tools/install.html
 
 ---
 
-## scan-helper.mjs（遗留 Playwright 桥 — 已基本弃用）
+## tools/scan-helper.mjs（遗留 Playwright 桥 — 已基本弃用）
 
-`scan-helper.mjs` 是更早为处理国内 SPA 写的 Playwright 桥，现在**已基本被 bookmarklet 取代**。仍保留供：
+`tools/scan-helper.mjs` 是更早为处理国内 SPA 写的 Playwright 桥，现在**已基本被 bookmarklet 取代**。仍保留供：
 - 处理完全公开的公司自有 careers 列表页（大厂 SPA 的列表层面，非详情层）
 - 离线批量脚本中
 
 ```bash
-node scan-helper.mjs <URL> [--mode=jd|list] [--wait=5000]
+node tools/scan-helper.mjs <URL> [--mode=jd|list] [--wait=5000]
 ```
 
 ⚠️ **不要用 `--user-data-dir` 复用你的日常 Chrome profile** — bookmarklet 走 user-triggered 路径，不触发反爬策略，比 Playwright 更稳定。

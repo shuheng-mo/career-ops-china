@@ -67,8 +67,8 @@ Then paste a job offer URL or description. Career-ops will automatically evaluat
 ## Verify Setup
 
 ```bash
-node cv-sync-check.mjs      # Check configuration
-node verify-pipeline.mjs     # Check pipeline integrity
+node tools/cv-sync-check.mjs      # Check configuration  (or: npm run sync-check)
+node tools/verify-pipeline.mjs    # Check pipeline integrity (or: npm run verify)
 ```
 
 ## Build Dashboard (Optional)

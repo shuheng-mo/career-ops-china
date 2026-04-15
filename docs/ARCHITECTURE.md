@@ -48,7 +48,7 @@
    - F: Interview prep (STAR stories)
 5. **Score**: Weighted average across 10 dimensions (1-5)
 6. **Report**: Save as `reports/{num}-{company}-{date}.md`
-7. **PDF**: Generate ATS-optimized CV (`generate-pdf.mjs`)
+7. **PDF**: Generate ATS-optimized CV (`tools/generate-pdf.mjs`)
 8. **Track**: Write TSV to `batch/tracker-additions/`, auto-merged
 
 ## Batch Processing
@@ -93,11 +93,11 @@ Scripts maintain data consistency:
 
 | Script | Purpose |
 |--------|---------|
-| `merge-tracker.mjs` | Merges batch TSV additions into applications.md |
-| `verify-pipeline.mjs` | Health check: statuses, duplicates, links |
-| `dedup-tracker.mjs` | Removes duplicate entries by company+role |
-| `normalize-statuses.mjs` | Maps status aliases to canonical values |
-| `cv-sync-check.mjs` | Validates setup consistency |
+| `tools/merge-tracker.mjs` | Merges batch TSV additions into applications.md |
+| `tools/verify-pipeline.mjs` | Health check: statuses, duplicates, links |
+| `tools/dedup-tracker.mjs` | Removes duplicate entries by company+role |
+| `tools/normalize-statuses.mjs` | Maps status aliases to canonical values |
+| `tools/cv-sync-check.mjs` | Validates setup consistency |
 
 ## Dashboard TUI
 

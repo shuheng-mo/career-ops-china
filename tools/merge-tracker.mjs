@@ -11,7 +11,7 @@
  * If duplicate with higher score → update in-place, update report link
  * Validates status against states.yml (rejects non-canonical, logs warning)
  *
- * Run: node career-ops/merge-tracker.mjs [--dry-run] [--verify]
+ * Run: node tools/merge-tracker.mjs [--dry-run] [--verify]   (or: npm run merge)
  */
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, renameSync, existsSync } from 'fs';
@@ -19,7 +19,8 @@ import { join, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 // fileURLToPath handles spaces in path correctly (vs .pathname which encodes them as %20)
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
+// Script lives in tools/; project root is one level up.
+const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..');
 // Support both layouts: data/applications.md (boilerplate) and applications.md (original)
 const APPS_FILE = existsSync(join(CAREER_OPS, 'data/applications.md'))
   ? join(CAREER_OPS, 'data/applications.md')
@@ -328,7 +329,7 @@ if (VERIFY && !DRY_RUN) {
   console.log('\n--- Running verification ---');
   const { execSync } = await import('child_process');
   try {
-    execSync(`node ${join(CAREER_OPS, 'verify-pipeline.mjs')}`, { stdio: 'inherit' });
+    execSync(`node ${join(CAREER_OPS, 'tools/verify-pipeline.mjs')}`, { stdio: 'inherit' });
   } catch (e) {
     process.exit(1);
   }

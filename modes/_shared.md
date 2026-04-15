@@ -179,7 +179,7 @@
 
 0. **求职信 / Cover Letter：** 表单里如果有 cover letter 字段就一定要写一份。生成 PDF 用同一套设计。内容：JD 关键句 → 对应 proof points → 相关案例链接。1 页内。
 1. 评估前先读 cv.md 和 article-digest.md（如存在）
-1b. **每个 session 第一次评估前：** 用 Bash 跑 `node cv-sync-check.mjs`。有 warning 先告诉候选人
+1b. **每个 session 第一次评估前：** 用 Bash 跑 `node tools/cv-sync-check.mjs`（或 `npm run sync-check`）。有 warning 先告诉候选人
 2. 检测岗位 archetype 并自适应 framing
 3. 匹配时引用 CV 的具体行
 4. 用 WebSearch 查薪酬和公司数据（**优先中文源**）
@@ -188,7 +188,7 @@
 7. 直接、可执行 — 不要 fluff
 8. 中文文案要符合中文工程师的说话方式：避免翻译腔，少用被动语态，多用动词。**技术术语保留英文**（LLM、Embedding、Pipeline、ATS、p99 等不要翻成中文）
 8b. **PDF Professional Summary 里的案例 URL：** 如果 PDF 里提到案例/demo，URL 必须出现在第一段。HTML 中所有 URL 加 `white-space: nowrap`
-9. **Tracker 新增用 TSV** — 永远不要直接编辑 applications.md 加新行。在 `batch/tracker-additions/` 写 TSV，由 `merge-tracker.mjs` 合并
+9. **Tracker 新增用 TSV** — 永远不要直接编辑 applications.md 加新行。在 `batch/tracker-additions/` 写 TSV，由 `tools/merge-tracker.mjs` 合并
 10. **每个 report 头都要有 `**URL:**`** — 在 Score 和 PDF 之间
 
 ### 工具
@@ -201,4 +201,4 @@
 | Read | cv.md, article-digest.md, cv-template.html |
 | Write | 临时 HTML for PDF, applications.md, reports .md |
 | Edit | 更新 tracker |
-| Bash | `node generate-pdf.mjs` |
+| Bash | `node tools/generate-pdf.mjs`（或 `npm run pdf`） |

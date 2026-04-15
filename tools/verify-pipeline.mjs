@@ -11,7 +11,7 @@
  * 6. No pending TSVs in tracker-additions/ (only in merged/ or archived/)
  * 7. states.yml canonical IDs for cross-system consistency
  *
- * Run: node career-ops/verify-pipeline.mjs
+ * Run: node tools/verify-pipeline.mjs    (or: npm run verify)
  */
 
 import { readFileSync, readdirSync, existsSync } from 'fs';
@@ -19,7 +19,8 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 // fileURLToPath handles spaces in path correctly (vs .pathname which encodes them as %20)
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
+// Script lives in tools/; project root is one level up.
+const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..');
 // Support both layouts: data/applications.md (boilerplate) and applications.md (original)
 const APPS_FILE = existsSync(join(CAREER_OPS, 'data/applications.md'))
   ? join(CAREER_OPS, 'data/applications.md')

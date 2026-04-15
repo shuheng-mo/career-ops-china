@@ -12,7 +12,7 @@
  * Also strips markdown bold (**) and dates from the status field,
  * moving duplicate-marker info to the notes column.
  *
- * Run: node career-ops/normalize-statuses.mjs [--dry-run]
+ * Run: node tools/normalize-statuses.mjs [--dry-run]   (or: npm run normalize)
  */
 
 import { readFileSync, writeFileSync, copyFileSync, existsSync } from 'fs';
@@ -20,7 +20,8 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 // fileURLToPath handles spaces in path correctly (vs .pathname which encodes them as %20)
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
+// Script lives in tools/; project root is one level up.
+const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..');
 // Support both layouts: data/applications.md (boilerplate) and applications.md (original)
 const APPS_FILE = existsSync(join(CAREER_OPS, 'data/applications.md'))
   ? join(CAREER_OPS, 'data/applications.md')

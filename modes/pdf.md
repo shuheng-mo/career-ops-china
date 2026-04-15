@@ -20,7 +20,7 @@
 11. 把关键词自然注入到现有成就描述中（**永远不要编造新技能**）
 12. 用 template + 个性化内容生成完整 HTML
 13. 把 HTML 写到 `/tmp/cv-candidate-{company}.html`
-14. 执行：`node generate-pdf.mjs /tmp/cv-candidate-{company}.html output/cv-candidate-{company}-{YYYY-MM-DD}.pdf --format={letter|a4}`
+14. 执行：`node tools/generate-pdf.mjs /tmp/cv-candidate-{company}.html output/cv-candidate-{company}-{YYYY-MM-DD}.pdf --format={letter|a4}`
 15. 报告：PDF 路径、页数、关键词覆盖率
 
 ## ATS 规则（保证机器能解析）

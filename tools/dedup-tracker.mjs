@@ -6,7 +6,7 @@
  * Keeps entry with highest score. If discarded entry had more advanced status,
  * preserves that status. Merges notes.
  *
- * Run: node career-ops/dedup-tracker.mjs [--dry-run]
+ * Run: node tools/dedup-tracker.mjs [--dry-run]    (or: npm run dedup)
  */
 
 import { readFileSync, writeFileSync, copyFileSync, existsSync } from 'fs';
@@ -14,7 +14,8 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 // fileURLToPath handles spaces in path correctly (vs .pathname which encodes them as %20)
-const CAREER_OPS = dirname(fileURLToPath(import.meta.url));
+// Script lives in tools/; project root is one level up.
+const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..');
 // Support both layouts: data/applications.md (boilerplate) and applications.md (original)
 const APPS_FILE = existsSync(join(CAREER_OPS, 'data/applications.md'))
   ? join(CAREER_OPS, 'data/applications.md')

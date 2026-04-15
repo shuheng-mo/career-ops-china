@@ -14,8 +14,9 @@ import { readFileSync, existsSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+// Script lives in tools/; project root is one level up.
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const projectRoot = __dirname;
+const projectRoot = join(__dirname, '..');
 
 const warnings = [];
 const errors = [];

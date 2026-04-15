@@ -50,8 +50,8 @@ PRs without a corresponding issue may be closed if they don't align with the pro
 
 ```bash
 # Scripts
-node verify-pipeline.mjs     # Health check
-node cv-sync-check.mjs        # Config check
+node tools/verify-pipeline.mjs     # Health check (or: npm run verify)
+node tools/cv-sync-check.mjs       # Config check  (or: npm run sync-check)
 
 # Dashboard
 cd dashboard && go build -o career-dashboard .

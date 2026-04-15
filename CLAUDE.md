@@ -23,7 +23,7 @@ AI-powered job search automation built on Claude Code: pipeline tracking, offer 
 | `data/scan-history.tsv` | Scanner dedup history |
 | `portals.yml` | Query and company config |
 | `templates/cv-template.html` | HTML template for CVs |
-| `generate-pdf.mjs` | Puppeteer: HTML to PDF |
+| `tools/generate-pdf.mjs` | Puppeteer: HTML to PDF |
 | `article-digest.md` | Compact proof points from portfolio (optional) |
 | `interview-prep/story-bank.md` | Accumulated STAR+R stories across evaluations |
 | `reports/` | Evaluation reports (format: `{###}-{company-slug}-{YYYY-MM-DD}.md`) |
@@ -210,7 +210,7 @@ This system is designed to be customized by YOU (Claude). 用户让你改 archet
 - JDs in `jds/` (referenced as `local:jds/{file}` in pipeline.md)
 - Batch in `batch/` (gitignored except scripts and prompt)
 - Report numbering: sequential 3-digit zero-padded, max existing + 1
-- **RULE: After each batch of evaluations, run `node merge-tracker.mjs`** to merge tracker additions and avoid duplications.
+- **RULE: After each batch of evaluations, run `node tools/merge-tracker.mjs`** (or `npm run merge`) to merge tracker additions and avoid duplications.
 - **RULE: NEVER create new entries in applications.md if company+role already exists.** Update the existing entry.
 
 ### TSV Format for Tracker Additions
@@ -236,13 +236,13 @@ Write one TSV file per evaluation to `batch/tracker-additions/{num}-{company-slu
 
 ### Pipeline Integrity
 
-1. **NEVER edit applications.md to ADD new entries** -- Write TSV in `batch/tracker-additions/` and `merge-tracker.mjs` handles the merge.
+1. **NEVER edit applications.md to ADD new entries** -- Write TSV in `batch/tracker-additions/` and `tools/merge-tracker.mjs` handles the merge.
 2. **YES you can edit applications.md to UPDATE status/notes of existing entries.**
 3. All reports MUST include `**URL:**` in the header (between Score and PDF).
 4. All statuses MUST be canonical (see `templates/states.yml`).
-5. Health check: `node verify-pipeline.mjs`
-6. Normalize statuses: `node normalize-statuses.mjs`
-7. Dedup: `node dedup-tracker.mjs`
+5. Health check: `node tools/verify-pipeline.mjs` (or `npm run verify`)
+6. Normalize statuses: `node tools/normalize-statuses.mjs` (or `npm run normalize`)
+7. Dedup: `node tools/dedup-tracker.mjs` (or `npm run dedup`)
 
 ### Canonical States (applications.md)
 

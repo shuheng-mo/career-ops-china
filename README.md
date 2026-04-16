@@ -37,7 +37,6 @@
 ### 不适合谁
 
 - 想海投上千家公司碰运气 — 系统会引导你减少投递、提升匹配度
-- 想找传统 IT 岗位（运维 / 桌面支持 / .NET / 嵌入式 等） — archetype 不覆盖
 - 想找海外岗位 — 用上游 [`santifer/career-ops`](https://github.com/santifer/career-ops) 更合适
 
 ---
@@ -622,6 +621,7 @@ career-ops-china/
 国内招聘平台（Boss 直聘 / 拉勾 / 猎聘 / Mokahr / 飞书表单 / 脉脉 / 微信公众号）有严苛的反爬 + 反复制 + 登录墙 + SPA + 滑块验证。Playwright / WebFetch / WebSearch 在这些平台上的**结构性失败率 > 90%**，硬撑只会拖累 session。
 
 但**用户在浏览器里已经看到的 JD**，DOM 始终可读（反爬只拦复制，不拦 JS 读取）。一个 bookmarklet 就能：
+
 1. 剥离 anti-copy CSS + event handlers
 2. 按站点特化 selector 结构化抽取 (`job_title` / `company` / `salary` / `description`)
 3. POST 到 `localhost:8787` 本地服务器
@@ -673,6 +673,7 @@ open tools/install.html
 ## tools/scan-helper.mjs（遗留 Playwright 桥 — 已基本弃用）
 
 `tools/scan-helper.mjs` 是更早为处理国内 SPA 写的 Playwright 桥，现在**已基本被 bookmarklet 取代**。仍保留供：
+
 - 处理完全公开的公司自有 careers 列表页（大厂 SPA 的列表层面，非详情层）
 - 离线批量脚本中
 

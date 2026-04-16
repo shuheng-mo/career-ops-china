@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>career-ops bookmarklets — 安装</title>
+  <style>
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+           max-width: 820px; margin: 2rem auto; padding: 1rem; color: #111; line-height: 1.6; }
+    h1 { font-size: 1.6rem; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.2rem; margin-top: 2rem; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; }
+    .lead { color: #555; font-size: 0.95rem; }
+    .steps { background: #f7f7f9; padding: 1rem 1.5rem; border-radius: 8px; margin: 1rem 0 2rem; }
+    .steps ol { padding-left: 1.2rem; }
+    .steps code { background: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; color: #c7254e; }
+    .card { border: 1px solid #e5e7eb; border-left-width: 4px; border-radius: 6px;
+            padding: 1rem; margin: 1rem 0; background: #fff; }
+    .card-head { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .bm { display: inline-block; padding: 0.55rem 1rem; color: #fff; text-decoration: none;
+          border-radius: 6px; font-weight: 600; cursor: grab; user-select: none; }
+    .bm:active { cursor: grabbing; }
+    .meta { color: #666; font-size: 0.85em; }
+    .meta code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; }
+    .size { margin-left: 0.6rem; opacity: 0.7; }
+    .desc { margin: 0.5rem 0; color: #444; font-size: 0.95em; }
+    details { margin-top: 0.5rem; }
+    details summary { cursor: pointer; color: #3b82f6; font-size: 0.85em; }
+    pre { background: #1f2937; color: #e5e7eb; padding: 1rem; border-radius: 6px;
+          overflow-x: auto; font-size: 0.8em; margin-top: 0.5rem; }
+    .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;
+              color: #888; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+  <h1>career-ops 浏览器 bookmarklets — 安装</h1>
+  <p class="lead">把下面的彩色按钮 <strong>拖到浏览器书签栏</strong>，然后在任意 JD 页面点一下，JD 就会自动发到本地 inbox 让 Claude 处理。</p>
+
+  <div class="steps">
+    <h3 style="margin-top:0">使用步骤</h3>
+    <ol>
+      <li>显示书签栏：Chrome / Edge <code>⌘+Shift+B</code>，Safari <code>⌘+Shift+B</code></li>
+      <li>启动本地 inbox 服务器：终端跑 <code>npm run inbox-server</code> 或 <code>node tools/jd-inbox-server.mjs</code></li>
+      <li>把下面想用的按钮 <strong>拖</strong> 到书签栏</li>
+      <li>打开任意 JD 页面，点对应的 bookmarklet</li>
+      <li>看到 ✓ 提示后，回到 Claude 跑 <code>/career-ops inbox</code> 处理</li>
+    </ol>
+  </div>
+
+  <h2>可用 bookmarklets</h2>
+
+  <div class="card" style="border-left-color:#06b6d4">
+    <div class="card-head">
+      <a class="bm" href="javascript:(async%20function%20()%20%7B%0A%20%20%2F%2F%20%3D%3D%3D%201.%20%E5%BC%BA%E5%8A%9B%E5%89%A5%E7%A6%BB%20anti-copy%EF%BC%88%E6%B2%BF%E7%94%A8%E6%97%A7%E7%89%88%EF%BC%8C%E7%A8%B3%E5%AE%9A%EF%BC%89%20%3D%3D%3D%0A%20%20const%20allEls%20%3D%20document.querySelectorAll('*')%3B%0A%20%20allEls.forEach((el)%20%3D%3E%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20el.style.userSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20el.style.webkitUserSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20el.style.mozUserSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20if%20(el.oncopy)%20el.oncopy%20%3D%20null%3B%0A%20%20%20%20%20%20if%20(el.oncontextmenu)%20el.oncontextmenu%20%3D%20null%3B%0A%20%20%20%20%20%20if%20(el.onselectstart)%20el.onselectstart%20%3D%20null%3B%0A%20%20%20%20%7D%20catch%20%7B%7D%0A%20%20%7D)%3B%0A%20%20%5B'copy'%2C%20'cut'%2C%20'contextmenu'%2C%20'selectstart'%2C%20'mousedown'%5D.forEach((evt)%20%3D%3E%20%7B%0A%20%20%20%20document.addEventListener(evt%2C%20(e)%20%3D%3E%20e.stopPropagation()%2C%20true)%3B%0A%20%20%7D)%3B%0A%0A%20%20%2F%2F%20%3D%3D%3D%202.%20DOM%20%E8%8C%83%E5%9B%B4%E7%BA%A6%E6%9D%9F%EF%BC%88%E9%92%88%E5%AF%B9%202026-04%20company%20%E9%94%99%E6%8A%BD%20bug%EF%BC%89%20%3D%3D%3D%0A%20%20const%20PRIMARY_CONTAINERS%20%3D%20%5B%0A%20%20%20%20'.job-banner'%2C%0A%20%20%20%20'.job-primary'%2C%0A%20%20%20%20'.info-primary'%2C%0A%20%20%20%20'.job-detail-box'%2C%0A%20%20%20%20'.job-container'%2C%0A%20%20%20%20'%5Bclass*%3D%22detail-primary%22%5D'%2C%0A%20%20%20%20'%5Bclass*%3D%22job-detail%22%5D%3Anot(%5Bclass*%3D%22recommend%22%5D)%3Anot(%5Bclass*%3D%22related%22%5D)'%2C%0A%20%20%5D%3B%0A%20%20const%20EXCLUDE_SELECTORS%20%3D%20%5B%0A%20%20%20%20'.sider'%2C%20'.side-bar'%2C%20'.recommend-list'%2C%20'.recommend-jobs'%2C%0A%20%20%20%20'%5Bclass*%3D%22recommend%22%5D'%2C%20'%5Bclass*%3D%22related%22%5D'%2C%20'%5Bclass*%3D%22similar%22%5D'%2C%0A%20%20%20%20'%5Bclass*%3D%22other-job%22%5D'%2C%20'.job-history'%2C%20'.job-list'%2C%0A%20%20%20%20'.job-card'%2C%20%2F%2F%20%E6%8E%A8%E8%8D%90%E5%B2%97%E4%BD%8D%E5%8D%A1%E7%89%87%0A%20%20%5D%3B%0A%20%20const%20EXCLUDE_SELECTOR_STR%20%3D%20EXCLUDE_SELECTORS.join('%2C%20')%3B%0A%0A%20%20const%20isInExcluded%20%3D%20(el)%20%3D%3E%20%7B%0A%20%20%20%20try%20%7B%20return%20!!el.closest(EXCLUDE_SELECTOR_STR)%3B%20%7D%20catch%20%7B%20return%20false%3B%20%7D%0A%20%20%7D%3B%0A%0A%20%20const%20readText%20%3D%20(el)%20%3D%3E%20%7B%0A%20%20%20%20if%20(!el)%20return%20''%3B%0A%20%20%20%20const%20txt%20%3D%20(el.innerText%20%7C%7C%20el.textContent%20%7C%7C%20'').trim()%3B%0A%20%20%20%20return%20txt%3B%0A%20%20%7D%3B%0A%0A%20%20%2F%2F%20%E5%85%88%E5%9C%A8%E4%B8%BB%E5%B2%97%E4%BD%8D%E5%AE%B9%E5%99%A8%E5%86%85%E6%89%BE%EF%BC%9B%E6%89%BE%E4%B8%8D%E5%88%B0%E5%86%8D%E5%85%A8%E5%B1%80%E6%89%BE%E4%BD%86%E6%8E%92%E9%99%A4%E6%8E%A8%E8%8D%90%E4%BD%8D%0A%20%20const%20pickScoped%20%3D%20(subSelectors)%20%3D%3E%20%7B%0A%20%20%20%20for%20(const%20container%20of%20PRIMARY_CONTAINERS)%20%7B%0A%20%20%20%20%20%20const%20c%20%3D%20document.querySelector(container)%3B%0A%20%20%20%20%20%20if%20(!c%20%7C%7C%20isInExcluded(c))%20continue%3B%0A%20%20%20%20%20%20for%20(const%20sel%20of%20subSelectors)%20%7B%0A%20%20%20%20%20%20%20%20const%20el%20%3D%20c.querySelector(sel)%3B%0A%20%20%20%20%20%20%20%20const%20t%20%3D%20readText(el)%3B%0A%20%20%20%20%20%20%20%20if%20(t)%20return%20t%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%20%20for%20(const%20sel%20of%20subSelectors)%20%7B%0A%20%20%20%20%20%20const%20els%20%3D%20Array.from(document.querySelectorAll(sel))%3B%0A%20%20%20%20%20%20for%20(const%20el%20of%20els)%20%7B%0A%20%20%20%20%20%20%20%20if%20(isInExcluded(el))%20continue%3B%0A%20%20%20%20%20%20%20%20const%20t%20%3D%20readText(el)%3B%0A%20%20%20%20%20%20%20%20if%20(t)%20return%20t%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%20%20return%20''%3B%0A%20%20%7D%3B%0A%0A%20%20%2F%2F%20%3D%3D%3D%203.%20%E4%BB%8E%20HR%20%E7%AD%BE%E5%90%8D%E6%AE%B5%E5%8F%8D%E6%8E%A8%E7%9C%9F%E5%AE%9E%20company%EF%BC%88%E6%9C%80%E7%A8%B3%E7%9A%84%E5%85%9C%E5%BA%95%EF%BC%89%20%3D%3D%3D%0A%20%20const%20HR_TITLE_PATTERN%20%3D%20%2F(%3F%3AHR%7C%E4%BA%BA%E5%8A%9B%7C%E6%8B%9B%E8%81%98%7C%E7%8C%8E%E5%A4%B4%7C%E9%A1%BE%E9%97%AE%7CHRBP%7C%E7%BB%8F%E7%90%86%7C%E4%B8%93%E5%91%98%7C%E7%A0%94%E5%8F%91HR%7C%E6%80%BB%E7%9B%91%7CBP%7CManager%7CRecruiter%7C%E9%AB%98%E7%BA%A7%E4%BA%BA%E5%8A%9B%7C%E5%8A%A9%E7%90%86)%2Fi%3B%0A%20%20const%20ACTIVITY_PATTERN%20%3D%20%2F(%3F%3A%E5%9C%A8%E7%BA%BF%7C%E5%88%9A%E5%88%9A%E6%B4%BB%E8%B7%83%7C%E6%9C%AC%E6%9C%88%E6%B4%BB%E8%B7%83%7C%E8%BF%91%E6%9C%9F%E6%B4%BB%E8%B7%83%7C%5B0-9%5D%2B%5Cs*(%3F%3A%E5%88%86%E9%92%9F%7C%E5%B0%8F%E6%97%B6%7C%E5%A4%A9)%E5%89%8D%E6%B4%BB%E8%B7%83)%2F%3B%0A%0A%20%20const%20extractCompanyFromHR%20%3D%20()%20%3D%3E%20%7B%0A%20%20%20%20%2F%2F%203a.%20%E5%85%88%E6%89%BE%20class%20%E5%90%AB%20boss%2Fhr%2Fauthor%2Fpublisher%20%E7%9A%84%20DOM%0A%20%20%20%20const%20hrDomSelectors%20%3D%20%5B%0A%20%20%20%20%20%20'.boss-info'%2C%20'.hr-info'%2C%20'.job-author'%2C%20'.job-publisher'%2C%0A%20%20%20%20%20%20'%5Bclass*%3D%22boss-name%22%5D'%2C%20'%5Bclass*%3D%22hr-card%22%5D'%2C%20'%5Bclass*%3D%22publisher%22%5D'%2C%20'%5Bclass*%3D%22recruiter%22%5D'%2C%0A%20%20%20%20%20%20'%5Bclass*%3D%22op-info%22%5D'%2C%0A%20%20%20%20%5D%3B%0A%20%20%20%20for%20(const%20sel%20of%20hrDomSelectors)%20%7B%0A%20%20%20%20%20%20const%20el%20%3D%20document.querySelector(sel)%3B%0A%20%20%20%20%20%20if%20(!el%20%7C%7C%20isInExcluded(el))%20continue%3B%0A%20%20%20%20%20%20const%20txt%20%3D%20readText(el)%3B%0A%20%20%20%20%20%20%2F%2F%20%E6%A0%BC%E5%BC%8F%20%22HR%E5%90%8D%20%5B%E6%B4%BB%E8%B7%83%5D%20%E5%85%AC%E5%8F%B8%E5%90%8D%20%C2%B7%20HR%E8%81%8C%E4%BD%8D%22%0A%20%20%20%20%20%20%2F%2F%20%E6%8B%BF%20%C2%B7%20%E5%89%8D%E7%9A%84%E6%9C%80%E5%90%8E%E4%B8%80%E6%AE%B5%E4%BD%9C%E4%B8%BA%E5%85%AC%E5%8F%B8%E5%90%8D%0A%20%20%20%20%20%20const%20parts%20%3D%20txt.split('%C2%B7').map((s)%20%3D%3E%20s.trim())%3B%0A%20%20%20%20%20%20if%20(parts.length%20%3E%3D%202%20%26%26%20HR_TITLE_PATTERN.test(parts%5Bparts.length%20-%201%5D))%20%7B%0A%20%20%20%20%20%20%20%20%2F%2F%20%E5%89%8D%E5%8D%8A%E6%AE%B5%20%3D%20%22HR%E5%90%8D%20%5B%E6%B4%BB%E8%B7%83%5D%20%E5%85%AC%E5%8F%B8%E5%90%8D%22%EF%BC%8C%E5%8F%96%E6%9C%AB%E5%B0%BE%E4%B8%80%E4%B8%AA%E8%AF%8D%E7%BB%84%0A%20%20%20%20%20%20%20%20const%20pre%20%3D%20parts.slice(0%2C%20-1).join('%C2%B7').trim()%3B%0A%20%20%20%20%20%20%20%20%2F%2F%20%E5%8E%BB%E6%8E%89%E6%B4%BB%E8%B7%83%E7%8A%B6%E6%80%81%E5%85%B3%E9%94%AE%E5%AD%97%0A%20%20%20%20%20%20%20%20let%20co%20%3D%20pre.replace(ACTIVITY_PATTERN%2C%20'').trim()%3B%0A%20%20%20%20%20%20%20%20%2F%2F%20%E5%8E%BB%E6%8E%89%20HR%20%E5%90%8D%E5%AD%97%EF%BC%88%E9%80%9A%E5%B8%B8%E6%98%AF%202-4%20%E5%AD%97%20%2B%20%E5%A5%B3%E5%A3%AB%2F%E5%85%88%E7%94%9F%EF%BC%8C%E6%88%96%E8%8B%B1%E6%96%87%E5%A7%93%E5%90%8D%EF%BC%89%0A%20%20%20%20%20%20%20%20co%20%3D%20co.replace(%2F%5E%5B%5E%5Cs%5D%7B2%2C10%7D(%E5%A5%B3%E5%A3%AB%7C%E5%85%88%E7%94%9F%7C%E5%B0%8F%E5%A7%90)%5Cs%2B%2F%2C%20'').trim()%3B%0A%20%20%20%20%20%20%20%20co%20%3D%20co.replace(%2F%5E%5BA-Z%5D%5Ba-z%5D%2B%5Cs%2B%5BA-Z%5D%5Ba-z%5D%2B%5Cs%2B%2F%2C%20'').trim()%3B%0A%20%20%20%20%20%20%20%20%2F%2F%20%E7%A9%BA%E6%A0%BC%20split%20%E5%90%8E%E5%8F%96%E6%9C%80%E9%95%BF%E7%9A%84%E4%B8%80%E6%AE%B5%E4%BD%9C%E4%B8%BA%E5%85%AC%E5%8F%B8%E5%90%8D%EF%BC%88%E6%9C%80%E7%A8%B3%E7%9A%84%E5%90%AF%E5%8F%91%E5%BC%8F%EF%BC%89%0A%20%20%20%20%20%20%20%20const%20tokens%20%3D%20co.split(%2F%5Cs%2B%2F).filter(Boolean)%3B%0A%20%20%20%20%20%20%20%20if%20(tokens.length%20%3E%3D%201)%20%7B%0A%20%20%20%20%20%20%20%20%20%20const%20longest%20%3D%20tokens.reduce((a%2C%20b)%20%3D%3E%20(b.length%20%3E%20a.length%20%3F%20b%20%3A%20a)%2C%20'')%3B%0A%20%20%20%20%20%20%20%20%20%20if%20(longest.length%20%3E%3D%202)%20return%20longest%3B%0A%20%20%20%20%20%20%20%20%7D%0A%20%20%20%20%20%20%20%20if%20(co)%20return%20co%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%0A%20%20%20%20%2F%2F%203b.%20%E5%85%A8%20body%20innerText%20%E6%AD%A3%E5%88%99%E5%85%9C%E5%BA%95%0A%20%20%20%20const%20bodyTxt%20%3D%20document.body.innerText%3B%0A%20%20%20%20const%20pattern%20%3D%20new%20RegExp(%0A%20%20%20%20%20%20String.raw%60(%3F%3A%5E%7C%5Cn)%5Cs*%5B%5E%5Cs%5Cn%C2%B7%5D%7B2%2C10%7D(%3F%3A%5Cs%2B%60%20%2B%20ACTIVITY_PATTERN.source%20%2B%20String.raw%60)%3F%5Cs%2B(%5B%5E%5Cs%5Cn%C2%B7%5D%7B2%2C40%7D)%5Cs*%C2%B7%5Cs*%60%20%2B%20HR_TITLE_PATTERN.source%2C%0A%20%20%20%20%20%20'm'%0A%20%20%20%20)%3B%0A%20%20%20%20const%20m%20%3D%20bodyTxt.match(pattern)%3B%0A%20%20%20%20if%20(m%20%26%26%20m%5B1%5D)%20return%20m%5B1%5D.trim()%3B%0A%20%20%20%20return%20''%3B%0A%20%20%7D%3B%0A%0A%20%20%2F%2F%20%3D%3D%3D%204.%20%E5%AD%97%E6%AE%B5%E6%8A%BD%E5%8F%96%EF%BC%88company%20%E8%B5%B0%E6%96%B0%E9%80%BB%E8%BE%91%EF%BC%8C%E5%85%B6%E4%BB%96%E6%B2%BF%E7%94%A8%E6%97%A7%E7%89%88%EF%BC%89%20%3D%3D%3D%0A%20%20const%20jobTitleRaw%20%3D%20pickScoped(%5B'.job-name'%2C%20'.name%20h1'%2C%20'%5Bclass*%3D%22job-title%22%5D'%2C%20'h1'%5D)%3B%0A%20%20const%20salaryRaw%20%3D%20pickScoped(%5B'.job-salary'%2C%20'.salary'%2C%20'%5Bclass*%3D%22salary%22%5D'%5D)%3B%0A%20%20const%20locationRaw%20%3D%20pickScoped(%5B'.job-location'%2C%20'.location-address'%2C%20'%5Bclass*%3D%22location%22%5D'%2C%20'%5Bclass*%3D%22city%22%5D'%5D)%3B%0A%20%20const%20seniorityRaw%20%3D%20pickScoped(%5B'.job-experience'%2C%20'%5Bclass*%3D%22experience%22%5D'%2C%20'%5Bclass*%3D%22text-experience%22%5D'%5D)%3B%0A%20%20const%20descriptionRaw%20%3D%20pickScoped(%5B%0A%20%20%20%20'.job-detail-section'%2C%0A%20%20%20%20'.job-detail-content'%2C%0A%20%20%20%20'.job-sec-text'%2C%0A%20%20%20%20'.job-detail'%2C%0A%20%20%20%20'%5Bclass*%3D%22job-detail%22%5D'%2C%0A%20%20%5D)%3B%0A%20%20const%20requirementsRaw%20%3D%20pickScoped(%5B'.job-tags'%2C%20'%5Bclass*%3D%22job-keyword%22%5D'%2C%20'%5Bclass*%3D%22job-tag%22%5D'%5D)%3B%0A%0A%20%20%2F%2F%20company%EF%BC%9A%E4%B8%BB%E5%8D%A1%E7%89%87%E4%BC%98%E5%85%88%20%E2%86%92%20HR%20%E5%8F%8D%E6%8E%A8%E5%85%9C%E5%BA%95%0A%20%20let%20companyRaw%20%3D%20pickScoped(%5B%0A%20%20%20%20'.company-name'%2C%20'.info-company%20.name'%2C%20'.info-company%20a'%2C%0A%20%20%20%20'%5Bclass*%3D%22company-info%22%5D%20.name'%2C%20'%5Bclass*%3D%22company-info%22%5D%20a'%2C%0A%20%20%20%20'.company-info-box%20.name'%2C%0A%20%20%5D)%3B%0A%20%20const%20companyFromHR%20%3D%20extractCompanyFromHR()%3B%0A%20%20%2F%2F%20%E5%90%AF%E5%8F%91%E5%BC%8F%E6%A0%A1%E9%AA%8C%EF%BC%9A%E5%A6%82%E6%9E%9C%E4%B8%BB%E5%8D%A1%E7%89%87%E6%8A%BD%E5%88%B0%E7%9A%84%20company%20%E7%9C%8B%E8%B5%B7%E6%9D%A5%E5%83%8F%E6%8E%A8%E8%8D%90%E4%BD%8D%EF%BC%88%E6%9E%81%E7%9F%AD%2F%E5%90%AB%E6%95%B0%E5%AD%97%2F%E6%98%8E%E6%98%BE%E5%BC%82%E5%B8%B8%EF%BC%89%0A%20%20%2F%2F%20%E6%88%96%E8%80%85%E5%92%8C%20HR%20%E5%8F%8D%E6%8E%A8%E7%BB%93%E6%9E%9C%E5%B7%AE%E5%BC%82%E5%BE%88%E5%A4%A7%EF%BC%8C%E4%BB%A5%20HR%20%E4%B8%BA%E5%87%86%0A%20%20const%20looksDubious%20%3D%20(c)%20%3D%3E%20%7B%0A%20%20%20%20if%20(!c)%20return%20true%3B%0A%20%20%20%20if%20(c.length%20%3C%202%20%7C%7C%20c.length%20%3E%2040)%20return%20true%3B%0A%20%20%20%20%2F%2F%20%E5%A6%82%E6%9E%9C%E4%B8%BB%E5%8D%A1%E7%89%87%E5%92%8C%20HR%20%E5%8F%8D%E6%8E%A8%E9%83%BD%E6%9C%89%E5%80%BC%E4%B8%94%E4%B8%8D%E4%B8%80%E8%87%B4%EF%BC%8C%E4%BC%98%E5%85%88%E4%BF%A1%20HR%EF%BC%88%E5%9B%A0%E4%B8%BA%20HR%20%E6%9B%B4%E7%A8%B3%EF%BC%89%0A%20%20%20%20return%20false%3B%0A%20%20%7D%3B%0A%20%20let%20company%20%3D%20companyRaw%3B%0A%20%20if%20(companyFromHR)%20%7B%0A%20%20%20%20%2F%2F%20%E5%A6%82%E6%9E%9C%20HR%20%E5%8F%8D%E6%8E%A8%E5%92%8C%E4%B8%BB%E5%8D%A1%E7%89%87%E4%B8%8D%E5%90%8C%EF%BC%8C%E4%BC%98%E5%85%88%E7%94%A8%20HR%EF%BC%88HR%20%E7%AD%BE%E5%90%8D%E6%98%AF%E6%9D%83%E5%A8%81%EF%BC%89%0A%20%20%20%20if%20(!companyRaw%20%7C%7C%20companyFromHR%20!%3D%3D%20companyRaw)%20%7B%0A%20%20%20%20%20%20company%20%3D%20companyFromHR%3B%0A%20%20%20%20%7D%0A%20%20%7D%0A%20%20if%20(!company%20%7C%7C%20looksDubious(company))%20company%20%3D%20companyRaw%20%7C%7C%20companyFromHR%20%7C%7C%20''%3B%0A%0A%20%20const%20extracted%20%3D%20%7B%0A%20%20%20%20job_title%3A%20jobTitleRaw%2C%0A%20%20%20%20company%2C%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%2F%2F%20%E2%86%90%20%E4%BF%AE%E5%A4%8D%E5%90%8E%E7%9A%84%20company%0A%20%20%20%20company_from_card%3A%20companyRaw%2C%20%20%2F%2F%20%E4%BF%9D%E7%95%99%E4%B8%BB%E5%8D%A1%E7%89%87%E5%8E%9F%E5%A7%8B%E5%80%BC%E4%BE%9B%E8%B0%83%E8%AF%95%0A%20%20%20%20company_from_hr%3A%20companyFromHR%2C%20%2F%2F%20%E4%BF%9D%E7%95%99%20HR%20%E5%8F%8D%E6%8E%A8%E5%80%BC%E4%BE%9B%E8%B0%83%E8%AF%95%0A%20%20%20%20salary%3A%20salaryRaw%2C%0A%20%20%20%20location%3A%20locationRaw%2C%0A%20%20%20%20seniority_experience%3A%20seniorityRaw%2C%0A%20%20%20%20description%3A%20descriptionRaw%2C%0A%20%20%20%20requirements%3A%20requirementsRaw%2C%0A%20%20%7D%3B%0A%0A%20%20const%20payload%20%3D%20%7B%0A%20%20%20%20url%3A%20location.href%2C%0A%20%20%20%20page_title%3A%20document.title%2C%0A%20%20%20%20captured_at%3A%20new%20Date().toISOString()%2C%0A%20%20%20%20platform%3A%20'boss-zhipin'%2C%0A%20%20%20%20extracted%3A%20%7B%20...extracted%2C%20raw_text%3A%20document.body.innerText.trim()%20%7D%2C%0A%20%20%7D%3B%0A%0A%20%20try%20%7B%0A%20%20%20%20const%20res%20%3D%20await%20fetch('http%3A%2F%2Flocalhost%3A8787%2Fjd'%2C%20%7B%0A%20%20%20%20%20%20method%3A%20'POST'%2C%0A%20%20%20%20%20%20headers%3A%20%7B%20'Content-Type'%3A%20'application%2Fjson'%20%7D%2C%0A%20%20%20%20%20%20body%3A%20JSON.stringify(payload)%2C%0A%20%20%20%20%7D)%3B%0A%20%20%20%20const%20result%20%3D%20await%20res.json()%3B%0A%20%20%20%20if%20(result.ok)%20%7B%0A%20%20%20%20%20%20const%20debugLine%20%3D%20(companyRaw%20%26%26%20companyFromHR%20%26%26%20companyRaw%20!%3D%3D%20companyFromHR)%0A%20%20%20%20%20%20%20%20%3F%20'%5Cn(%E2%9A%A0%EF%B8%8F%20%E4%B8%BB%E5%8D%A1%E7%89%87%E6%8A%BD%E5%88%B0%20%22'%20%2B%20companyRaw%20%2B%20'%22%EF%BC%8CHR%20%E5%8F%8D%E6%8E%A8%20%22'%20%2B%20companyFromHR%20%2B%20'%22%EF%BC%8C%E5%B7%B2%E9%80%89%20HR)'%0A%20%20%20%20%20%20%20%20%3A%20''%3B%0A%20%20%20%20%20%20alert(%0A%20%20%20%20%20%20%20%20'%E2%9C%93%20Boss%E7%9B%B4%E8%81%98%20JD%20captured%5Cn%E2%86%92%20'%20%2B%20result.file%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%B2%97%E4%BD%8D%EF%BC%9A'%20%2B%20(extracted.job_title%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%E5%85%AC%E5%8F%B8%EF%BC%9A'%20%2B%20(company%20%7C%7C%20'%3F')%20%2B%20debugLine%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%E8%96%AA%E8%B5%84%EF%BC%9A'%20%2B%20(extracted.salary%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%9B%9E%E5%88%B0%20Claude%20%E8%B7%91%20%2Fcareer-ops%20inbox'%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20alert('%E2%9D%8C%20Server%20error%3A%20'%20%2B%20(result.error%20%7C%7C%20'unknown'))%3B%0A%20%20%20%20%7D%0A%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20alert('%E2%9D%8C%20%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%B2%A1%E5%90%AF%E5%8A%A8%EF%BC%9F%5Cn%5Cn%E8%AF%B7%E8%BF%90%E8%A1%8C%EF%BC%9A%5Cn%20%20npm%20run%20inbox-server%5Cn%EF%BC%88%E5%8D%B3%20node%20tools%2Fjd-inbox-server.mjs%EF%BC%89%5Cn%5Cn%E9%94%99%E8%AF%AF%EF%BC%9A'%20%2B%20e.message)%3B%0A%20%20%7D%0A%7D)()%3B" style="background:#06b6d4">💼 Boss 直聘</a>
+      <div class="meta">
+        <code>boss-zhipin.js</code>
+        <span class="size">14.7 KB</span>
+      </div>
+    </div>
+    <p class="desc">Boss 反复制 + 反爬专用。Boss 详情页必用。</p>
+    <details>
+      <summary>查看源码</summary>
+      <pre><code>// Boss直聘（zhipin.com）专用 JD 捕获
+// 处理 Boss 的反复制（user-select:none + copy event handler + 文本断裂）
+// Selectors 基于 2025-2026 Boss 详情页 DOM。Boss 改版时 universal.js fallback 也会工作。
+//
+// ⚠️ 2026-04-15 修复 company 错抽 bug：
+// 旧版 .company-name 全局匹配会拿到**侧栏推荐岗位**或广告位的公司名，
+// 而不是当前查看的真实发岗方（观察到 9 条 JD 里 8 条 company 被错抽成
+// &quot;岚图汽车&quot; / &quot;西湖心辰&quot; / &quot;蚂蚁集团&quot; / &quot;高德地图&quot; 等推荐位公司）。
+// 修复策略：
+//   1. 优先在 .job-banner / .job-primary / .info-primary 等主岗位容器内找
+//   2. 排除 .sider / .recommend / [class*=&quot;other-job&quot;] 等推荐位
+//   3. 兜底从 HR 签名段（.boss-info）反推真实发岗方
+//   4. 最后兜底从 body 正则提取 &quot;HR名字 状态 公司名 · HR职位&quot; 模式
+
+(async function () {
+  // === 1. 强力剥离 anti-copy（沿用旧版，稳定） ===
+  const allEls = document.querySelectorAll(&#39;*&#39;);
+  allEls.forEach((el) =&gt; {
+    try {
+      el.style.userSelect = &#39;auto&#39;;
+      el.style.webkitUserSelect = &#39;auto&#39;;
+      el.style.mozUserSelect = &#39;auto&#39;;
+      if (el.oncopy) el.oncopy = null;
+      if (el.oncontextmenu) el.oncontextmenu = null;
+      if (el.onselectstart) el.onselectstart = null;
+    } catch {}
+  });
+  [&#39;copy&#39;, &#39;cut&#39;, &#39;contextmenu&#39;, &#39;selectstart&#39;, &#39;mousedown&#39;].forEach((evt) =&gt; {
+    document.addEventListener(evt, (e) =&gt; e.stopPropagation(), true);
+  });
+
+  // === 2. DOM 范围约束（针对 2026-04 company 错抽 bug） ===
+  const PRIMARY_CONTAINERS = [
+    &#39;.job-banner&#39;,
+    &#39;.job-primary&#39;,
+    &#39;.info-primary&#39;,
+    &#39;.job-detail-box&#39;,
+    &#39;.job-container&#39;,
+    &#39;[class*=&quot;detail-primary&quot;]&#39;,
+    &#39;[class*=&quot;job-detail&quot;]:not([class*=&quot;recommend&quot;]):not([class*=&quot;related&quot;])&#39;,
+  ];
+  const EXCLUDE_SELECTORS = [
+    &#39;.sider&#39;, &#39;.side-bar&#39;, &#39;.recommend-list&#39;, &#39;.recommend-jobs&#39;,
+    &#39;[class*=&quot;recommend&quot;]&#39;, &#39;[class*=&quot;related&quot;]&#39;, &#39;[class*=&quot;similar&quot;]&#39;,
+    &#39;[class*=&quot;other-job&quot;]&#39;, &#39;.job-history&#39;, &#39;.job-list&#39;,
+    &#39;.job-card&#39;, // 推荐岗位卡片
+  ];
+  const EXCLUDE_SELECTOR_STR = EXCLUDE_SELECTORS.join(&#39;, &#39;);
+
+  const isInExcluded = (el) =&gt; {
+    try { return !!el.closest(EXCLUDE_SELECTOR_STR); } catch { return false; }
+  };
+
+  const readText = (el) =&gt; {
+    if (!el) return &#39;&#39;;
+    const txt = (el.innerText || el.textContent || &#39;&#39;).trim();
+    return txt;
+  };
+
+  // 先在主岗位容器内找；找不到再全局找但排除推荐位
+  const pickScoped = (subSelectors) =&gt; {
+    for (const container of PRIMARY_CONTAINERS) {
+      const c = document.querySelector(container);
+      if (!c || isInExcluded(c)) continue;
+      for (const sel of subSelectors) {
+        const el = c.querySelector(sel);
+        const t = readText(el);
+        if (t) return t;
+      }
+    }
+    for (const sel of subSelectors) {
+      const els = Array.from(document.querySelectorAll(sel));
+      for (const el of els) {
+        if (isInExcluded(el)) continue;
+        const t = readText(el);
+        if (t) return t;
+      }
+    }
+    return &#39;&#39;;
+  };
+
+  // === 3. 从 HR 签名段反推真实 company（最稳的兜底） ===
+  const HR_TITLE_PATTERN = /(?:HR|人力|招聘|猎头|顾问|HRBP|经理|专员|研发HR|总监|BP|Manager|Recruiter|高级人力|助理)/i;
+  const ACTIVITY_PATTERN = /(?:在线|刚刚活跃|本月活跃|近期活跃|[0-9]+\s*(?:分钟|小时|天)前活跃)/;
+
+  const extractCompanyFromHR = () =&gt; {
+    // 3a. 先找 class 含 boss/hr/author/publisher 的 DOM
+    const hrDomSelectors = [
+      &#39;.boss-info&#39;, &#39;.hr-info&#39;, &#39;.job-author&#39;, &#39;.job-publisher&#39;,
+      &#39;[class*=&quot;boss-name&quot;]&#39;, &#39;[class*=&quot;hr-card&quot;]&#39;, &#39;[class*=&quot;publisher&quot;]&#39;, &#39;[class*=&quot;recruiter&quot;]&#39;,
+      &#39;[class*=&quot;op-info&quot;]&#39;,
+    ];
+    for (const sel of hrDomSelectors) {
+      const el = document.querySelector(sel);
+      if (!el || isInExcluded(el)) continue;
+      const txt = readText(el);
+      // 格式 &quot;HR名 [活跃] 公司名 · HR职位&quot;
+      // 拿 · 前的最后一段作为公司名
+      const parts = txt.split(&#39;·&#39;).map((s) =&gt; s.trim());
+      if (parts.length &gt;= 2 &amp;&amp; HR_TITLE_PATTERN.test(parts[parts.length - 1])) {
+        // 前半段 = &quot;HR名 [活跃] 公司名&quot;，取末尾一个词组
+        const pre = parts.slice(0, -1).join(&#39;·&#39;).trim();
+        // 去掉活跃状态关键字
+        let co = pre.replace(ACTIVITY_PATTERN, &#39;&#39;).trim();
+        // 去掉 HR 名字（通常是 2-4 字 + 女士/先生，或英文姓名）
+        co = co.replace(/^[^\s]{2,10}(女士|先生|小姐)\s+/, &#39;&#39;).trim();
+        co = co.replace(/^[A-Z][a-z]+\s+[A-Z][a-z]+\s+/, &#39;&#39;).trim();
+        // 空格 split 后取最长的一段作为公司名（最稳的启发式）
+        const tokens = co.split(/\s+/).filter(Boolean);
+        if (tokens.length &gt;= 1) {
+          const longest = tokens.reduce((a, b) =&gt; (b.length &gt; a.length ? b : a), &#39;&#39;);
+          if (longest.length &gt;= 2) return longest;
+        }
+        if (co) return co;
+      }
+    }
+
+    // 3b. 全 body innerText 正则兜底
+    const bodyTxt = document.body.innerText;
+    const pattern = new RegExp(
+      String.raw`(?:^|\n)\s*[^\s\n·]{2,10}(?:\s+` + ACTIVITY_PATTERN.source + String.raw`)?\s+([^\s\n·]{2,40})\s*·\s*` + HR_TITLE_PATTERN.source,
+      &#39;m&#39;
+    );
+    const m = bodyTxt.match(pattern);
+    if (m &amp;&amp; m[1]) return m[1].trim();
+    return &#39;&#39;;
+  };
+
+  // === 4. 字段抽取（company 走新逻辑，其他沿用旧版） ===
+  const jobTitleRaw = pickScoped([&#39;.job-name&#39;, &#39;.name h1&#39;, &#39;[class*=&quot;job-title&quot;]&#39;, &#39;h1&#39;]);
+  const salaryRaw = pickScoped([&#39;.job-salary&#39;, &#39;.salary&#39;, &#39;[class*=&quot;salary&quot;]&#39;]);
+  const locationRaw = pickScoped([&#39;.job-location&#39;, &#39;.location-address&#39;, &#39;[class*=&quot;location&quot;]&#39;, &#39;[class*=&quot;city&quot;]&#39;]);
+  const seniorityRaw = pickScoped([&#39;.job-experience&#39;, &#39;[class*=&quot;experience&quot;]&#39;, &#39;[class*=&quot;text-experience&quot;]&#39;]);
+  const descriptionRaw = pickScoped([
+    &#39;.job-detail-section&#39;,
+    &#39;.job-detail-content&#39;,
+    &#39;.job-sec-text&#39;,
+    &#39;.job-detail&#39;,
+    &#39;[class*=&quot;job-detail&quot;]&#39;,
+  ]);
+  const requirementsRaw = pickScoped([&#39;.job-tags&#39;, &#39;[class*=&quot;job-keyword&quot;]&#39;, &#39;[class*=&quot;job-tag&quot;]&#39;]);
+
+  // company：主卡片优先 → HR 反推兜底
+  let companyRaw = pickScoped([
+    &#39;.company-name&#39;, &#39;.info-company .name&#39;, &#39;.info-company a&#39;,
+    &#39;[class*=&quot;company-info&quot;] .name&#39;, &#39;[class*=&quot;company-info&quot;] a&#39;,
+    &#39;.company-info-box .name&#39;,
+  ]);
+  const companyFromHR = extractCompanyFromHR();
+  // 启发式校验：如果主卡片抽到的 company 看起来像推荐位（极短/含数字/明显异常）
+  // 或者和 HR 反推结果差异很大，以 HR 为准
+  const looksDubious = (c) =&gt; {
+    if (!c) return true;
+    if (c.length &lt; 2 || c.length &gt; 40) return true;
+    // 如果主卡片和 HR 反推都有值且不一致，优先信 HR（因为 HR 更稳）
+    return false;
+  };
+  let company = companyRaw;
+  if (companyFromHR) {
+    // 如果 HR 反推和主卡片不同，优先用 HR（HR 签名是权威）
+    if (!companyRaw || companyFromHR !== companyRaw) {
+      company = companyFromHR;
+    }
+  }
+  if (!company || looksDubious(company)) company = companyRaw || companyFromHR || &#39;&#39;;
+
+  const extracted = {
+    job_title: jobTitleRaw,
+    company,                        // ← 修复后的 company
+    company_from_card: companyRaw,  // 保留主卡片原始值供调试
+    company_from_hr: companyFromHR, // 保留 HR 反推值供调试
+    salary: salaryRaw,
+    location: locationRaw,
+    seniority_experience: seniorityRaw,
+    description: descriptionRaw,
+    requirements: requirementsRaw,
+  };
+
+  const payload = {
+    url: location.href,
+    page_title: document.title,
+    captured_at: new Date().toISOString(),
+    platform: &#39;boss-zhipin&#39;,
+    extracted: { ...extracted, raw_text: document.body.innerText.trim() },
+  };
+
+  try {
+    const res = await fetch(&#39;http://localhost:8787/jd&#39;, {
+      method: &#39;POST&#39;,
+      headers: { &#39;Content-Type&#39;: &#39;application/json&#39; },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.ok) {
+      const debugLine = (companyRaw &amp;&amp; companyFromHR &amp;&amp; companyRaw !== companyFromHR)
+        ? &#39;\n(⚠️ 主卡片抽到 &quot;&#39; + companyRaw + &#39;&quot;，HR 反推 &quot;&#39; + companyFromHR + &#39;&quot;，已选 HR)&#39;
+        : &#39;&#39;;
+      alert(
+        &#39;✓ Boss直聘 JD captured\n→ &#39; + result.file +
+          &#39;\n\n岗位：&#39; + (extracted.job_title || &#39;?&#39;) +
+          &#39;\n公司：&#39; + (company || &#39;?&#39;) + debugLine +
+          &#39;\n薪资：&#39; + (extracted.salary || &#39;?&#39;) +
+          &#39;\n\n回到 Claude 跑 /career-ops inbox&#39;
+      );
+    } else {
+      alert(&#39;❌ Server error: &#39; + (result.error || &#39;unknown&#39;));
+    }
+  } catch (e) {
+    alert(&#39;❌ 服务器没启动？\n\n请运行：\n  npm run inbox-server\n（即 node tools/jd-inbox-server.mjs）\n\n错误：&#39; + e.message);
+  }
+})();
+</code></pre>
+    </details>
+  </div>
+
+  <div class="card" style="border-left-color:#ec4899">
+    <div class="card-head">
+      <a class="bm" href="javascript:(async%20function%20()%20%7B%0A%20%20document.querySelectorAll('*').forEach((el)%20%3D%3E%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20el.style.userSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20el.style.webkitUserSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20if%20(el.oncopy)%20el.oncopy%20%3D%20null%3B%0A%20%20%20%20%7D%20catch%20%7B%7D%0A%20%20%7D)%3B%0A%0A%20%20const%20pickText%20%3D%20(selectors)%20%3D%3E%20%7B%0A%20%20%20%20for%20(const%20sel%20of%20selectors)%20%7B%0A%20%20%20%20%20%20const%20el%20%3D%20document.querySelector(sel)%3B%0A%20%20%20%20%20%20if%20(el)%20%7B%0A%20%20%20%20%20%20%20%20const%20txt%20%3D%20(el.innerText%20%7C%7C%20el.textContent%20%7C%7C%20'').trim()%3B%0A%20%20%20%20%20%20%20%20if%20(txt.length%20%3E%200)%20return%20txt%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%20%20return%20''%3B%0A%20%20%7D%3B%0A%0A%20%20%2F%2F%20%E5%A4%A7%E5%8E%82%E5%B8%B8%E7%94%A8%20selector%20%E9%9B%86%E5%90%88%EF%BC%88%E6%8C%89%E5%91%BD%E4%B8%AD%E7%8E%87%E6%8E%92%E5%BA%8F%EF%BC%89%0A%20%20const%20TITLE_SELS%20%3D%20%5B%0A%20%20%20%20'%5Bclass*%3D%22position-title%22%5D'%2C%20'%5Bclass*%3D%22job-title%22%5D'%2C%20'%5Bclass*%3D%22positionName%22%5D'%2C%0A%20%20%20%20'%5Bclass*%3D%22recruit-title%22%5D'%2C%20'%5Bclass*%3D%22position-name%22%5D'%2C%20'%5Bclass*%3D%22jobName%22%5D'%2C%0A%20%20%20%20'.position-detail%20h1'%2C%20'.job-detail%20h1'%2C%20'h1.title'%2C%20'h1'%2C%0A%20%20%5D%3B%0A%20%20const%20COMPANY_SELS%20%3D%20%5B%0A%20%20%20%20'%5Bclass*%3D%22company-name%22%5D'%2C%20'%5Bclass*%3D%22brand-name%22%5D'%2C%20'%5Bclass*%3D%22companyName%22%5D'%2C%0A%20%20%5D%3B%0A%20%20const%20LOCATION_SELS%20%3D%20%5B%0A%20%20%20%20'%5Bclass*%3D%22position-location%22%5D'%2C%20'%5Bclass*%3D%22job-location%22%5D'%2C%20'%5Bclass*%3D%22city%22%5D'%2C%0A%20%20%20%20'%5Bclass*%3D%22address%22%5D'%2C%20'%5Bclass*%3D%22location-info%22%5D'%2C%0A%20%20%5D%3B%0A%20%20const%20DEPT_SELS%20%3D%20%5B%0A%20%20%20%20'%5Bclass*%3D%22department%22%5D'%2C%20'%5Bclass*%3D%22team%22%5D'%2C%20'%5Bclass*%3D%22position-team%22%5D'%2C%0A%20%20%20%20'%5Bclass*%3D%22bg-name%22%5D'%2C%0A%20%20%5D%3B%0A%20%20const%20DESC_SELS%20%3D%20%5B%0A%20%20%20%20'%5Bclass*%3D%22job-detail%22%5D'%2C%20'%5Bclass*%3D%22position-detail%22%5D'%2C%20'%5Bclass*%3D%22recruit-content%22%5D'%2C%0A%20%20%20%20'%5Bclass*%3D%22position-description%22%5D'%2C%20'%5Bclass*%3D%22job-description%22%5D'%2C%0A%20%20%20%20'%5Bclass*%3D%22position-content%22%5D'%2C%20'%5Bclass*%3D%22job-content%22%5D'%2C%0A%20%20%20%20'%5Bclass*%3D%22positionDetail%22%5D'%2C%20'%5Bclass*%3D%22positionDesc%22%5D'%2C%0A%20%20%20%20'.detail-content'%2C%20'.content-detail'%2C%20'main'%2C%20'article'%2C%0A%20%20%5D%3B%0A%0A%20%20%2F%2F%20Smart%20fallback%3A%20pick%20the%20largest%20non-nav%20block%0A%20%20let%20descText%20%3D%20pickText(DESC_SELS)%3B%0A%20%20if%20(descText.length%20%3C%20200)%20%7B%0A%20%20%20%20let%20best%20%3D%20null%3B%0A%20%20%20%20let%20bestLen%20%3D%200%3B%0A%20%20%20%20document.querySelectorAll('div%2C%20section%2C%20article%2C%20main').forEach((el)%20%3D%3E%20%7B%0A%20%20%20%20%20%20const%20cls%20%3D%20(el.className%20%7C%7C%20'').toString().toLowerCase()%3B%0A%20%20%20%20%20%20if%20(%2Fnav%7Cfooter%7Cheader%7Csidebar%7Cmenu%7Cmodal%7Ctoast%2F.test(cls))%20return%3B%0A%20%20%20%20%20%20const%20len%20%3D%20(el.innerText%20%7C%7C%20'').trim().length%3B%0A%20%20%20%20%20%20if%20(len%20%3E%20bestLen%20%26%26%20len%20%3E%20200%20%26%26%20len%20%3C%2030000)%20%7B%0A%20%20%20%20%20%20%20%20best%20%3D%20el%3B%0A%20%20%20%20%20%20%20%20bestLen%20%3D%20len%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D)%3B%0A%20%20%20%20if%20(best)%20descText%20%3D%20best.innerText.trim()%3B%0A%20%20%7D%0A%0A%20%20%2F%2F%20%E5%85%AC%E5%8F%B8%E5%90%8D%E5%85%9C%E5%BA%95%EF%BC%9A%E4%BB%8E%20hostname%20%E6%8E%A8%E6%96%AD%0A%20%20const%20HOST_TO_COMPANY%20%3D%20%7B%0A%20%20%20%20'jobs.bytedance.com'%3A%20'%E5%AD%97%E8%8A%82%E8%B7%B3%E5%8A%A8'%2C%0A%20%20%20%20'talent.alibaba.com'%3A%20'%E9%98%BF%E9%87%8C%E5%B7%B4%E5%B7%B4'%2C%0A%20%20%20%20'talent.antgroup.com'%3A%20'%E8%9A%82%E8%9A%81%E9%9B%86%E5%9B%A2'%2C%0A%20%20%20%20'careers.tencent.com'%3A%20'%E8%85%BE%E8%AE%AF'%2C%0A%20%20%20%20'zhaopin.meituan.com'%3A%20'%E7%BE%8E%E5%9B%A2'%2C%0A%20%20%20%20'zhaopin.kuaishou.cn'%3A%20'%E5%BF%AB%E6%89%8B'%2C%0A%20%20%20%20'job.xiaohongshu.com'%3A%20'%E5%B0%8F%E7%BA%A2%E4%B9%A6'%2C%0A%20%20%20%20'jobs.bilibili.com'%3A%20'B%20%E7%AB%99'%2C%0A%20%20%20%20'hr.163.com'%3A%20'%E7%BD%91%E6%98%93'%2C%0A%20%20%20%20'campus.163.com'%3A%20'%E7%BD%91%E6%98%93'%2C%0A%20%20%20%20'join.jd.com'%3A%20'%E4%BA%AC%E4%B8%9C'%2C%0A%20%20%20%20'careers.pinduoduo.com'%3A%20'%E6%8B%BC%E5%A4%9A%E5%A4%9A'%2C%0A%20%20%20%20'talent.baidu.com'%3A%20'%E7%99%BE%E5%BA%A6'%2C%0A%20%20%20%20'talent.didiglobal.com'%3A%20'%E6%BB%B4%E6%BB%B4'%2C%0A%20%20%20%20'www.deepseek.com'%3A%20'DeepSeek'%2C%0A%20%20%20%20'www.moonshot.cn'%3A%20'Moonshot%20%E6%9C%88%E4%B9%8B%E6%9A%97%E9%9D%A2'%2C%0A%20%20%20%20'www.zhipuai.cn'%3A%20'%E6%99%BA%E8%B0%B1%20AI'%2C%0A%20%20%20%20'www.minimaxi.com'%3A%20'MiniMax'%2C%0A%20%20%20%20'www.baichuan-ai.com'%3A%20'%E7%99%BE%E5%B7%9D%E6%99%BA%E8%83%BD'%2C%0A%20%20%20%20'01.ai'%3A%20'%E9%9B%B6%E4%B8%80%E4%B8%87%E7%89%A9'%2C%0A%20%20%20%20'www.stepfun.com'%3A%20'%E9%98%B6%E8%B7%83%E6%98%9F%E8%BE%B0'%2C%0A%20%20%20%20'www.modelbest.cn'%3A%20'%E9%9D%A2%E5%A3%81%E6%99%BA%E8%83%BD'%2C%0A%20%20%20%20'www.pingcap.com'%3A%20'PingCAP'%2C%0A%20%20%20%20'www.starrocks.io'%3A%20'StarRocks'%2C%0A%20%20%20%20'kyligence.io'%3A%20'Kyligence'%2C%0A%20%20%20%20'www.sensorsdata.cn'%3A%20'%E7%A5%9E%E7%AD%96%E6%95%B0%E6%8D%AE'%2C%0A%20%20%20%20'siliconflow.cn'%3A%20'%E7%A1%85%E5%9F%BA%E6%B5%81%E5%8A%A8'%2C%0A%20%20%20%20'www.luchentech.com'%3A%20'%E6%BD%9E%E6%99%A8%E7%A7%91%E6%8A%80'%2C%0A%20%20%20%20'infini-ai.com'%3A%20'%E6%97%A0%E9%97%AE%E8%8A%AF%E7%A9%B9'%2C%0A%20%20%20%20'www.4paradigm.com'%3A%20'%E7%AC%AC%E5%9B%9B%E8%8C%83%E5%BC%8F'%2C%0A%20%20%20%20'www.sensetime.com'%3A%20'%E5%95%86%E6%B1%A4'%2C%0A%20%20%20%20'www.megvii.com'%3A%20'%E6%97%B7%E8%A7%86'%2C%0A%20%20%20%20'www.langboat.com'%3A%20'%E6%BE%9C%E8%88%9F%E7%A7%91%E6%8A%80'%2C%0A%20%20%7D%3B%0A%20%20const%20companyByHost%20%3D%20HOST_TO_COMPANY%5Blocation.hostname%5D%20%7C%7C%20''%3B%0A%0A%20%20const%20extracted%20%3D%20%7B%0A%20%20%20%20job_title%3A%20pickText(TITLE_SELS)%2C%0A%20%20%20%20company%3A%20pickText(COMPANY_SELS)%20%7C%7C%20companyByHost%2C%0A%20%20%20%20location%3A%20pickText(LOCATION_SELS)%2C%0A%20%20%20%20department%3A%20pickText(DEPT_SELS)%2C%0A%20%20%20%20description%3A%20descText%2C%0A%20%20%7D%3B%0A%0A%20%20const%20payload%20%3D%20%7B%0A%20%20%20%20url%3A%20location.href%2C%0A%20%20%20%20page_title%3A%20document.title%2C%0A%20%20%20%20captured_at%3A%20new%20Date().toISOString()%2C%0A%20%20%20%20platform%3A%20'dachang-spa'%2C%0A%20%20%20%20extracted%3A%20%7B%20...extracted%2C%20raw_text%3A%20document.body.innerText.trim()%20%7D%2C%0A%20%20%7D%3B%0A%0A%20%20try%20%7B%0A%20%20%20%20const%20res%20%3D%20await%20fetch('http%3A%2F%2Flocalhost%3A8787%2Fjd'%2C%20%7B%0A%20%20%20%20%20%20method%3A%20'POST'%2C%0A%20%20%20%20%20%20headers%3A%20%7B%20'Content-Type'%3A%20'application%2Fjson'%20%7D%2C%0A%20%20%20%20%20%20body%3A%20JSON.stringify(payload)%2C%0A%20%20%20%20%7D)%3B%0A%20%20%20%20const%20result%20%3D%20await%20res.json()%3B%0A%20%20%20%20if%20(result.ok)%20%7B%0A%20%20%20%20%20%20alert(%0A%20%20%20%20%20%20%20%20'%E2%9C%93%20%E5%A4%A7%E5%8E%82%20SPA%20JD%20captured%5Cn%E2%86%92%20'%20%2B%20result.file%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%85%AC%E5%8F%B8%EF%BC%9A'%20%2B%20(extracted.company%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%E5%B2%97%E4%BD%8D%EF%BC%9A'%20%2B%20(extracted.job_title%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%E5%9C%B0%E7%82%B9%EF%BC%9A'%20%2B%20(extracted.location%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%9B%9E%E5%88%B0%20Claude%20%E8%B7%91%20%2Fcareer-ops%20inbox'%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20alert('%E2%9D%8C%20Server%20error%3A%20'%20%2B%20(result.error%20%7C%7C%20'unknown'))%3B%0A%20%20%20%20%7D%0A%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20alert('%E2%9D%8C%20%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%B2%A1%E5%90%AF%E5%8A%A8%EF%BC%9F%5Cn%5Cn%E8%AF%B7%E8%BF%90%E8%A1%8C%EF%BC%9Anode%20tools%2Fjd-inbox-server.mjs')%3B%0A%20%20%7D%0A%7D)()%3B" style="background:#ec4899">🏢 大厂 Careers SPA</a>
+      <div class="meta">
+        <code>dachang-spa.js</code>
+        <span class="size">8.2 KB</span>
+      </div>
+    </div>
+    <p class="desc">字节 / 阿里 / 蚂蚁 / 腾讯 / 美团 / 快手 / 小红书 / B站 / 网易 / 京东 / 拼多多 / 百度 / 滴滴 等 careers SPA。</p>
+    <details>
+      <summary>查看源码</summary>
+      <pre><code>// 大厂 Careers SPA 通用捕获
+// 适用于：字节 / 阿里 / 蚂蚁 / 腾讯 / 美团 / 快手 / 小红书 careers /
+//        B站 / 网易 / 京东 / 拼多多 / 百度 / 滴滴 / DeepSeek www
+//        以及多家 AI 独角兽（智谱 / MiniMax / 阶跃 / 面壁 等）
+// 这些站点的 careers 详情页是 SPA，但用户在浏览器打开后 DOM 已渲染好。
+// universal.js 也能跑，本 bookmarklet 增加了大厂 SPA 常见 selector 的优先尝试。
+
+(async function () {
+  document.querySelectorAll(&#39;*&#39;).forEach((el) =&gt; {
+    try {
+      el.style.userSelect = &#39;auto&#39;;
+      el.style.webkitUserSelect = &#39;auto&#39;;
+      if (el.oncopy) el.oncopy = null;
+    } catch {}
+  });
+
+  const pickText = (selectors) =&gt; {
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const txt = (el.innerText || el.textContent || &#39;&#39;).trim();
+        if (txt.length &gt; 0) return txt;
+      }
+    }
+    return &#39;&#39;;
+  };
+
+  // 大厂常用 selector 集合（按命中率排序）
+  const TITLE_SELS = [
+    &#39;[class*=&quot;position-title&quot;]&#39;, &#39;[class*=&quot;job-title&quot;]&#39;, &#39;[class*=&quot;positionName&quot;]&#39;,
+    &#39;[class*=&quot;recruit-title&quot;]&#39;, &#39;[class*=&quot;position-name&quot;]&#39;, &#39;[class*=&quot;jobName&quot;]&#39;,
+    &#39;.position-detail h1&#39;, &#39;.job-detail h1&#39;, &#39;h1.title&#39;, &#39;h1&#39;,
+  ];
+  const COMPANY_SELS = [
+    &#39;[class*=&quot;company-name&quot;]&#39;, &#39;[class*=&quot;brand-name&quot;]&#39;, &#39;[class*=&quot;companyName&quot;]&#39;,
+  ];
+  const LOCATION_SELS = [
+    &#39;[class*=&quot;position-location&quot;]&#39;, &#39;[class*=&quot;job-location&quot;]&#39;, &#39;[class*=&quot;city&quot;]&#39;,
+    &#39;[class*=&quot;address&quot;]&#39;, &#39;[class*=&quot;location-info&quot;]&#39;,
+  ];
+  const DEPT_SELS = [
+    &#39;[class*=&quot;department&quot;]&#39;, &#39;[class*=&quot;team&quot;]&#39;, &#39;[class*=&quot;position-team&quot;]&#39;,
+    &#39;[class*=&quot;bg-name&quot;]&#39;,
+  ];
+  const DESC_SELS = [
+    &#39;[class*=&quot;job-detail&quot;]&#39;, &#39;[class*=&quot;position-detail&quot;]&#39;, &#39;[class*=&quot;recruit-content&quot;]&#39;,
+    &#39;[class*=&quot;position-description&quot;]&#39;, &#39;[class*=&quot;job-description&quot;]&#39;,
+    &#39;[class*=&quot;position-content&quot;]&#39;, &#39;[class*=&quot;job-content&quot;]&#39;,
+    &#39;[class*=&quot;positionDetail&quot;]&#39;, &#39;[class*=&quot;positionDesc&quot;]&#39;,
+    &#39;.detail-content&#39;, &#39;.content-detail&#39;, &#39;main&#39;, &#39;article&#39;,
+  ];
+
+  // Smart fallback: pick the largest non-nav block
+  let descText = pickText(DESC_SELS);
+  if (descText.length &lt; 200) {
+    let best = null;
+    let bestLen = 0;
+    document.querySelectorAll(&#39;div, section, article, main&#39;).forEach((el) =&gt; {
+      const cls = (el.className || &#39;&#39;).toString().toLowerCase();
+      if (/nav|footer|header|sidebar|menu|modal|toast/.test(cls)) return;
+      const len = (el.innerText || &#39;&#39;).trim().length;
+      if (len &gt; bestLen &amp;&amp; len &gt; 200 &amp;&amp; len &lt; 30000) {
+        best = el;
+        bestLen = len;
+      }
+    });
+    if (best) descText = best.innerText.trim();
+  }
+
+  // 公司名兜底：从 hostname 推断
+  const HOST_TO_COMPANY = {
+    &#39;jobs.bytedance.com&#39;: &#39;字节跳动&#39;,
+    &#39;talent.alibaba.com&#39;: &#39;阿里巴巴&#39;,
+    &#39;talent.antgroup.com&#39;: &#39;蚂蚁集团&#39;,
+    &#39;careers.tencent.com&#39;: &#39;腾讯&#39;,
+    &#39;zhaopin.meituan.com&#39;: &#39;美团&#39;,
+    &#39;zhaopin.kuaishou.cn&#39;: &#39;快手&#39;,
+    &#39;job.xiaohongshu.com&#39;: &#39;小红书&#39;,
+    &#39;jobs.bilibili.com&#39;: &#39;B 站&#39;,
+    &#39;hr.163.com&#39;: &#39;网易&#39;,
+    &#39;campus.163.com&#39;: &#39;网易&#39;,
+    &#39;join.jd.com&#39;: &#39;京东&#39;,
+    &#39;careers.pinduoduo.com&#39;: &#39;拼多多&#39;,
+    &#39;talent.baidu.com&#39;: &#39;百度&#39;,
+    &#39;talent.didiglobal.com&#39;: &#39;滴滴&#39;,
+    &#39;www.deepseek.com&#39;: &#39;DeepSeek&#39;,
+    &#39;www.moonshot.cn&#39;: &#39;Moonshot 月之暗面&#39;,
+    &#39;www.zhipuai.cn&#39;: &#39;智谱 AI&#39;,
+    &#39;www.minimaxi.com&#39;: &#39;MiniMax&#39;,
+    &#39;www.baichuan-ai.com&#39;: &#39;百川智能&#39;,
+    &#39;01.ai&#39;: &#39;零一万物&#39;,
+    &#39;www.stepfun.com&#39;: &#39;阶跃星辰&#39;,
+    &#39;www.modelbest.cn&#39;: &#39;面壁智能&#39;,
+    &#39;www.pingcap.com&#39;: &#39;PingCAP&#39;,
+    &#39;www.starrocks.io&#39;: &#39;StarRocks&#39;,
+    &#39;kyligence.io&#39;: &#39;Kyligence&#39;,
+    &#39;www.sensorsdata.cn&#39;: &#39;神策数据&#39;,
+    &#39;siliconflow.cn&#39;: &#39;硅基流动&#39;,
+    &#39;www.luchentech.com&#39;: &#39;潞晨科技&#39;,
+    &#39;infini-ai.com&#39;: &#39;无问芯穹&#39;,
+    &#39;www.4paradigm.com&#39;: &#39;第四范式&#39;,
+    &#39;www.sensetime.com&#39;: &#39;商汤&#39;,
+    &#39;www.megvii.com&#39;: &#39;旷视&#39;,
+    &#39;www.langboat.com&#39;: &#39;澜舟科技&#39;,
+  };
+  const companyByHost = HOST_TO_COMPANY[location.hostname] || &#39;&#39;;
+
+  const extracted = {
+    job_title: pickText(TITLE_SELS),
+    company: pickText(COMPANY_SELS) || companyByHost,
+    location: pickText(LOCATION_SELS),
+    department: pickText(DEPT_SELS),
+    description: descText,
+  };
+
+  const payload = {
+    url: location.href,
+    page_title: document.title,
+    captured_at: new Date().toISOString(),
+    platform: &#39;dachang-spa&#39;,
+    extracted: { ...extracted, raw_text: document.body.innerText.trim() },
+  };
+
+  try {
+    const res = await fetch(&#39;http://localhost:8787/jd&#39;, {
+      method: &#39;POST&#39;,
+      headers: { &#39;Content-Type&#39;: &#39;application/json&#39; },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.ok) {
+      alert(
+        &#39;✓ 大厂 SPA JD captured\n→ &#39; + result.file +
+          &#39;\n\n公司：&#39; + (extracted.company || &#39;?&#39;) +
+          &#39;\n岗位：&#39; + (extracted.job_title || &#39;?&#39;) +
+          &#39;\n地点：&#39; + (extracted.location || &#39;?&#39;) +
+          &#39;\n\n回到 Claude 跑 /career-ops inbox&#39;
+      );
+    } else {
+      alert(&#39;❌ Server error: &#39; + (result.error || &#39;unknown&#39;));
+    }
+  } catch (e) {
+    alert(&#39;❌ 服务器没启动？\n\n请运行：node tools/jd-inbox-server.mjs&#39;);
+  }
+})();
+</code></pre>
+    </details>
+  </div>
+
+  <div class="card" style="border-left-color:#f59e0b">
+    <div class="card-head">
+      <a class="bm" href="javascript:(async%20function%20()%20%7B%0A%20%20document.querySelectorAll('*').forEach((el)%20%3D%3E%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20el.style.userSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20el.style.webkitUserSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20if%20(el.oncopy)%20el.oncopy%20%3D%20null%3B%0A%20%20%20%20%7D%20catch%20%7B%7D%0A%20%20%7D)%3B%0A%20%20%5B'copy'%2C%20'cut'%2C%20'contextmenu'%2C%20'selectstart'%5D.forEach((evt)%20%3D%3E%20%7B%0A%20%20%20%20document.addEventListener(evt%2C%20(e)%20%3D%3E%20e.stopPropagation()%2C%20true)%3B%0A%20%20%7D)%3B%0A%0A%20%20const%20bodyText%20%3D%20document.body.innerText%20%7C%7C%20''%3B%0A%20%20if%20(%2F%E8%AF%B7%5Cs*%E7%99%BB%E5%BD%95%7C%E7%99%BB%E5%BD%95%E5%90%8E%7C%E7%AB%8B%E5%8D%B3%E7%99%BB%E5%BD%95%2F.test(bodyText)%20%26%26%20bodyText.length%20%3C%201200)%20%7B%0A%20%20%20%20alert('%E2%9A%A0%EF%B8%8F%20%E6%8B%89%E5%8B%BE%E8%A6%81%E6%B1%82%E7%99%BB%E5%BD%95%5Cn%5Cn%E5%85%88%E7%99%BB%E5%BD%95%E5%90%8E%E5%88%B7%E6%96%B0%E9%A1%B5%E9%9D%A2%EF%BC%8C%E5%86%8D%E7%82%B9%20bookmarklet%E3%80%82')%3B%0A%20%20%20%20return%3B%0A%20%20%7D%0A%0A%20%20const%20pickText%20%3D%20(selectors)%20%3D%3E%20%7B%0A%20%20%20%20for%20(const%20sel%20of%20selectors)%20%7B%0A%20%20%20%20%20%20const%20el%20%3D%20document.querySelector(sel)%3B%0A%20%20%20%20%20%20if%20(el)%20%7B%0A%20%20%20%20%20%20%20%20const%20txt%20%3D%20(el.innerText%20%7C%7C%20el.textContent%20%7C%7C%20'').trim()%3B%0A%20%20%20%20%20%20%20%20if%20(txt.length%20%3E%200)%20return%20txt%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%20%20return%20''%3B%0A%20%20%7D%3B%0A%0A%20%20const%20extracted%20%3D%20%7B%0A%20%20%20%20job_title%3A%20pickText(%5B'.job-name%20.name'%2C%20'.position-head%20h1'%2C%20'%5Bclass*%3D%22position-content%22%5D%20h1'%2C%20'h1'%5D)%2C%0A%20%20%20%20company%3A%20pickText(%5B'.company%20.name'%2C%20'.company_name'%2C%20'%5Bclass*%3D%22company-info%22%5D%20.name'%5D)%2C%0A%20%20%20%20salary%3A%20pickText(%5B'.salary'%2C%20'%5Bclass*%3D%22salary%22%5D'%2C%20'.job_request%20.salary'%5D)%2C%0A%20%20%20%20location%3A%20pickText(%5B'.work_addr'%2C%20'%5Bclass*%3D%22work-addr%22%5D'%2C%20'%5Bclass*%3D%22location%22%5D'%5D)%2C%0A%20%20%20%20description%3A%20pickText(%5B%0A%20%20%20%20%20%20'.job-detail'%2C%0A%20%20%20%20%20%20'%23job_detail'%2C%0A%20%20%20%20%20%20'.job_bt'%2C%0A%20%20%20%20%20%20'%5Bclass*%3D%22job-detail%22%5D'%2C%0A%20%20%20%20%20%20'%5Bclass*%3D%22job-description%22%5D'%2C%0A%20%20%20%20%5D)%2C%0A%20%20%20%20requirements%3A%20pickText(%5B'.position-label'%2C%20'%5Bclass*%3D%22position-tag%22%5D'%2C%20'%5Bclass*%3D%22job-keyword%22%5D'%5D)%2C%0A%20%20%7D%3B%0A%0A%20%20const%20payload%20%3D%20%7B%0A%20%20%20%20url%3A%20location.href%2C%0A%20%20%20%20page_title%3A%20document.title%2C%0A%20%20%20%20captured_at%3A%20new%20Date().toISOString()%2C%0A%20%20%20%20platform%3A%20'lagou'%2C%0A%20%20%20%20extracted%3A%20%7B%20...extracted%2C%20raw_text%3A%20document.body.innerText.trim()%20%7D%2C%0A%20%20%7D%3B%0A%0A%20%20try%20%7B%0A%20%20%20%20const%20res%20%3D%20await%20fetch('http%3A%2F%2Flocalhost%3A8787%2Fjd'%2C%20%7B%0A%20%20%20%20%20%20method%3A%20'POST'%2C%0A%20%20%20%20%20%20headers%3A%20%7B%20'Content-Type'%3A%20'application%2Fjson'%20%7D%2C%0A%20%20%20%20%20%20body%3A%20JSON.stringify(payload)%2C%0A%20%20%20%20%7D)%3B%0A%20%20%20%20const%20result%20%3D%20await%20res.json()%3B%0A%20%20%20%20if%20(result.ok)%20%7B%0A%20%20%20%20%20%20alert(%0A%20%20%20%20%20%20%20%20'%E2%9C%93%20%E6%8B%89%E5%8B%BE%20JD%20captured%5Cn%E2%86%92%20'%20%2B%20result.file%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%B2%97%E4%BD%8D%EF%BC%9A'%20%2B%20(extracted.job_title%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%E5%85%AC%E5%8F%B8%EF%BC%9A'%20%2B%20(extracted.company%20%7C%7C%20'%3F')%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20alert('%E2%9D%8C%20Server%20error%3A%20'%20%2B%20(result.error%20%7C%7C%20'unknown'))%3B%0A%20%20%20%20%7D%0A%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20alert('%E2%9D%8C%20%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%B2%A1%E5%90%AF%E5%8A%A8%EF%BC%9F%5Cn%5Cn%E8%AF%B7%E8%BF%90%E8%A1%8C%EF%BC%9Anode%20tools%2Fjd-inbox-server.mjs')%3B%0A%20%20%7D%0A%7D)()%3B" style="background:#f59e0b">🛒 拉勾</a>
+      <div class="meta">
+        <code>lagou.js</code>
+        <span class="size">4.1 KB</span>
+      </div>
+    </div>
+    <p class="desc">拉勾详情页（lagou.com）。需先登录。</p>
+    <details>
+      <summary>查看源码</summary>
+      <pre><code>// 拉勾（lagou.com）专用 JD 捕获
+// 拉勾详情页有反爬，但用户登录后 DOM 是可读的
+
+(async function () {
+  document.querySelectorAll(&#39;*&#39;).forEach((el) =&gt; {
+    try {
+      el.style.userSelect = &#39;auto&#39;;
+      el.style.webkitUserSelect = &#39;auto&#39;;
+      if (el.oncopy) el.oncopy = null;
+    } catch {}
+  });
+  [&#39;copy&#39;, &#39;cut&#39;, &#39;contextmenu&#39;, &#39;selectstart&#39;].forEach((evt) =&gt; {
+    document.addEventListener(evt, (e) =&gt; e.stopPropagation(), true);
+  });
+
+  const bodyText = document.body.innerText || &#39;&#39;;
+  if (/请\s*登录|登录后|立即登录/.test(bodyText) &amp;&amp; bodyText.length &lt; 1200) {
+    alert(&#39;⚠️ 拉勾要求登录\n\n先登录后刷新页面，再点 bookmarklet。&#39;);
+    return;
+  }
+
+  const pickText = (selectors) =&gt; {
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const txt = (el.innerText || el.textContent || &#39;&#39;).trim();
+        if (txt.length &gt; 0) return txt;
+      }
+    }
+    return &#39;&#39;;
+  };
+
+  const extracted = {
+    job_title: pickText([&#39;.job-name .name&#39;, &#39;.position-head h1&#39;, &#39;[class*=&quot;position-content&quot;] h1&#39;, &#39;h1&#39;]),
+    company: pickText([&#39;.company .name&#39;, &#39;.company_name&#39;, &#39;[class*=&quot;company-info&quot;] .name&#39;]),
+    salary: pickText([&#39;.salary&#39;, &#39;[class*=&quot;salary&quot;]&#39;, &#39;.job_request .salary&#39;]),
+    location: pickText([&#39;.work_addr&#39;, &#39;[class*=&quot;work-addr&quot;]&#39;, &#39;[class*=&quot;location&quot;]&#39;]),
+    description: pickText([
+      &#39;.job-detail&#39;,
+      &#39;#job_detail&#39;,
+      &#39;.job_bt&#39;,
+      &#39;[class*=&quot;job-detail&quot;]&#39;,
+      &#39;[class*=&quot;job-description&quot;]&#39;,
+    ]),
+    requirements: pickText([&#39;.position-label&#39;, &#39;[class*=&quot;position-tag&quot;]&#39;, &#39;[class*=&quot;job-keyword&quot;]&#39;]),
+  };
+
+  const payload = {
+    url: location.href,
+    page_title: document.title,
+    captured_at: new Date().toISOString(),
+    platform: &#39;lagou&#39;,
+    extracted: { ...extracted, raw_text: document.body.innerText.trim() },
+  };
+
+  try {
+    const res = await fetch(&#39;http://localhost:8787/jd&#39;, {
+      method: &#39;POST&#39;,
+      headers: { &#39;Content-Type&#39;: &#39;application/json&#39; },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.ok) {
+      alert(
+        &#39;✓ 拉勾 JD captured\n→ &#39; + result.file +
+          &#39;\n\n岗位：&#39; + (extracted.job_title || &#39;?&#39;) +
+          &#39;\n公司：&#39; + (extracted.company || &#39;?&#39;)
+      );
+    } else {
+      alert(&#39;❌ Server error: &#39; + (result.error || &#39;unknown&#39;));
+    }
+  } catch (e) {
+    alert(&#39;❌ 服务器没启动？\n\n请运行：node tools/jd-inbox-server.mjs&#39;);
+  }
+})();
+</code></pre>
+    </details>
+  </div>
+
+  <div class="card" style="border-left-color:#10b981">
+    <div class="card-head">
+      <a class="bm" href="javascript:(async%20function%20()%20%7B%0A%20%20%2F%2F%20%E5%BC%BA%E5%89%A5%20anti-copy%0A%20%20document.querySelectorAll('*').forEach((el)%20%3D%3E%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20el.style.userSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20el.style.webkitUserSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20if%20(el.oncopy)%20el.oncopy%20%3D%20null%3B%0A%20%20%20%20%20%20if%20(el.oncontextmenu)%20el.oncontextmenu%20%3D%20null%3B%0A%20%20%20%20%7D%20catch%20%7B%7D%0A%20%20%7D)%3B%0A%20%20%5B'copy'%2C%20'cut'%2C%20'contextmenu'%2C%20'selectstart'%5D.forEach((evt)%20%3D%3E%20%7B%0A%20%20%20%20document.addEventListener(evt%2C%20(e)%20%3D%3E%20e.stopPropagation()%2C%20true)%3B%0A%20%20%7D)%3B%0A%0A%20%20%2F%2F%20%E6%A3%80%E6%B5%8B%E7%99%BB%E5%BD%95%E5%A2%99%0A%20%20const%20bodyText%20%3D%20document.body.innerText%20%7C%7C%20''%3B%0A%20%20if%20(%2F%E8%AF%B7%5Cs*%E7%99%BB%E5%BD%95%7C%E7%99%BB%E5%BD%95%E5%90%8E%E6%9F%A5%E7%9C%8B%7C%E7%AB%8B%E5%8D%B3%E7%99%BB%E5%BD%95%7C%E7%99%BB%E5%BD%95%5Cs*%E5%B9%B6%5Cs*%E6%9F%A5%E7%9C%8B%2F.test(bodyText)%20%26%26%20bodyText.length%20%3C%201500)%20%7B%0A%20%20%20%20alert('%E2%9A%A0%EF%B8%8F%20%E7%8C%8E%E8%81%98%E8%A6%81%E6%B1%82%E7%99%BB%E5%BD%95%E5%90%8E%E6%89%8D%E8%83%BD%E7%9C%8B%E5%AE%8C%E6%95%B4%20JD%5Cn%5Cn%E8%AF%B7%E5%85%88%E7%99%BB%E5%BD%95%E7%8C%8E%E8%81%98%E8%B4%A6%E5%8F%B7%EF%BC%8C%E5%88%B7%E6%96%B0%E9%A1%B5%E9%9D%A2%E5%90%8E%E5%86%8D%E7%82%B9%E8%BF%99%E4%B8%AA%20bookmarklet%E3%80%82')%3B%0A%20%20%20%20return%3B%0A%20%20%7D%0A%0A%20%20const%20pickText%20%3D%20(selectors)%20%3D%3E%20%7B%0A%20%20%20%20for%20(const%20sel%20of%20selectors)%20%7B%0A%20%20%20%20%20%20const%20el%20%3D%20document.querySelector(sel)%3B%0A%20%20%20%20%20%20if%20(el)%20%7B%0A%20%20%20%20%20%20%20%20const%20txt%20%3D%20(el.innerText%20%7C%7C%20el.textContent%20%7C%7C%20'').trim()%3B%0A%20%20%20%20%20%20%20%20if%20(txt.length%20%3E%200)%20return%20txt%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%20%20return%20''%3B%0A%20%20%7D%3B%0A%0A%20%20const%20extracted%20%3D%20%7B%0A%20%20%20%20job_title%3A%20pickText(%5B%0A%20%20%20%20%20%20'.title-info%20h1'%2C%20'.job-title-wrap%20h1'%2C%0A%20%20%20%20%20%20'%5Bclass*%3D%22job-title-name%22%5D'%2C%20'%5Bclass*%3D%22title-info%22%5D%20h1'%2C%20'h1'%2C%0A%20%20%20%20%5D)%2C%0A%20%20%20%20company%3A%20pickText(%5B%0A%20%20%20%20%20%20'.company-info-container%20.name'%2C%20'%5Bclass*%3D%22company-name%22%5D'%2C%0A%20%20%20%20%20%20'.company-name%20a'%2C%20'%5Bclass*%3D%22company-info%22%5D%20.name'%2C%0A%20%20%20%20%5D)%2C%0A%20%20%20%20salary%3A%20pickText(%5B'.job-item-title%20.salary'%2C%20'%5Bclass*%3D%22salary%22%5D'%2C%20'.salary'%5D)%2C%0A%20%20%20%20location%3A%20pickText(%5B'.basic-infor%20span%3Afirst-child'%2C%20'%5Bclass*%3D%22job-place%22%5D'%2C%20'%5Bclass*%3D%22location%22%5D'%5D)%2C%0A%20%20%20%20description%3A%20pickText(%5B%0A%20%20%20%20%20%20'.job-intro-content'%2C%20'.job-describe-content'%2C%20'.content.content-word'%2C%0A%20%20%20%20%20%20'%5Bclass*%3D%22job-describe%22%5D'%2C%20'%5Bclass*%3D%22job-intro%22%5D'%2C%20'%5Bclass*%3D%22job-detail%22%5D'%2C%0A%20%20%20%20%5D)%2C%0A%20%20%20%20requirements%3A%20pickText(%5B'.job-item-list'%2C%20'%5Bclass*%3D%22tag-list%22%5D'%2C%20'%5Bclass*%3D%22labels%22%5D'%5D)%2C%0A%20%20%7D%3B%0A%0A%20%20const%20payload%20%3D%20%7B%0A%20%20%20%20url%3A%20location.href%2C%0A%20%20%20%20page_title%3A%20document.title%2C%0A%20%20%20%20captured_at%3A%20new%20Date().toISOString()%2C%0A%20%20%20%20platform%3A%20'liepin'%2C%0A%20%20%20%20extracted%3A%20%7B%20...extracted%2C%20raw_text%3A%20document.body.innerText.trim()%20%7D%2C%0A%20%20%7D%3B%0A%0A%20%20try%20%7B%0A%20%20%20%20const%20res%20%3D%20await%20fetch('http%3A%2F%2Flocalhost%3A8787%2Fjd'%2C%20%7B%0A%20%20%20%20%20%20method%3A%20'POST'%2C%0A%20%20%20%20%20%20headers%3A%20%7B%20'Content-Type'%3A%20'application%2Fjson'%20%7D%2C%0A%20%20%20%20%20%20body%3A%20JSON.stringify(payload)%2C%0A%20%20%20%20%7D)%3B%0A%20%20%20%20const%20result%20%3D%20await%20res.json()%3B%0A%20%20%20%20if%20(result.ok)%20%7B%0A%20%20%20%20%20%20alert(%0A%20%20%20%20%20%20%20%20'%E2%9C%93%20%E7%8C%8E%E8%81%98%20JD%20captured%5Cn%E2%86%92%20'%20%2B%20result.file%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%B2%97%E4%BD%8D%EF%BC%9A'%20%2B%20(extracted.job_title%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%E5%85%AC%E5%8F%B8%EF%BC%9A'%20%2B%20(extracted.company%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%9B%9E%E5%88%B0%20Claude%20%E8%B7%91%20%2Fcareer-ops%20inbox'%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20alert('%E2%9D%8C%20Server%20error%3A%20'%20%2B%20(result.error%20%7C%7C%20'unknown'))%3B%0A%20%20%20%20%7D%0A%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20alert('%E2%9D%8C%20%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%B2%A1%E5%90%AF%E5%8A%A8%EF%BC%9F%5Cn%5Cn%E8%AF%B7%E8%BF%90%E8%A1%8C%EF%BC%9A%5Cn%20%20node%20tools%2Fjd-inbox-server.mjs%5Cn%5Cn%E9%94%99%E8%AF%AF%EF%BC%9A'%20%2B%20e.message)%3B%0A%20%20%7D%0A%7D)()%3B" style="background:#10b981">🎯 猎聘</a>
+      <div class="meta">
+        <code>liepin.js</code>
+        <span class="size">4.9 KB</span>
+      </div>
+    </div>
+    <p class="desc">猎聘详情页（liepin.com）。需先登录。</p>
+    <details>
+      <summary>查看源码</summary>
+      <pre><code>// 猎聘（liepin.com）专用 JD 捕获
+// 猎聘部分详情页有反复制 + 登录墙（未登录看不到完整 JD）
+
+(async function () {
+  // 强剥 anti-copy
+  document.querySelectorAll(&#39;*&#39;).forEach((el) =&gt; {
+    try {
+      el.style.userSelect = &#39;auto&#39;;
+      el.style.webkitUserSelect = &#39;auto&#39;;
+      if (el.oncopy) el.oncopy = null;
+      if (el.oncontextmenu) el.oncontextmenu = null;
+    } catch {}
+  });
+  [&#39;copy&#39;, &#39;cut&#39;, &#39;contextmenu&#39;, &#39;selectstart&#39;].forEach((evt) =&gt; {
+    document.addEventListener(evt, (e) =&gt; e.stopPropagation(), true);
+  });
+
+  // 检测登录墙
+  const bodyText = document.body.innerText || &#39;&#39;;
+  if (/请\s*登录|登录后查看|立即登录|登录\s*并\s*查看/.test(bodyText) &amp;&amp; bodyText.length &lt; 1500) {
+    alert(&#39;⚠️ 猎聘要求登录后才能看完整 JD\n\n请先登录猎聘账号，刷新页面后再点这个 bookmarklet。&#39;);
+    return;
+  }
+
+  const pickText = (selectors) =&gt; {
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const txt = (el.innerText || el.textContent || &#39;&#39;).trim();
+        if (txt.length &gt; 0) return txt;
+      }
+    }
+    return &#39;&#39;;
+  };
+
+  const extracted = {
+    job_title: pickText([
+      &#39;.title-info h1&#39;, &#39;.job-title-wrap h1&#39;,
+      &#39;[class*=&quot;job-title-name&quot;]&#39;, &#39;[class*=&quot;title-info&quot;] h1&#39;, &#39;h1&#39;,
+    ]),
+    company: pickText([
+      &#39;.company-info-container .name&#39;, &#39;[class*=&quot;company-name&quot;]&#39;,
+      &#39;.company-name a&#39;, &#39;[class*=&quot;company-info&quot;] .name&#39;,
+    ]),
+    salary: pickText([&#39;.job-item-title .salary&#39;, &#39;[class*=&quot;salary&quot;]&#39;, &#39;.salary&#39;]),
+    location: pickText([&#39;.basic-infor span:first-child&#39;, &#39;[class*=&quot;job-place&quot;]&#39;, &#39;[class*=&quot;location&quot;]&#39;]),
+    description: pickText([
+      &#39;.job-intro-content&#39;, &#39;.job-describe-content&#39;, &#39;.content.content-word&#39;,
+      &#39;[class*=&quot;job-describe&quot;]&#39;, &#39;[class*=&quot;job-intro&quot;]&#39;, &#39;[class*=&quot;job-detail&quot;]&#39;,
+    ]),
+    requirements: pickText([&#39;.job-item-list&#39;, &#39;[class*=&quot;tag-list&quot;]&#39;, &#39;[class*=&quot;labels&quot;]&#39;]),
+  };
+
+  const payload = {
+    url: location.href,
+    page_title: document.title,
+    captured_at: new Date().toISOString(),
+    platform: &#39;liepin&#39;,
+    extracted: { ...extracted, raw_text: document.body.innerText.trim() },
+  };
+
+  try {
+    const res = await fetch(&#39;http://localhost:8787/jd&#39;, {
+      method: &#39;POST&#39;,
+      headers: { &#39;Content-Type&#39;: &#39;application/json&#39; },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.ok) {
+      alert(
+        &#39;✓ 猎聘 JD captured\n→ &#39; + result.file +
+          &#39;\n\n岗位：&#39; + (extracted.job_title || &#39;?&#39;) +
+          &#39;\n公司：&#39; + (extracted.company || &#39;?&#39;) +
+          &#39;\n\n回到 Claude 跑 /career-ops inbox&#39;
+      );
+    } else {
+      alert(&#39;❌ Server error: &#39; + (result.error || &#39;unknown&#39;));
+    }
+  } catch (e) {
+    alert(&#39;❌ 服务器没启动？\n\n请运行：\n  node tools/jd-inbox-server.mjs\n\n错误：&#39; + e.message);
+  }
+})();
+</code></pre>
+    </details>
+  </div>
+
+  <div class="card" style="border-left-color:#8b5cf6">
+    <div class="card-head">
+      <a class="bm" href="javascript:(async%20function%20()%20%7B%0A%20%20document.querySelectorAll('*').forEach((el)%20%3D%3E%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20el.style.userSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20el.style.webkitUserSelect%20%3D%20'auto'%3B%0A%20%20%20%20%7D%20catch%20%7B%7D%0A%20%20%7D)%3B%0A%0A%20%20%2F%2F%20%E5%B0%9D%E8%AF%95%E6%89%BE%20Mokahr%20iframe%EF%BC%88%E5%90%8C%E6%BA%90%E6%97%B6%E5%8F%AF%E8%AE%BF%E9%97%AE%EF%BC%89%0A%20%20let%20frameDoc%20%3D%20document%3B%0A%20%20const%20mokahrFrame%20%3D%0A%20%20%20%20document.querySelector('iframe%5Bsrc*%3D%22mokahr.com%22%5D')%20%7C%7C%0A%20%20%20%20document.querySelector('iframe%5Bsrc*%3D%22moka%22%5D')%3B%0A%20%20if%20(mokahrFrame)%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20if%20(mokahrFrame.contentDocument)%20%7B%0A%20%20%20%20%20%20%20%20frameDoc%20%3D%20mokahrFrame.contentDocument%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20%20%20alert('%E2%9A%A0%EF%B8%8F%20Mokahr%20iframe%20%E6%98%AF%E8%B7%A8%E5%9F%9F%E7%9A%84%EF%BC%8C%E6%97%A0%E6%B3%95%E7%9B%B4%E6%8E%A5%E8%AF%BB%E5%8F%96%E3%80%82%5Cn%5Cn%E8%AF%B7%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%20iframe%20%E5%86%85%E7%9A%84%E9%93%BE%E6%8E%A5%EF%BC%88%E5%9C%A8%E6%96%B0%20tab%20%E6%89%93%E5%BC%80%20iframe%EF%BC%89%EF%BC%8C%E7%84%B6%E5%90%8E%E5%86%8D%E7%82%B9%E8%BF%99%E4%B8%AA%20bookmarklet%E3%80%82')%3B%0A%20%20%20%20%20%20return%3B%0A%20%20%20%20%7D%0A%20%20%7D%0A%0A%20%20const%20pickText%20%3D%20(selectors)%20%3D%3E%20%7B%0A%20%20%20%20for%20(const%20sel%20of%20selectors)%20%7B%0A%20%20%20%20%20%20const%20el%20%3D%20frameDoc.querySelector(sel)%3B%0A%20%20%20%20%20%20if%20(el)%20%7B%0A%20%20%20%20%20%20%20%20const%20txt%20%3D%20(el.innerText%20%7C%7C%20el.textContent%20%7C%7C%20'').trim()%3B%0A%20%20%20%20%20%20%20%20if%20(txt.length%20%3E%200)%20return%20txt%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%20%20return%20''%3B%0A%20%20%7D%3B%0A%0A%20%20const%20extracted%20%3D%20%7B%0A%20%20%20%20job_title%3A%20pickText(%5B%0A%20%20%20%20%20%20'.job-detail-title'%2C%20'.position-name'%2C%20'%5Bclass*%3D%22job-title%22%5D'%2C%0A%20%20%20%20%20%20'%5Bclass*%3D%22position-title%22%5D'%2C%20'h1'%2C%20'h2'%2C%0A%20%20%20%20%5D)%2C%0A%20%20%20%20company%3A%20pickText(%5B%0A%20%20%20%20%20%20'.company-name'%2C%20'%5Bclass*%3D%22company%22%5D'%2C%0A%20%20%20%20%20%20'.brand-name'%2C%0A%20%20%20%20%5D)%20%7C%7C%20(location.hostname.includes('high-flyer')%20%3F%20'DeepSeek'%20%3A%20'')%2C%0A%20%20%20%20location%3A%20pickText(%5B'.job-location'%2C%20'%5Bclass*%3D%22location%22%5D'%2C%20'%5Bclass*%3D%22city%22%5D'%5D)%2C%0A%20%20%20%20salary%3A%20pickText(%5B'.salary'%2C%20'%5Bclass*%3D%22salary%22%5D'%5D)%2C%0A%20%20%20%20description%3A%20pickText(%5B%0A%20%20%20%20%20%20'.job-detail-content'%2C%20'.job-description'%2C%20'.position-detail'%2C%0A%20%20%20%20%20%20'%5Bclass*%3D%22job-detail%22%5D'%2C%20'%5Bclass*%3D%22position-content%22%5D'%2C%0A%20%20%20%20%20%20'%5Bclass*%3D%22content%22%5D'%2C%20'.job-content'%2C%0A%20%20%20%20%5D)%2C%0A%20%20%7D%3B%0A%0A%20%20%2F%2F%20raw_text%20%E5%85%9C%E5%BA%95%0A%20%20const%20raw%20%3D%20(frameDoc.body%20%7C%7C%20document.body).innerText.trim()%3B%0A%0A%20%20const%20payload%20%3D%20%7B%0A%20%20%20%20url%3A%20location.href%2C%0A%20%20%20%20page_title%3A%20document.title%2C%0A%20%20%20%20captured_at%3A%20new%20Date().toISOString()%2C%0A%20%20%20%20platform%3A%20'mokahr'%2C%0A%20%20%20%20extracted%3A%20%7B%20...extracted%2C%20raw_text%3A%20raw%20%7D%2C%0A%20%20%7D%3B%0A%0A%20%20try%20%7B%0A%20%20%20%20const%20res%20%3D%20await%20fetch('http%3A%2F%2Flocalhost%3A8787%2Fjd'%2C%20%7B%0A%20%20%20%20%20%20method%3A%20'POST'%2C%0A%20%20%20%20%20%20headers%3A%20%7B%20'Content-Type'%3A%20'application%2Fjson'%20%7D%2C%0A%20%20%20%20%20%20body%3A%20JSON.stringify(payload)%2C%0A%20%20%20%20%7D)%3B%0A%20%20%20%20const%20result%20%3D%20await%20res.json()%3B%0A%20%20%20%20if%20(result.ok)%20%7B%0A%20%20%20%20%20%20alert(%0A%20%20%20%20%20%20%20%20'%E2%9C%93%20Mokahr%20JD%20captured%5Cn%E2%86%92%20'%20%2B%20result.file%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%B2%97%E4%BD%8D%EF%BC%9A'%20%2B%20(extracted.job_title%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%E5%85%AC%E5%8F%B8%EF%BC%9A'%20%2B%20(extracted.company%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%9B%9E%E5%88%B0%20Claude%20%E8%B7%91%20%2Fcareer-ops%20inbox'%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20alert('%E2%9D%8C%20Server%20error%3A%20'%20%2B%20(result.error%20%7C%7C%20'unknown'))%3B%0A%20%20%20%20%7D%0A%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20alert('%E2%9D%8C%20%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%B2%A1%E5%90%AF%E5%8A%A8%EF%BC%9F%5Cn%5Cn%E8%AF%B7%E8%BF%90%E8%A1%8C%EF%BC%9Anode%20tools%2Fjd-inbox-server.mjs')%3B%0A%20%20%7D%0A%7D)()%3B" style="background:#8b5cf6">🔑 Mokahr ATS</a>
+      <div class="meta">
+        <code>mokahr.js</code>
+        <span class="size">4.7 KB</span>
+      </div>
+    </div>
+    <p class="desc">DeepSeek 等独角兽用的 Mokahr ATS。如是 iframe 嵌入需先单开 iframe 链接。</p>
+    <details>
+      <summary>查看源码</summary>
+      <pre><code>// Mokahr 专用 JD 捕获
+// 多家 AI 独角兽（DeepSeek / 部分大厂）用 Mokahr 作为社招 ATS。
+// Mokahr 通常嵌入在 iframe 里，需要尝试穿透 iframe 取内容。
+
+(async function () {
+  document.querySelectorAll(&#39;*&#39;).forEach((el) =&gt; {
+    try {
+      el.style.userSelect = &#39;auto&#39;;
+      el.style.webkitUserSelect = &#39;auto&#39;;
+    } catch {}
+  });
+
+  // 尝试找 Mokahr iframe（同源时可访问）
+  let frameDoc = document;
+  const mokahrFrame =
+    document.querySelector(&#39;iframe[src*=&quot;mokahr.com&quot;]&#39;) ||
+    document.querySelector(&#39;iframe[src*=&quot;moka&quot;]&#39;);
+  if (mokahrFrame) {
+    try {
+      if (mokahrFrame.contentDocument) {
+        frameDoc = mokahrFrame.contentDocument;
+      }
+    } catch (e) {
+      alert(&#39;⚠️ Mokahr iframe 是跨域的，无法直接读取。\n\n请直接打开 iframe 内的链接（在新 tab 打开 iframe），然后再点这个 bookmarklet。&#39;);
+      return;
+    }
+  }
+
+  const pickText = (selectors) =&gt; {
+    for (const sel of selectors) {
+      const el = frameDoc.querySelector(sel);
+      if (el) {
+        const txt = (el.innerText || el.textContent || &#39;&#39;).trim();
+        if (txt.length &gt; 0) return txt;
+      }
+    }
+    return &#39;&#39;;
+  };
+
+  const extracted = {
+    job_title: pickText([
+      &#39;.job-detail-title&#39;, &#39;.position-name&#39;, &#39;[class*=&quot;job-title&quot;]&#39;,
+      &#39;[class*=&quot;position-title&quot;]&#39;, &#39;h1&#39;, &#39;h2&#39;,
+    ]),
+    company: pickText([
+      &#39;.company-name&#39;, &#39;[class*=&quot;company&quot;]&#39;,
+      &#39;.brand-name&#39;,
+    ]) || (location.hostname.includes(&#39;high-flyer&#39;) ? &#39;DeepSeek&#39; : &#39;&#39;),
+    location: pickText([&#39;.job-location&#39;, &#39;[class*=&quot;location&quot;]&#39;, &#39;[class*=&quot;city&quot;]&#39;]),
+    salary: pickText([&#39;.salary&#39;, &#39;[class*=&quot;salary&quot;]&#39;]),
+    description: pickText([
+      &#39;.job-detail-content&#39;, &#39;.job-description&#39;, &#39;.position-detail&#39;,
+      &#39;[class*=&quot;job-detail&quot;]&#39;, &#39;[class*=&quot;position-content&quot;]&#39;,
+      &#39;[class*=&quot;content&quot;]&#39;, &#39;.job-content&#39;,
+    ]),
+  };
+
+  // raw_text 兜底
+  const raw = (frameDoc.body || document.body).innerText.trim();
+
+  const payload = {
+    url: location.href,
+    page_title: document.title,
+    captured_at: new Date().toISOString(),
+    platform: &#39;mokahr&#39;,
+    extracted: { ...extracted, raw_text: raw },
+  };
+
+  try {
+    const res = await fetch(&#39;http://localhost:8787/jd&#39;, {
+      method: &#39;POST&#39;,
+      headers: { &#39;Content-Type&#39;: &#39;application/json&#39; },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.ok) {
+      alert(
+        &#39;✓ Mokahr JD captured\n→ &#39; + result.file +
+          &#39;\n\n岗位：&#39; + (extracted.job_title || &#39;?&#39;) +
+          &#39;\n公司：&#39; + (extracted.company || &#39;?&#39;) +
+          &#39;\n\n回到 Claude 跑 /career-ops inbox&#39;
+      );
+    } else {
+      alert(&#39;❌ Server error: &#39; + (result.error || &#39;unknown&#39;));
+    }
+  } catch (e) {
+    alert(&#39;❌ 服务器没启动？\n\n请运行：node tools/jd-inbox-server.mjs&#39;);
+  }
+})();
+</code></pre>
+    </details>
+  </div>
+
+  <div class="card" style="border-left-color:#3b82f6">
+    <div class="card-head">
+      <a class="bm" href="javascript:(async%20function%20()%20%7B%0A%20%20const%20stripAntiCopy%20%3D%20()%20%3D%3E%20%7B%0A%20%20%20%20document.querySelectorAll('*').forEach((el)%20%3D%3E%20%7B%0A%20%20%20%20%20%20try%20%7B%0A%20%20%20%20%20%20%20%20el.style.userSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20%20%20el.style.webkitUserSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20%20%20if%20(el.oncopy)%20el.oncopy%20%3D%20null%3B%0A%20%20%20%20%20%20%20%20if%20(el.oncontextmenu)%20el.oncontextmenu%20%3D%20null%3B%0A%20%20%20%20%20%20%7D%20catch%20%7B%7D%0A%20%20%20%20%7D)%3B%0A%20%20%20%20%5B'copy'%2C%20'cut'%2C%20'contextmenu'%2C%20'selectstart'%5D.forEach((evt)%20%3D%3E%20%7B%0A%20%20%20%20%20%20document.addEventListener(evt%2C%20(e)%20%3D%3E%20e.stopPropagation()%2C%20true)%3B%0A%20%20%20%20%7D)%3B%0A%20%20%7D%3B%0A%20%20stripAntiCopy()%3B%0A%0A%20%20%2F%2F%20Try%20common%20JD%20container%20selectors%20first%3B%20fallback%20to%20body.%0A%20%20const%20SELECTORS%20%3D%20%5B%0A%20%20%20%20'%5Bclass*%3D%22job-detail%22%5D'%2C%20'%5Bclass*%3D%22position-detail%22%5D'%2C%20'%5Bclass*%3D%22jd-content%22%5D'%2C%0A%20%20%20%20'%5Bclass*%3D%22job-content%22%5D'%2C%20'%5Bclass*%3D%22job-description%22%5D'%2C%20'%5Bclass*%3D%22job-info%22%5D'%2C%0A%20%20%20%20'%5Bclass*%3D%22position-content%22%5D'%2C%20'%5Bclass*%3D%22detail-content%22%5D'%2C%20'%5Bclass*%3D%22job-desc%22%5D'%2C%0A%20%20%20%20'%5Bclass*%3D%22recruitDetail%22%5D'%2C%20'%5Bclass*%3D%22positionDetail%22%5D'%2C%0A%20%20%20%20'main'%2C%20'article'%2C%20'%23main'%2C%20'%23content'%2C%20'.content'%2C%0A%20%20%5D%3B%0A%0A%20%20let%20main%20%3D%20null%3B%0A%20%20let%20bestLen%20%3D%200%3B%0A%20%20for%20(const%20sel%20of%20SELECTORS)%20%7B%0A%20%20%20%20const%20els%20%3D%20document.querySelectorAll(sel)%3B%0A%20%20%20%20for%20(const%20el%20of%20els)%20%7B%0A%20%20%20%20%20%20const%20len%20%3D%20(el.innerText%20%7C%7C%20'').trim().length%3B%0A%20%20%20%20%20%20if%20(len%20%3E%20bestLen%20%26%26%20len%20%3E%20200)%20%7B%0A%20%20%20%20%20%20%20%20main%20%3D%20el%3B%0A%20%20%20%20%20%20%20%20bestLen%20%3D%20len%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%7D%0A%20%20if%20(!main)%20main%20%3D%20document.body%3B%0A%0A%20%20%2F%2F%20Best-effort%20structured%20extraction%0A%20%20const%20text%20%3D%20main.innerText.trim()%3B%0A%20%20const%20titleGuess%20%3D%0A%20%20%20%20document.querySelector('h1')%3F.innerText%20%7C%7C%0A%20%20%20%20document.querySelector('%5Bclass*%3D%22title%22%5D')%3F.innerText%20%7C%7C%0A%20%20%20%20document.title%3B%0A%0A%20%20const%20payload%20%3D%20%7B%0A%20%20%20%20url%3A%20location.href%2C%0A%20%20%20%20page_title%3A%20document.title%2C%0A%20%20%20%20captured_at%3A%20new%20Date().toISOString()%2C%0A%20%20%20%20platform%3A%20'universal'%2C%0A%20%20%20%20extracted%3A%20%7B%0A%20%20%20%20%20%20job_title%3A%20(titleGuess%20%7C%7C%20'').trim().slice(0%2C%20200)%2C%0A%20%20%20%20%20%20raw_text%3A%20text%2C%0A%20%20%20%20%7D%2C%0A%20%20%7D%3B%0A%0A%20%20try%20%7B%0A%20%20%20%20const%20res%20%3D%20await%20fetch('http%3A%2F%2Flocalhost%3A8787%2Fjd'%2C%20%7B%0A%20%20%20%20%20%20method%3A%20'POST'%2C%0A%20%20%20%20%20%20headers%3A%20%7B%20'Content-Type'%3A%20'application%2Fjson'%20%7D%2C%0A%20%20%20%20%20%20body%3A%20JSON.stringify(payload)%2C%0A%20%20%20%20%7D)%3B%0A%20%20%20%20const%20result%20%3D%20await%20res.json()%3B%0A%20%20%20%20if%20(result.ok)%20%7B%0A%20%20%20%20%20%20alert('%E2%9C%93%20JD%20captured%5Cn%E2%86%92%20'%20%2B%20result.file%20%2B%20'%5Cn%5Cn%E5%9B%9E%E5%88%B0%20Claude%20%E8%B7%91%20%2Fcareer-ops%20inbox%20%E5%A4%84%E7%90%86')%3B%0A%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20alert('%E2%9D%8C%20Server%20error%3A%20'%20%2B%20(result.error%20%7C%7C%20'unknown'))%3B%0A%20%20%20%20%7D%0A%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20alert('%E2%9D%8C%20%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%B2%A1%E5%90%AF%E5%8A%A8%EF%BC%9F%5Cn%5Cn%E8%AF%B7%E8%BF%90%E8%A1%8C%EF%BC%9A%5Cn%20%20node%20tools%2Fjd-inbox-server.mjs%5Cn%5Cn%E9%94%99%E8%AF%AF%EF%BC%9A'%20%2B%20e.message)%3B%0A%20%20%7D%0A%7D)()%3B" style="background:#3b82f6">🌐 JD Capture (通用)</a>
+      <div class="meta">
+        <code>universal.js</code>
+        <span class="size">3.9 KB</span>
+      </div>
+    </div>
+    <p class="desc">适用 80% 站点（V2EX / GitHub / 公司自有 careers / 多数 SPA）。先试这个。</p>
+    <details>
+      <summary>查看源码</summary>
+      <pre><code>// Universal JD Capture — works for ~80% of pages.
+// Strips anti-copy CSS, finds main content block, posts JSON to local inbox server.
+//
+// Tested on: V2EX, GitHub, 公司自有 careers 静态页, 字节/腾讯/美团/快手/B站/网易/小红书 careers SPA
+// (after page is fully loaded by user&#39;s browser).
+//
+// Doesn&#39;t work for: iframe-embedded ATS like Mokahr (use mokahr.js), 微信公众号 (encrypted DOM)
+
+(async function () {
+  const stripAntiCopy = () =&gt; {
+    document.querySelectorAll(&#39;*&#39;).forEach((el) =&gt; {
+      try {
+        el.style.userSelect = &#39;auto&#39;;
+        el.style.webkitUserSelect = &#39;auto&#39;;
+        if (el.oncopy) el.oncopy = null;
+        if (el.oncontextmenu) el.oncontextmenu = null;
+      } catch {}
+    });
+    [&#39;copy&#39;, &#39;cut&#39;, &#39;contextmenu&#39;, &#39;selectstart&#39;].forEach((evt) =&gt; {
+      document.addEventListener(evt, (e) =&gt; e.stopPropagation(), true);
+    });
+  };
+  stripAntiCopy();
+
+  // Try common JD container selectors first; fallback to body.
+  const SELECTORS = [
+    &#39;[class*=&quot;job-detail&quot;]&#39;, &#39;[class*=&quot;position-detail&quot;]&#39;, &#39;[class*=&quot;jd-content&quot;]&#39;,
+    &#39;[class*=&quot;job-content&quot;]&#39;, &#39;[class*=&quot;job-description&quot;]&#39;, &#39;[class*=&quot;job-info&quot;]&#39;,
+    &#39;[class*=&quot;position-content&quot;]&#39;, &#39;[class*=&quot;detail-content&quot;]&#39;, &#39;[class*=&quot;job-desc&quot;]&#39;,
+    &#39;[class*=&quot;recruitDetail&quot;]&#39;, &#39;[class*=&quot;positionDetail&quot;]&#39;,
+    &#39;main&#39;, &#39;article&#39;, &#39;#main&#39;, &#39;#content&#39;, &#39;.content&#39;,
+  ];
+
+  let main = null;
+  let bestLen = 0;
+  for (const sel of SELECTORS) {
+    const els = document.querySelectorAll(sel);
+    for (const el of els) {
+      const len = (el.innerText || &#39;&#39;).trim().length;
+      if (len &gt; bestLen &amp;&amp; len &gt; 200) {
+        main = el;
+        bestLen = len;
+      }
+    }
+  }
+  if (!main) main = document.body;
+
+  // Best-effort structured extraction
+  const text = main.innerText.trim();
+  const titleGuess =
+    document.querySelector(&#39;h1&#39;)?.innerText ||
+    document.querySelector(&#39;[class*=&quot;title&quot;]&#39;)?.innerText ||
+    document.title;
+
+  const payload = {
+    url: location.href,
+    page_title: document.title,
+    captured_at: new Date().toISOString(),
+    platform: &#39;universal&#39;,
+    extracted: {
+      job_title: (titleGuess || &#39;&#39;).trim().slice(0, 200),
+      raw_text: text,
+    },
+  };
+
+  try {
+    const res = await fetch(&#39;http://localhost:8787/jd&#39;, {
+      method: &#39;POST&#39;,
+      headers: { &#39;Content-Type&#39;: &#39;application/json&#39; },
+      body: JSON.stringify(payload),
+    });
+    const result = await res.json();
+    if (result.ok) {
+      alert(&#39;✓ JD captured\n→ &#39; + result.file + &#39;\n\n回到 Claude 跑 /career-ops inbox 处理&#39;);
+    } else {
+      alert(&#39;❌ Server error: &#39; + (result.error || &#39;unknown&#39;));
+    }
+  } catch (e) {
+    alert(&#39;❌ 服务器没启动？\n\n请运行：\n  node tools/jd-inbox-server.mjs\n\n错误：&#39; + e.message);
+  }
+})();
+</code></pre>
+    </details>
+  </div>
+
+  <div class="footer">
+    <p>生成时间：2026-04-15T07:38:56.898Z　|　总数：6 个</p>
+    <p>修改源码后重跑 <code>npm run build-bookmarklets</code> 重新生成本页</p>
+  </div>
+</body>
+</html>

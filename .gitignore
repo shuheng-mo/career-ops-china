@@ -26,7 +26,6 @@ jds/*
 inbox/*
 !inbox/.gitkeep
 !inbox/processed/.gitkeep
-tools/install.html
 
 # === User config (copy from templates/*.example.yml) ===
 config/profile.yml
@@ -69,3 +68,6 @@ pids/
 # === Claude Code local ===
 .claude/settings.local.json
 .claude/memory/
+
+# === .playwright-mcp ===
+.playwright-mcp

@@ -17,6 +17,7 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, renameSync, existsSync } from 'fs';
 import { join, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { readProfileTracker } from './tracker-backend.mjs';
 
 // fileURLToPath handles spaces in path correctly (vs .pathname which encodes them as %20)
 // Script lives in tools/; project root is one level up.
@@ -29,6 +30,10 @@ const ADDITIONS_DIR = join(CAREER_OPS, 'batch/tracker-additions');
 const MERGED_DIR = join(ADDITIONS_DIR, 'merged');
 const DRY_RUN = process.argv.includes('--dry-run');
 const VERIFY = process.argv.includes('--verify');
+
+// Tracker backend: md | bitable (from config/profile.yml)
+const TRACKER_CFG = readProfileTracker();
+const BACKEND = TRACKER_CFG.backend || 'md';
 
 // Canonical states (must match templates/states.yml — English labels)
 const CANONICAL_STATES = ['Evaluated', 'Applied', 'Responded', 'Interview', 'Offer', 'Rejected', 'Discarded', 'SKIP'];
@@ -90,13 +95,29 @@ function parseScore(s) {
 
 function parseAppLine(line) {
   const parts = line.split('|').map(s => s.trim());
-  if (parts.length < 9) return null;
+  // parts.length = cells + 2 (leading + trailing empties from `|...|`).
+  //   9-col legacy layout  → parts.length === 11
+  //   11-col extended      → parts.length === 13
+  const cellCount = parts.length - 2;
+  if (cellCount < 9) return null;
   const num = parseInt(parts[1]);
   if (isNaN(num) || num === 0) return null;
+  // 11-col layout (2026-04-20): | # | Date | Company | Role | Score | Status | PDF | URL | Report | Notes | Closed At |
+  // 9-col legacy layout:         | # | Date | Company | Role | Score | Status | PDF | Report | Notes |
+  const hasExtended = cellCount >= 11;
   return {
-    num, date: parts[2], company: parts[3], role: parts[4],
-    score: parts[5], status: parts[6], pdf: parts[7], report: parts[8],
-    notes: parts[9] || '', raw: line,
+    num,
+    date: parts[2],
+    company: parts[3],
+    role: parts[4],
+    score: parts[5],
+    status: parts[6],
+    pdf: parts[7],
+    url: hasExtended ? parts[8] : '',
+    report: hasExtended ? parts[9] : parts[8],
+    notes: hasExtended ? (parts[10] || '') : (parts[9] || ''),
+    closedAt: hasExtended ? (parts[11] || '') : '',
+    raw: line,
   };
 }
 
@@ -184,6 +205,84 @@ function parseTsvContent(content, filename) {
 }
 
 // ---- Main ----
+
+// Bitable backend: delegate to Bitable API, then regen applications.md from Bitable state.
+if (BACKEND === 'bitable') {
+  await mergeBitable();
+  process.exit(0);
+}
+
+async function mergeBitable() {
+  console.log(`📊 Backend: bitable (app_token=${TRACKER_CFG.bitable?.app_token?.slice(0,10)}...)\n`);
+
+  if (!existsSync(ADDITIONS_DIR)) {
+    console.log('No tracker-additions directory found.');
+    return;
+  }
+
+  const tsvFiles = readdirSync(ADDITIONS_DIR).filter(f => f.endsWith('.tsv'));
+  if (tsvFiles.length === 0) {
+    console.log('✅ No pending additions to merge.');
+    return;
+  }
+
+  tsvFiles.sort((a, b) => (parseInt(a.replace(/\D/g, '')) || 0) - (parseInt(b.replace(/\D/g, '')) || 0));
+  console.log(`📥 Found ${tsvFiles.length} pending TSVs`);
+
+  const mod = await import('./backends/bitable-backend.mjs');
+  const backend = mod.create(TRACKER_CFG);
+
+  let added = 0, skipped = 0, errors = 0;
+
+  for (const file of tsvFiles) {
+    const content = readFileSync(join(ADDITIONS_DIR, file), 'utf-8').trim();
+    const addition = parseTsvContent(content, file);
+    if (!addition) { skipped++; continue; }
+
+    if (DRY_RUN) {
+      console.log(`  [dry] would add #${addition.num} ${addition.company} — ${addition.role}`);
+      continue;
+    }
+
+    try {
+      const result = await backend.addApplication(addition);
+      if (result.inserted) {
+        console.log(`➕ Added #${result.num}: ${addition.company} — ${addition.role} (${addition.score})`);
+        added++;
+      } else {
+        console.log(`⏭  Dup (#${result.num}): ${addition.company} — ${addition.role}`);
+        skipped++;
+      }
+    } catch (e) {
+      console.error(`❌ ${file}: ${e.message.slice(0, 150)}`);
+      errors++;
+    }
+  }
+
+  // Move processed TSVs
+  if (!DRY_RUN && (added + skipped) > 0) {
+    if (!existsSync(MERGED_DIR)) mkdirSync(MERGED_DIR, { recursive: true });
+    for (const file of tsvFiles) {
+      renameSync(join(ADDITIONS_DIR, file), join(MERGED_DIR, file));
+    }
+    console.log(`\n✅ Moved ${tsvFiles.length} TSVs to merged/`);
+  }
+
+  console.log(`\n📊 Summary: +${added} added, ⏭  ${skipped} skipped, ❌ ${errors} errors`);
+
+  // Regen applications.md snapshot from Bitable
+  if (!DRY_RUN && added > 0) {
+    console.log('\nRegenerating applications.md from Bitable...');
+    const { execSync } = await import('child_process');
+    try {
+      execSync(`node ${join(CAREER_OPS, 'tools/sync-md-from-bitable.mjs')}`, { stdio: 'inherit' });
+    } catch (e) {
+      console.warn('⚠️  sync-md-from-bitable failed (Bitable writes succeeded; md snapshot stale).');
+    }
+  }
+}
+
+// ---- md backend (below) ----
 
 // Read applications.md
 if (!existsSync(APPS_FILE)) {
@@ -274,7 +373,10 @@ for (const file of tsvFiles) {
       console.log(`🔄 Update: #${duplicate.num} ${addition.company} — ${addition.role} (${oldScore}→${newScore})`);
       const lineIdx = appLines.indexOf(duplicate.raw);
       if (lineIdx >= 0) {
-        const updatedLine = `| ${duplicate.num} | ${addition.date} | ${addition.company} | ${addition.role} | ${addition.score} | ${duplicate.status} | ${duplicate.pdf} | ${addition.report} | Re-eval ${addition.date} (${oldScore}→${newScore}). ${addition.notes} |`;
+        // Preserve existing URL / Closed At; auto-fill Closed At if transitioning to terminal
+        const TERMINAL = new Set(['Rejected', 'Discarded', 'SKIP', 'Offer']);
+        const keepClosedAt = duplicate.closedAt || (TERMINAL.has(duplicate.status) ? addition.date : '');
+        const updatedLine = `| ${duplicate.num} | ${addition.date} | ${addition.company} | ${addition.role} | ${addition.score} | ${duplicate.status} | ${duplicate.pdf} | ${duplicate.url || ''} | ${addition.report} | Re-eval ${addition.date} (${oldScore}→${newScore}). ${addition.notes} | ${keepClosedAt} |`;
         appLines[lineIdx] = updatedLine;
         updated++;
       }
@@ -287,7 +389,11 @@ for (const file of tsvFiles) {
     const entryNum = addition.num > maxNum ? addition.num : ++maxNum;
     if (addition.num > maxNum) maxNum = addition.num;
 
-    const newLine = `| ${entryNum} | ${addition.date} | ${addition.company} | ${addition.role} | ${addition.score} | ${addition.status} | ${addition.pdf} | ${addition.report} | ${addition.notes} |`;
+    // Auto-set Closed At for new entries that arrive already in a terminal state.
+    const TERMINAL = new Set(['Rejected', 'Discarded', 'SKIP', 'Offer']);
+    const closedAt = TERMINAL.has(addition.status) ? addition.date : '';
+    const url = addition.url || '';
+    const newLine = `| ${entryNum} | ${addition.date} | ${addition.company} | ${addition.role} | ${addition.score} | ${addition.status} | ${addition.pdf} | ${url} | ${addition.report} | ${addition.notes} | ${closedAt} |`;
     newLines.push(newLine);
     added++;
     console.log(`➕ Add #${entryNum}: ${addition.company} — ${addition.role} (${addition.score})`);

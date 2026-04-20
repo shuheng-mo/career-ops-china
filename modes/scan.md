@@ -64,6 +64,26 @@
 - `tracked_companies` — 大厂直抓列表，每条带 `careers_url`，部分带 `scan_query`（公司级，默认不跑）
 - `title_filter` — positive/negative/seniority_boost 关键词
 
+**可选字段（2026-04-20 新增，仅作 metadata 用于分组 / selector 提示）：**
+- `category: big_tech | ai_unicorn | ai_research | data_infra | mnc_china`
+  - 用于将来 `scan --category=<name>` 子集过滤；目前 Claude 只用于输出摘要分组
+- `ats: workday | greenhouse | smartrecruiters | mokahr | feishu | custom`
+  - Mokahr / 飞书 通常需登录 → Claude 读到这两个值时应跳过 Playwright 改标 `[!]`
+  - Workday / Greenhouse / SmartRecruiters 是公开 ATS，Playwright 可直抓，selector 模式相对稳定
+
+**渠道扩容日志：** 新渠道清单维护在 `~/.claude/plans/scan-playwright-lively-meteor.md`（2026-04-20 +21 家公司 / +13 条 query；A1 AI 研究机构、A2 二线独角兽、A3 数据 Infra 多数 enabled=false 需抽样验证 URL 后再开；A4 外企在华公开 ATS 已默认 enabled=true）。
+
+**⚠️ WebSearch query 写法约束（2026-04-20 首轮实测）：** 写新 `search_queries` 条目或改写现有 query 时必须遵守：
+
+| 模式 | 能否工作 | 替代写法 |
+|------|---------|---------|
+| `site:X/deep/path keywords`（如 `site:v2ex.com/go/jobs`、`site:paperswithcode.com/jobs`）| ❌ 返回 0 | 去掉 site:，用"品牌名 子路径关键词 + 2026" 自然语言，如 `V2EX 招聘 数据工程 2026` |
+| `site:A OR site:B keywords`（多站点 OR）| ❌ 返回 0 | 挑最强的一个 `site:`，或去掉 site: 全部 |
+| `site:tld (A OR B)`（只用顶域 + OR 关键词组）| ✅ 可用 | 保留 |
+| `品牌名/域名 + 关键词 + 2026`（纯自然语言）| ✅ 可用 | 保留 |
+
+**规则：** 新建 query 前 mental check — 有 `site:` 且含深路径？改自然语言。有多 `site: OR site:`？拆或改自然语言。**不要直接 ship 未验证的 `site:` 精准 query**，会静默返回 0 条浪费 Phase 1 候选集位。
+
 ---
 
 ## 国内平台 — 实际表现速查

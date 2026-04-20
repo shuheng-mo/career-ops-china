@@ -1,8 +1,23 @@
 # Mode: story-sync — Story Bank 同步器
 
-扫描 `reports/*.md` 中的 Block F（面试故事），抽取 STAR+R 故事，去重 + 按主题分组，写入 `interview-prep/story-bank.md`。
+扫描两类源，抽取 STAR+R 故事 + 实战 refinement，去重 + 按主题分组，写入 `interview-prep/story-bank.md`。
 
-**核心问题：** auto-pipeline / batch worker 生成 Block F 后没有真正把故事追加到 master story bank，导致 13+ 次评估后 story-bank 仍是空模板。这个 mode 就是**存量补齐 + 每次评估后增量同步** 的工具。
+**两类源（按权重）：**
+
+| 源 | 路径 | 性质 | 贡献 |
+|----|------|------|------|
+| **Primary：** 评估报告 Block F | `reports/{NNN}-{slug}-{YYYY-MM-DD}.md` | 评估时预生成（可能未经实战）| 初始 STAR+R 骨架、Reflection 初稿 |
+| **Supplemental：** Mock interview 备战笔记 | `interview-prep/mock-interviews/{NNN}-{slug}-{roundN}-{YYYY-MM-DD}.md` | **gitignored**，本地专属；一面/二面**前后**迭代；有实战信号 | Refined S/T/A/R、实战 Reflection、真实 Q&A、架构 trade-off、代码片段、文化深聊话术 |
+
+**为什么 mock-interviews 是关键二级源：**
+
+- 评估报告 Block F 是**冷生成**（Claude 根据 JD 预想面试要点）
+- mock-interview 笔记是**热迭代**（一面结束后复盘 + 二面冲刺准备），包含真实问题、踩过的坑、调整过的话术、blind recall 代码骨架
+- 若同一 story 在两处出现差异，**mock 版本更新 / 覆盖 report 版本**（因为是更接近真实面试的打磨版）
+
+**Gitignore 注意：** `interview-prep/mock-interviews/*.md` 和 `interview-prep/story-bank.md` 都在 `.gitignore` 中（story-bank 历史 tracked 但新 diff 忽略）。因此 story-bank 可以安全包含 mock-interview 提炼的候选人专属细节（如薪资底牌、真实对家 offer、私下判断等）不用担心泄漏到 git。
+
+**核心问题：** auto-pipeline / batch worker 生成 Block F 后没有真正把故事追加到 master story bank，且 mock-interview 的实战 refinement 没有系统回流。这个 mode 就是**存量补齐 + 每次评估后增量同步 + 每次面试后 refinement 回流** 的工具。
 
 ## 推荐执行方式
 
@@ -23,7 +38,9 @@ Agent(
 ### Step 1 — 读现状
 
 1. `ls reports/*.md | sort` → 所有已生成的 report
-2. `Read interview-prep/story-bank.md` → 看已有的 master story（找 `## Stories` 段）
+2. `ls interview-prep/mock-interviews/*.md | sort` → 所有 mock interview 备战笔记（gitignored，本地专属）
+3. `Read interview-prep/story-bank.md` → 看已有的 master story（找 `## Stories` 段）
+4. **tracker # 交叉索引：** 从 mock-interviews/*.md 文件名头 3 位数字（`061-freebeat-round2-...` → tracker #61）对齐到 `data/applications.md` 第 # 列，拿到 company/role，再定位对应的 `reports/{report#}-{slug}-*.md`
 
 ### Step 2 — 问候选人：增量 or 重建
 
@@ -37,7 +54,7 @@ Agent(
 
 首次运行 / 只有模板 → 默认**全扫**。
 
-### Step 3 — 抽取每份 report 的 Block F
+### Step 3a — 抽取每份 report 的 Block F（Primary 源）
 
 对每个 `reports/{NNN}-{slug}-{date}.md`：
 
@@ -69,7 +86,8 @@ Agent(
 4. 为每个故事生成 **candidate record**：
    ```json
    {
-     "source_report": "001-kuaishou-llm-fintech-2026-04-07.md",
+     "source_type": "report",
+     "source_file": "001-kuaishou-llm-fintech-2026-04-07.md",
      "source_company": "快手",
      "source_role": "大模型应用开发工程师（金融支付）",
      "theme_tags": ["LLM应用", "SFT", "工程落地"],
@@ -81,7 +99,41 @@ Agent(
    }
    ```
 
-### Step 4 — 语义去重（关键）
+### Step 3b — 抽取每份 mock-interview 笔记（Supplemental 源）
+
+对每个 `interview-prep/mock-interviews/{NNN}-{slug}-{round}-{date}.md`：
+
+1. `Read` 整个文件
+2. **不存在 Block F 固定结构** — 按自由格式，按类型分拣：
+
+   | 内容类型 | 识别信号 | 贡献到 story-bank |
+   |---------|---------|------------------|
+   | **Refined 故事段落**（如"Elytra 代码 blind recall"、"架构 trade-off"）| 出现 canonical_key 的关键词（Elytra / DBGPT / Moss / ACCESS / Kaggle）| 更新对应 master story 的 S/T/A/R（取字数更长或更新近的版本） |
+   | **新的 Reflection / 踩坑心得** | "为什么 / 如果改 X 会 / 踩过 / 教训" 等问答对 | 追加到对应 story 的 `Reflection` 段，标签 `from mock prep (Round N · tracker #NN · YYYY-MM-DD)` |
+   | **真实 Q&A（架构题 / 场景题 / 代码题）** | "问：... / 答：..." 或 trade-off 表格 | 加入新段 `## 实战 Q&A 清单` 按 canonical_key 分组 |
+   | **文化深聊 / 红线问题话术** | "能接受 996 吗 / 为什么离职 / 期望薪资" 等 | 更新 `## 红线问题应对` 表（合并新话术）|
+   | **代码 blind recall 骨架** | 出现 markdown 代码块 + 标注"能写 / 白板" | 加入 `## 代码骨架备忘`（新段）按 canonical_key 索引，行数 ≤ 20 |
+
+3. 生成 **candidate record**：
+   ```json
+   {
+     "source_type": "mock",
+     "source_file": "061-freebeat-round2-prep-2026-04-20.md",
+     "tracker_num": 61,
+     "company": "freebeat.ai",
+     "round": "round2",
+     "date": "2026-04-20",
+     "contributions": [
+       {"type": "refined_story", "canonical_key": "elytra", "field": "A", "new_text": "..."},
+       {"type": "reflection_add", "canonical_key": "elytra", "lesson": "retry budget 3 的选择是经验值..."},
+       {"type": "real_qa", "canonical_key": "elytra", "question": "...", "answer": "..."},
+       {"type": "code_skeleton", "canonical_key": "elytra", "title": "LangGraph 8 节点状态机", "code": "..."},
+       {"type": "red_line", "issue": "期望薪资", "answer_template": "..."}
+     ]
+   }
+   ```
+
+### Step 4 — 语义去重 + 多源合并（关键）
 
 候选人的故事库**不是** 13 份 report × 7 故事 = 91 条流水账，而是 **5-10 个 master story 被多次复用**。去重 key：
 
@@ -96,11 +148,11 @@ Agent(
 | `eval_methodology` | "Eval 体系", "Spider 测试集", "评估集", "数据驱动迭代" | Agent / LLM Eval 类 |
 
 **合并规则：** 同 `canonical_key` 的多个 candidate 合并为一个 master：
-- **S/T/A/R 文本：** 取**最详细**的版本（字数最多的）
-- **Reflection：** 保留所有不同版本（因为 reflection 在不同语境下可能不同 — 比如对快手说"微调数据质量"，对 DeepSeek 可能说"eval 是 LLM 应用最大杠杆"）
+- **S/T/A/R 文本：** 优先级 **mock（实战） > report（冷生成）**。若 mock 版本存在且字数 ≥ report 版本的 70% → 采用 mock 版本；否则仍按最详细原则
+- **Reflection：** 保留**所有**不同版本（区分来源：`from Report #NNN` vs `from Mock #NN (RoundN · date)`），因为 reflection 在不同语境下可能不同
 - **theme_tags：** 所有出现过的 tags 去重并集
-- **sources：** 完整列出所有引用的 report
-- **best_for：** 所有出现过的并集
+- **sources：** 分两列：`Reports:` 列出所有 report #NNN；`Mock Interviews:` 列出所有 mock 文件（tracker # + round）
+- **best_for：** 所有出现过的并集（mock 版本贡献的通常更精准，因为含真实 Q&A）
 
 ### Step 5 — 按主题分组
 
@@ -169,11 +221,12 @@ Agent(
 
 ### <a id="elytra"></a>[LLM 应用 · Agent · Eval · 个人项目] Elytra — Agentic SQL Generation
 
-**Sources:** Report #001 (快手 LLM 应用), #003 (DeepSeek Agent 数据策略), #005 (DeepSeek 全栈), #006 (蚂蚁 Harness Agent)...  
+**Sources — Reports:** #001 (快手 LLM 应用), #003 (DeepSeek Agent 数据策略), #005 (DeepSeek 全栈), #006 (蚂蚁 Harness Agent)...  
+**Sources — Mock Interviews:** #61 Round2 (freebeat.ai, 2026-04-20)  
 **Theme tags:** LLM应用, Agent, Eval, 个人项目, Ownership, 前沿探索  
 **Canonical key:** `elytra`
 
-**S (Situation):** {从最详细的那份 report 抽 Situation}
+**S (Situation):** {若 Mock 有更新版本用 Mock；否则取最详细 report 版本}
 
 **T (Task):** {同上}
 
@@ -181,12 +234,13 @@ Agent(
 
 **R (Result):** {如有数据就写，没有就写"持续打磨中，README/架构图公开"}
 
-**Reflection（多 source，分别列出）：**
+**Reflection（按来源分别列出）：**
 - *From Report #001 (快手):* 单一模型 + 单次生成必然不够，必须做 Agent 化反馈闭环
 - *From Report #003 (DeepSeek Agent Eval):* Eval 是 LLM 应用最大杠杆 — Self-Correcting 本质是把 eval 嵌到 inference
 - *From Report #006 (蚂蚁):* 好的个人项目要经得起推翻重来 ≥2 次
+- *From Mock #61 Round2 (freebeat.ai, 2026-04-20):* retry budget 3 是经验值，5 过高会累加幻觉导致发散；面试官会追问"为什么是 3" — 答"基于 HumanEval 实验，n=3 时正确率收敛 95%，n=5 只涨 1.5% 但成本翻倍"
 
-**Best for questions about:** 最有成就感的项目 / 个人时间在做什么 / Agent 架构 / Eval 体系 / 大模型应用前沿 / Ownership / 持续学习
+**Best for questions about:** 最有成就感的项目 / 个人时间在做什么 / Agent 架构 / Eval 体系 / 大模型应用前沿 / Ownership / 持续学习 / retry 策略 / trade-off 设计
 
 ---
 
@@ -197,6 +251,51 @@ Agent(
 ---
 
 （继续所有 master story）
+
+---
+
+## <a id="real-qa"></a>实战 Q&A 清单（from mock interviews）
+
+**来源：** `interview-prep/mock-interviews/*.md`（gitignored，本地专属实战打磨）。每条记录**真实被问过或高概率被问**的问题 + 打磨过的答案。按 canonical_key 索引。
+
+### [elytra] Elytra Agent 相关
+
+- **Q（Mock #61 Round2, 2026-04-20）：** retry budget 为什么是 3？改 5 会怎样？
+  **A：** 经验值 — HumanEval 实验 n=3 时正确率收敛 95%，n=5 只涨 1.5% 但成本翻倍；且多轮容易幻觉累积，反而降低准确率
+- **Q：** {其他从 mock 抽出来的真实问题}
+  **A：** {对应答案}
+
+### [dbgpt] DBGPT 改造相关
+
+{...同上结构...}
+
+### [moss] Moss RAG 相关
+
+{...}
+
+---
+
+## <a id="code-skeletons"></a>代码骨架备忘（blind recall）
+
+**来源：** `interview-prep/mock-interviews/*.md` 中的 "blind recall" / "白板写" 段落。每条 ≤ 20 行，面试前 1 晚复习。
+
+### [elytra] LangGraph 8 节点状态机定义（Mock #61 Round2）
+
+```python
+{从 mock 文件抽取的代码骨架 ≤20 行}
+```
+
+### [elytra] Self-Correcting retry 循环
+
+```python
+{...}
+```
+
+### [elytra] Hybrid Retrieval 归一化 + 加权融合
+
+```python
+{...}
+```
 
 ---
 
@@ -230,9 +329,12 @@ Agent(
 
 ## 维护
 
-- **如何新增：** 评估新岗位后，跑 `/career-ops story-sync` 增量更新
+- **如何新增：**
+  - 评估新岗位后，跑 `/career-ops story-sync` 增量更新（从 `reports/*.md` 抽）
+  - **面试前/后写了 mock interview 备战笔记**（`interview-prep/mock-interviews/{tracker#}-{slug}-{round}-{date}.md`）后，再跑一次 `/career-ops story-sync`，系统会把 mock 中的 refined S/T/A/R、实战 Reflection、真实 Q&A、代码骨架回流到 story-bank
 - **如何纠错：** 故事抽取不准？直接编辑本文件，下次 `story-sync` 会**检测到人工修改**并保留（不会覆盖你改的内容，只追加新来的）
-- **如何删除：** 过时故事直接删除，story-sync 不会主动加回（只基于 report 新增）
+- **如何删除：** 过时故事直接删除，story-sync 不会主动加回（只基于 source 新增）
+- **gitignore 注意：** `story-bank.md` 和 `mock-interviews/*.md` 都在 gitignore 中。可以安全存候选人专属内容（薪资底牌、真实对家、私下判断、fresh 的面试官原话）不用担心泄漏到 git
 ```
 
 ### Step 7 — 备份 + 写入
@@ -246,18 +348,25 @@ Agent(
 ```
 Story Bank 同步完成 — {YYYY-MM-DD}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-扫描 report：N 份
+扫描 reports：N 份
+扫描 mock-interviews：N_mock 份（gitignored，本地专属）
 原始候选故事：M 条
 语义去重后：K 个 master story
 分组主题：T 个
 
 Master stories:
-  1. Elytra (个人项目 · Agent · Eval) — 来自 4 份 report
-  2. DBGPT (LLM 应用 · SFT) — 来自 8 份 report
-  3. Moss (RAG · 知识检索) — 来自 5 份 report
-  4. ACCESS (后端 · 架构) — 来自 2 份 report
-  5. Kaggle OTTO (推荐 · 数据科学) — 来自 3 份 report
+  1. Elytra (个人项目 · Agent · Eval)
+     — Reports: 4 份 / Mock: 1 份（#61 Round2 freebeat）
+  2. DBGPT (LLM 应用 · SFT)
+     — Reports: 8 份 / Mock: 0 份
+  3. Moss (RAG · 知识检索)
+     — Reports: 5 份 / Mock: 0 份
   ...
+
+Mock-only contributions（不对应任何 master story 的独立素材）:
+  - 实战 Q&A：{N} 条（from Mock #61 Round2）
+  - 代码骨架：{N} 段
+  - 红线问题话术更新：{N} 条
 
 输出：interview-prep/story-bank.md ({行数} 行)
 {如果有备份} 旧版备份：story-bank.md.bak.{ts}
@@ -276,5 +385,7 @@ Master stories:
 ### 永远不要
 1. 覆盖用户手动加的段（用 `<!-- MANUAL START -->` / `<!-- MANUAL END -->` 识别）
 2. 重复录入同一个 canonical_key 的故事（去重失败会产生 5 个"Elytra" 条目）
-3. 编造不存在于 report 中的 STAR 字段（如果原 report 的 A 段写得短，就保留短的，不要脑补）
-4. 删除 narrative / red-lines 等非 STAR 段 — 这些是从 profile.yml 来的，不受 report 变化影响
+3. 编造不存在于 source 中的 STAR 字段（如果原 report/mock 的 A 段写得短，就保留短的，不要脑补）
+4. 删除 narrative / red-lines 等非 STAR 段 — 这些是从 profile.yml 来的，不受 source 变化影响
+5. **把 mock-interview 的内容回流到 `reports/*.md`** — reports 已 commit 到 git，不要把候选人专属细节（薪资底牌、对家 offer、实时面试官原话）写回 reports；这类信息只保留在 story-bank.md（gitignored）和 mock-interviews/（gitignored）
+6. **扫 mock-interviews 时不要 `Read` 进主 session 的 context** — 用 subagent 扫完后只回传结构化的 candidate records；mock 文件可能很长（100-200 行）且含大量代码，直接进主 session 会炸 context

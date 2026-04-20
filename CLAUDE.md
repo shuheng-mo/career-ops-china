@@ -237,12 +237,30 @@ Write one TSV file per evaluation to `batch/tracker-additions/{num}-{company-slu
 ### Pipeline Integrity
 
 1. **NEVER edit applications.md to ADD new entries** -- Write TSV in `batch/tracker-additions/` and `tools/merge-tracker.mjs` handles the merge.
-2. **YES you can edit applications.md to UPDATE status/notes of existing entries.**
+2. **YES you can edit applications.md to UPDATE status/notes of existing entries** *(only when `tracker.backend: md`; see Tracker Backend section below)*.
 3. All reports MUST include `**URL:**` in the header (between Score and PDF).
 4. All statuses MUST be canonical (see `templates/states.yml`).
 5. Health check: `node tools/verify-pipeline.mjs` (or `npm run verify`)
 6. Normalize statuses: `node tools/normalize-statuses.mjs` (or `npm run normalize`)
 7. Dedup: `node tools/dedup-tracker.mjs` (or `npm run dedup`)
+
+### Tracker Backend — md or Bitable
+
+**候选人可以选用两种后端**（在 `config/profile.yml` 的 `tracker.backend` 字段配置）：
+
+| Backend | 特点 | 何时用 |
+|---------|------|--------|
+| `md`（默认）| `data/applications.md` 是唯一源；所有工具直接读/写它；工具链最成熟 | 默认值；手动审视 diff 友好；零依赖 |
+| `bitable` | 飞书 Bitable 是唯一写源；`data/applications.md` 是**只读快照**（`npm run tracker:export` 自动 regen）| 候选人想要 Kanban / 多视图 / 公式 / linked records |
+
+**Bitable 模式铁律：**
+1. **不要手动编辑 `data/applications.md`** — 下次 `tracker:export` 会覆盖。直接去 Bitable 改。
+2. **merge-tracker 会自动分支**：检测到 `tracker.backend: bitable` 时，TSV 写入 Bitable，写完自动 `tracker:export`。
+3. **评估状态 → 投递：** 直接在 Bitable UI 里改 Status。Bitable 原生 enum 保障合法值（不需要 normalize/verify）。
+4. **要切换后端**：
+   - md → bitable：`npm run tracker:setup` 初始化 + `npm run tracker:migrate` 一次性迁移（幂等，可重跑），然后 profile.yml 改 `backend: bitable`
+   - bitable → md：profile.yml 改回 `md`（md 已是最新 snapshot 无数据丢失）；Bitable 不删，可随时再切回
+5. **工具抽象层**：`tools/tracker-backend.mjs` 是统一 API，scripts/modes 调它（不直接读 md 或 bitable），后端切换对上游透明。
 
 ### Canonical States (applications.md)
 

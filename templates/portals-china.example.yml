@@ -148,6 +148,23 @@ title_filter:
 # ============================================================
 # 通过 WebSearch 在国内门户和搜索引擎上发现新岗位
 # 注意：详情页常需登录，发现到的 URL 大概率要人工取 JD
+#
+# 可选字段（2026-04-20 新增）：
+#   priority: high | low    — high 是核心 query 每次跑，low 仅在用户选"全跑"时跑
+#   enabled:  true | false  — 关闭的不会加入候选集
+#
+# 渠道分组建议（参考作者 portals.yml 中的分组注释）：
+#   - Boss/拉勾/猎聘/智联/51job（反爬严，只做 URL+标题发现）
+#   - V2EX / GitHub / 掘金 / 牛客 / OSChina（公开社区 job board）
+#   - AI 垂类：机器之心 / 量子位 / Paperswithcode / HuggingFace forum
+#   - 内推/校友：内推鸭 / 知乎招聘话题
+#
+# ⚠️ WebSearch query 写法约束（实测发现，2026-04-20）：
+#   ❌ 失败：site:X/deep/path ...           如 site:v2ex.com/go/jobs、site:paperswithcode.com/jobs
+#   ❌ 失败：site:A OR site:B ...           多站点 OR
+#   ✅ 可用：site:tld (A OR B)              顶域 + OR 关键词组
+#   ✅ 可用：品牌名 子路径关键词 2026        纯自然语言
+#   规则：新 query 出现深路径 site: → 改自然语言。看 modes/scan.md 配置段的约束表。
 
 search_queries:
   # -- Boss直聘 --
@@ -210,6 +227,22 @@ search_queries:
 # ============================================================
 # 每个公司必须有 careers_url
 # 国内大厂 careers 多数无需登录，可以直接 Playwright 抓
+#
+# 可选字段（2026-04-20 新增）：
+#   category:     big_tech | ai_unicorn | ai_research | data_infra | mnc_china
+#                 用于分组扫描（scan-helper 将来可能支持 --category=<name> 过滤）
+#   ats:          workday | greenhouse | smartrecruiters | mokahr | feishu | custom
+#                 用于针对性 selector 提示（Mokahr/飞书 通常需登录 → 走 bookmarklet 不扫）
+#   scan_method:  playwright | websearch
+#   scan_query:   当 scan_method=websearch 时的自定义 query
+#
+# 渠道分组建议：
+#   - 一线大厂：字节/腾讯/美团/百度/京东/拼多多/快手/小红书/B站/网易/滴滴
+#   - 大模型独角兽：DeepSeek/Moonshot/MiniMax/智谱/百川/零一/阶跃/面壁
+#   - AI 研究机构：智源 BAAI / 上海 AI Lab / IDEA 研究院
+#   - 二线 AI 独角兽：追一/出门问问/思必驰/科大讯飞/云知声/商汤/旷视/第四范式
+#   - 数据 Infra：PingCAP/StarRocks/SelectDB/Databend/JuiceFS/Kyligence/SphereEx
+#   - 外企在华（公开 ATS）：Nvidia Workday / Databricks Greenhouse / Snowflake / AWS / Microsoft
 
 tracked_companies:
 

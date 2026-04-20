@@ -65,3 +65,18 @@ location:
   visa_status: "No sponsorship needed"
   # For remote roles outside your country:
   # onsite_availability: "1 week/month in any city"
+
+# === Tracker backend ===
+# Which backend stores your application pipeline:
+#   md      — Traditional markdown table (data/applications.md). Default, zero setup.
+#   bitable — Feishu/Lark Bitable as single source of truth; md is auto-regenerated as read-only snapshot.
+#             Requires `lark-cli` installed + authenticated. Run `npm run tracker:setup` first.
+tracker:
+  backend: md  # md | bitable
+  bitable:
+    app_token: ""                      # Bitable app token (filled by setup wizard)
+    table_id_applications: ""
+    table_id_outreach: ""
+    table_id_reports: ""
+    table_id_interviews: ""
+    base_url: ""                       # UI link to the Bitable dashboard

@@ -622,18 +622,23 @@
 
   <div class="card" style="border-left-color:#8b5cf6">
     <div class="card-head">
-      <a class="bm" href="javascript:(async%20function%20()%20%7B%0A%20%20document.querySelectorAll('*').forEach((el)%20%3D%3E%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20el.style.userSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20el.style.webkitUserSelect%20%3D%20'auto'%3B%0A%20%20%20%20%7D%20catch%20%7B%7D%0A%20%20%7D)%3B%0A%0A%20%20%2F%2F%20%E5%B0%9D%E8%AF%95%E6%89%BE%20Mokahr%20iframe%EF%BC%88%E5%90%8C%E6%BA%90%E6%97%B6%E5%8F%AF%E8%AE%BF%E9%97%AE%EF%BC%89%0A%20%20let%20frameDoc%20%3D%20document%3B%0A%20%20const%20mokahrFrame%20%3D%0A%20%20%20%20document.querySelector('iframe%5Bsrc*%3D%22mokahr.com%22%5D')%20%7C%7C%0A%20%20%20%20document.querySelector('iframe%5Bsrc*%3D%22moka%22%5D')%3B%0A%20%20if%20(mokahrFrame)%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20if%20(mokahrFrame.contentDocument)%20%7B%0A%20%20%20%20%20%20%20%20frameDoc%20%3D%20mokahrFrame.contentDocument%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20%20%20alert('%E2%9A%A0%EF%B8%8F%20Mokahr%20iframe%20%E6%98%AF%E8%B7%A8%E5%9F%9F%E7%9A%84%EF%BC%8C%E6%97%A0%E6%B3%95%E7%9B%B4%E6%8E%A5%E8%AF%BB%E5%8F%96%E3%80%82%5Cn%5Cn%E8%AF%B7%E7%9B%B4%E6%8E%A5%E6%89%93%E5%BC%80%20iframe%20%E5%86%85%E7%9A%84%E9%93%BE%E6%8E%A5%EF%BC%88%E5%9C%A8%E6%96%B0%20tab%20%E6%89%93%E5%BC%80%20iframe%EF%BC%89%EF%BC%8C%E7%84%B6%E5%90%8E%E5%86%8D%E7%82%B9%E8%BF%99%E4%B8%AA%20bookmarklet%E3%80%82')%3B%0A%20%20%20%20%20%20return%3B%0A%20%20%20%20%7D%0A%20%20%7D%0A%0A%20%20const%20pickText%20%3D%20(selectors)%20%3D%3E%20%7B%0A%20%20%20%20for%20(const%20sel%20of%20selectors)%20%7B%0A%20%20%20%20%20%20const%20el%20%3D%20frameDoc.querySelector(sel)%3B%0A%20%20%20%20%20%20if%20(el)%20%7B%0A%20%20%20%20%20%20%20%20const%20txt%20%3D%20(el.innerText%20%7C%7C%20el.textContent%20%7C%7C%20'').trim()%3B%0A%20%20%20%20%20%20%20%20if%20(txt.length%20%3E%200)%20return%20txt%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%20%20return%20''%3B%0A%20%20%7D%3B%0A%0A%20%20const%20extracted%20%3D%20%7B%0A%20%20%20%20job_title%3A%20pickText(%5B%0A%20%20%20%20%20%20'.job-detail-title'%2C%20'.position-name'%2C%20'%5Bclass*%3D%22job-title%22%5D'%2C%0A%20%20%20%20%20%20'%5Bclass*%3D%22position-title%22%5D'%2C%20'h1'%2C%20'h2'%2C%0A%20%20%20%20%5D)%2C%0A%20%20%20%20company%3A%20pickText(%5B%0A%20%20%20%20%20%20'.company-name'%2C%20'%5Bclass*%3D%22company%22%5D'%2C%0A%20%20%20%20%20%20'.brand-name'%2C%0A%20%20%20%20%5D)%20%7C%7C%20(location.hostname.includes('high-flyer')%20%3F%20'DeepSeek'%20%3A%20'')%2C%0A%20%20%20%20location%3A%20pickText(%5B'.job-location'%2C%20'%5Bclass*%3D%22location%22%5D'%2C%20'%5Bclass*%3D%22city%22%5D'%5D)%2C%0A%20%20%20%20salary%3A%20pickText(%5B'.salary'%2C%20'%5Bclass*%3D%22salary%22%5D'%5D)%2C%0A%20%20%20%20description%3A%20pickText(%5B%0A%20%20%20%20%20%20'.job-detail-content'%2C%20'.job-description'%2C%20'.position-detail'%2C%0A%20%20%20%20%20%20'%5Bclass*%3D%22job-detail%22%5D'%2C%20'%5Bclass*%3D%22position-content%22%5D'%2C%0A%20%20%20%20%20%20'%5Bclass*%3D%22content%22%5D'%2C%20'.job-content'%2C%0A%20%20%20%20%5D)%2C%0A%20%20%7D%3B%0A%0A%20%20%2F%2F%20raw_text%20%E5%85%9C%E5%BA%95%0A%20%20const%20raw%20%3D%20(frameDoc.body%20%7C%7C%20document.body).innerText.trim()%3B%0A%0A%20%20const%20payload%20%3D%20%7B%0A%20%20%20%20url%3A%20location.href%2C%0A%20%20%20%20page_title%3A%20document.title%2C%0A%20%20%20%20captured_at%3A%20new%20Date().toISOString()%2C%0A%20%20%20%20platform%3A%20'mokahr'%2C%0A%20%20%20%20extracted%3A%20%7B%20...extracted%2C%20raw_text%3A%20raw%20%7D%2C%0A%20%20%7D%3B%0A%0A%20%20try%20%7B%0A%20%20%20%20const%20res%20%3D%20await%20fetch('http%3A%2F%2Flocalhost%3A8787%2Fjd'%2C%20%7B%0A%20%20%20%20%20%20method%3A%20'POST'%2C%0A%20%20%20%20%20%20headers%3A%20%7B%20'Content-Type'%3A%20'application%2Fjson'%20%7D%2C%0A%20%20%20%20%20%20body%3A%20JSON.stringify(payload)%2C%0A%20%20%20%20%7D)%3B%0A%20%20%20%20const%20result%20%3D%20await%20res.json()%3B%0A%20%20%20%20if%20(result.ok)%20%7B%0A%20%20%20%20%20%20alert(%0A%20%20%20%20%20%20%20%20'%E2%9C%93%20Mokahr%20JD%20captured%5Cn%E2%86%92%20'%20%2B%20result.file%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%B2%97%E4%BD%8D%EF%BC%9A'%20%2B%20(extracted.job_title%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%E5%85%AC%E5%8F%B8%EF%BC%9A'%20%2B%20(extracted.company%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%9B%9E%E5%88%B0%20Claude%20%E8%B7%91%20%2Fcareer-ops%20inbox'%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20alert('%E2%9D%8C%20Server%20error%3A%20'%20%2B%20(result.error%20%7C%7C%20'unknown'))%3B%0A%20%20%20%20%7D%0A%20%20%7D%20catch%20(e)%20%7B%0A%20%20%20%20alert('%E2%9D%8C%20%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%B2%A1%E5%90%AF%E5%8A%A8%EF%BC%9F%5Cn%5Cn%E8%AF%B7%E8%BF%90%E8%A1%8C%EF%BC%9Anode%20tools%2Fjd-inbox-server.mjs')%3B%0A%20%20%7D%0A%7D)()%3B" style="background:#8b5cf6">🔑 Mokahr ATS</a>
+      <a class="bm" href="javascript:(async%20function%20()%20%7B%0A%20%20document.querySelectorAll('*').forEach((el)%20%3D%3E%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20el.style.userSelect%20%3D%20'auto'%3B%0A%20%20%20%20%20%20el.style.webkitUserSelect%20%3D%20'auto'%3B%0A%20%20%20%20%7D%20catch%20%7B%7D%0A%20%20%7D)%3B%0A%0A%20%20let%20frameDoc%20%3D%20document%3B%0A%20%20const%20mokahrFrame%20%3D%0A%20%20%20%20document.querySelector('iframe%5Bsrc*%3D%22mokahr.com%22%5D')%20%7C%7C%0A%20%20%20%20document.querySelector('iframe%5Bsrc*%3D%22moka%22%5D')%3B%0A%20%20if%20(mokahrFrame)%20%7B%0A%20%20%20%20try%20%7B%0A%20%20%20%20%20%20if%20(mokahrFrame.contentDocument)%20%7B%0A%20%20%20%20%20%20%20%20frameDoc%20%3D%20mokahrFrame.contentDocument%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%20catch%20%7B%0A%20%20%20%20%20%20alert('%E2%9A%A0%EF%B8%8F%20Mokahr%20iframe%20%E6%98%AF%E8%B7%A8%E5%9F%9F%E7%9A%84%EF%BC%8C%E6%97%A0%E6%B3%95%E7%9B%B4%E6%8E%A5%E8%AF%BB%E5%8F%96%E3%80%82%5Cn%5Cn%E8%AF%B7%E5%9C%A8%E6%96%B0%20tab%20%E6%89%93%E5%BC%80%20iframe%20%E9%93%BE%E6%8E%A5%EF%BC%8C%E5%86%8D%E7%82%B9%E8%BF%99%E4%B8%AA%20bookmarklet%E3%80%82')%3B%0A%20%20%20%20%20%20return%3B%0A%20%20%20%20%7D%0A%20%20%7D%0A%0A%20%20const%20rawFull%20%3D%20(frameDoc.body%20%7C%7C%20document.body).innerText.trim()%3B%0A%0A%20%20%2F%2F%20----%20%E4%B8%BB%E7%AD%96%E7%95%A5%EF%BC%9A%E8%A7%A3%E6%9E%90%20%22%E8%81%8C%E4%BD%8D%E4%BF%A1%E6%81%AF%22%20label-value%20%E5%9D%97%20----%0A%20%20%2F%2F%20Mokahr%20%E8%A1%A8%E6%A0%BC%E5%85%B8%E5%9E%8B%E5%BD%A2%E7%8A%B6%EF%BC%88label%20%E9%87%8D%E5%A4%8D%202%20%E6%AC%A1%20%2B%20%E5%80%BC%E4%B8%80%E8%A1%8C%EF%BC%89%EF%BC%9A%0A%20%20%2F%2F%20%20%20%E8%81%8C%E4%BD%8D%E4%BF%A1%E6%81%AF%0A%20%20%2F%2F%20%20%20%E8%81%8C%E4%BD%8D%E5%90%8D%E7%A7%B0%0A%20%20%2F%2F%20%20%20%E8%81%8C%E4%BD%8D%E5%90%8D%E7%A7%B0%0A%20%20%2F%2F%20%20%20Agent%20%E6%95%B0%E6%8D%AE%E7%AD%96%E7%95%A5%E5%B7%A5%E7%A8%8B%E5%B8%88%0A%20%20%2F%2F%20%20%20%E8%96%AA%E8%B5%84%E8%8C%83%E5%9B%B4%20%2F%20%E8%96%AA%E8%B5%84%E8%8C%83%E5%9B%B4%20%2F%20-%0A%20%20%2F%2F%20%20%20%E8%81%8C%E4%BD%8D%E6%80%A7%E8%B4%A8%20%2F%20%E8%81%8C%E4%BD%8D%E6%80%A7%E8%B4%A8%20%2F%20%E5%85%A8%E8%81%8C%0A%20%20%2F%2F%20%20%20%E8%81%8C%E8%83%BD%E7%B1%BB%E5%9E%8B%20%2F%20%E8%81%8C%E8%83%BD%E7%B1%BB%E5%9E%8B%20%2F%20%E5%85%B6%E4%BB%96%0A%20%20%2F%2F%20%20%20%E6%89%80%E5%B1%9E%E9%83%A8%E9%97%A8%20%2F%20%E6%89%80%E5%B1%9E%E9%83%A8%E9%97%A8%20%2F%20DeepSeek%0A%20%20%2F%2F%20%20%20%E5%B7%A5%E4%BD%9C%E5%9C%B0%E7%82%B9%20%2F%20%E5%B7%A5%E4%BD%9C%E5%9C%B0%E7%82%B9%20%2F%20%E6%B5%99%E6%B1%9F%C2%B7%E6%9D%AD%E5%B7%9E%E5%B8%82%20%E5%8C%97%E4%BA%AC%E5%B8%82%0A%20%20%2F%2F%20%20%20%E5%8F%91%E5%B8%83%E6%97%A5%E6%9C%9F%20%2F%20%E5%8F%91%E5%B8%83%E6%97%A5%E6%9C%9F%20%2F%202026-04-17%0A%20%20const%20FIELDS%20%3D%20%5B'%E8%81%8C%E4%BD%8D%E5%90%8D%E7%A7%B0'%2C%20'%E8%96%AA%E8%B5%84%E8%8C%83%E5%9B%B4'%2C%20'%E8%81%8C%E4%BD%8D%E6%80%A7%E8%B4%A8'%2C%20'%E8%81%8C%E8%83%BD%E7%B1%BB%E5%9E%8B'%2C%20'%E6%89%80%E5%B1%9E%E9%83%A8%E9%97%A8'%2C%20'%E5%B7%A5%E4%BD%9C%E5%9C%B0%E7%82%B9'%2C%20'%E5%8F%91%E5%B8%83%E6%97%A5%E6%9C%9F'%5D%3B%0A%20%20const%20parseInfoBlock%20%3D%20(text)%20%3D%3E%20%7B%0A%20%20%20%20const%20idx%20%3D%20text.indexOf('%E8%81%8C%E4%BD%8D%E4%BF%A1%E6%81%AF')%3B%0A%20%20%20%20if%20(idx%20%3C%200)%20return%20%7B%7D%3B%0A%20%20%20%20const%20tail%20%3D%20text.slice(idx).split('%5Cn').map((s)%20%3D%3E%20s.trim()).filter(Boolean)%3B%0A%20%20%20%20const%20out%20%3D%20%7B%7D%3B%0A%20%20%20%20for%20(let%20i%20%3D%200%3B%20i%20%3C%20tail.length%3B%20i%2B%2B)%20%7B%0A%20%20%20%20%20%20const%20line%20%3D%20tail%5Bi%5D%3B%0A%20%20%20%20%20%20if%20(!FIELDS.includes(line))%20continue%3B%0A%20%20%20%20%20%20let%20j%20%3D%20i%20%2B%201%3B%0A%20%20%20%20%20%20while%20(j%20%3C%20tail.length%20%26%26%20tail%5Bj%5D%20%3D%3D%3D%20line)%20j%2B%2B%3B%0A%20%20%20%20%20%20const%20value%20%3D%20tail%5Bj%5D%20%26%26%20!FIELDS.includes(tail%5Bj%5D)%20%3F%20tail%5Bj%5D%20%3A%20''%3B%0A%20%20%20%20%20%20if%20(value%20%26%26%20value%20!%3D%3D%20'-')%20out%5Bline%5D%20%3D%20value%3B%0A%20%20%20%20%7D%0A%20%20%20%20return%20out%3B%0A%20%20%7D%3B%0A%0A%20%20%2F%2F%20----%20%E5%A4%87%E7%94%A8%EF%BC%9A%E9%A1%B6%E9%83%A8%20pipe%20%E5%A4%B4%EF%BC%88%22%E5%85%A8%E8%81%8C%7C%E5%85%B6%E4%BB%96%7CDeepSeek%7C%E6%B5%99%E6%B1%9F%C2%B7%E6%9D%AD%E5%B7%9E%E5%B8%82%20%E5%8C%97%E4%BA%AC%E5%B8%82%22%EF%BC%89%20----%0A%20%20const%20parsePipeHeader%20%3D%20(text)%20%3D%3E%20%7B%0A%20%20%20%20const%20lines%20%3D%20text.split('%5Cn').map((s)%20%3D%3E%20s.trim()).filter(Boolean)%3B%0A%20%20%20%20const%20shareIdx%20%3D%20lines.indexOf('%E5%88%86%E4%BA%AB')%3B%0A%20%20%20%20if%20(shareIdx%20%3C%200)%20return%20%7B%7D%3B%0A%20%20%20%20for%20(let%20i%20%3D%20shareIdx%20%2B%201%3B%20i%20%3C%20Math.min(shareIdx%20%2B%205%2C%20lines.length)%3B%20i%2B%2B)%20%7B%0A%20%20%20%20%20%20if%20(lines%5Bi%5D.includes('%7C'))%20%7B%0A%20%20%20%20%20%20%20%20const%20%5Bnature%2C%20func%2C%20dept%2C%20loc%5D%20%3D%20lines%5Bi%5D.split('%7C').map((s)%20%3D%3E%20s.trim())%3B%0A%20%20%20%20%20%20%20%20return%20%7B%0A%20%20%20%20%20%20%20%20%20%20%E8%81%8C%E4%BD%8D%E6%80%A7%E8%B4%A8%3A%20nature%20%7C%7C%20''%2C%0A%20%20%20%20%20%20%20%20%20%20%E8%81%8C%E8%83%BD%E7%B1%BB%E5%9E%8B%3A%20func%20%7C%7C%20''%2C%0A%20%20%20%20%20%20%20%20%20%20%E6%89%80%E5%B1%9E%E9%83%A8%E9%97%A8%3A%20dept%20%7C%7C%20''%2C%0A%20%20%20%20%20%20%20%20%20%20%E5%B7%A5%E4%BD%9C%E5%9C%B0%E7%82%B9%3A%20loc%20%7C%7C%20''%2C%0A%20%20%20%20%20%20%20%20%7D%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%20%20return%20%7B%7D%3B%0A%20%20%7D%3B%0A%0A%20%20%2F%2F%20----%20%E6%A0%87%E9%A2%98%EF%BC%9A%E5%8F%96%20%22%E5%88%86%E4%BA%AB%22%20%E5%89%8D%E4%B8%80%E8%A1%8C%EF%BC%8C%E8%8B%A5%E6%98%AF%20%22%E6%80%A5%22%2F%22%E7%83%AD%E6%8B%9B%22%20tag%20%E5%86%8D%E5%BE%80%E5%89%8D%E4%B8%80%E8%A1%8C%20----%0A%20%20const%20TITLE_TAGS%20%3D%20%5B'%E6%80%A5'%2C%20'%E7%83%AD%E6%8B%9B'%2C%20'%E7%B4%A7%E6%80%A5'%2C%20'HOT'%2C%20'NEW'%5D%3B%0A%20%20const%20TITLE_BLACKLIST%20%3D%20%5B'%E8%81%8C%E4%BD%8D%E5%88%97%E8%A1%A8'%2C%20'%E7%A4%BE%E6%8B%9B%E8%81%8C%E4%BD%8D'%2C%20'%E6%A0%A1%E6%8B%9B%26%E5%AE%9E%E4%B9%A0%E8%81%8C%E4%BD%8D'%2C%20'%E7%99%BB%E5%BD%95'%2C%20'%E9%A6%96%E9%A1%B5'%2C%20'%E5%85%B3%E4%BA%8E%E6%88%91%E4%BB%AC'%5D%3B%0A%20%20const%20parseTitle%20%3D%20(text)%20%3D%3E%20%7B%0A%20%20%20%20const%20lines%20%3D%20text.split('%5Cn').map((s)%20%3D%3E%20s.trim()).filter(Boolean)%3B%0A%20%20%20%20const%20shareIdx%20%3D%20lines.indexOf('%E5%88%86%E4%BA%AB')%3B%0A%20%20%20%20if%20(shareIdx%20%3C%201)%20return%20''%3B%0A%20%20%20%20let%20t%20%3D%20lines%5BshareIdx%20-%201%5D%3B%0A%20%20%20%20if%20(TITLE_TAGS.includes(t)%20%26%26%20shareIdx%20%3E%3D%202)%20t%20%3D%20lines%5BshareIdx%20-%202%5D%3B%0A%20%20%20%20if%20(TITLE_BLACKLIST.includes(t))%20return%20''%3B%0A%20%20%20%20return%20t%3B%0A%20%20%7D%3B%0A%0A%20%20%2F%2F%20----%20%E6%8F%8F%E8%BF%B0%EF%BC%9A%E5%8F%96%20%22%E8%81%8C%E4%BD%8D%E6%8F%8F%E8%BF%B0%22%20%E5%88%B0%20%22%E8%81%8C%E4%BD%8D%E4%BF%A1%E6%81%AF%22%20%E4%B9%8B%E9%97%B4%20----%0A%20%20const%20parseDescription%20%3D%20(text)%20%3D%3E%20%7B%0A%20%20%20%20const%20start%20%3D%20text.indexOf('%E8%81%8C%E4%BD%8D%E6%8F%8F%E8%BF%B0')%3B%0A%20%20%20%20const%20end%20%3D%20text.indexOf('%E8%81%8C%E4%BD%8D%E4%BF%A1%E6%81%AF')%3B%0A%20%20%20%20if%20(start%20%3C%200)%20return%20''%3B%0A%20%20%20%20const%20slice%20%3D%20end%20%3E%20start%20%3F%20text.slice(start%2C%20end)%20%3A%20text.slice(start)%3B%0A%20%20%20%20return%20slice.trim()%3B%0A%20%20%7D%3B%0A%0A%20%20%2F%2F%20----%20CSS%20fallback%EF%BC%88%E6%97%A7%20DOM%20%E6%88%96%E6%9C%AA%E7%9F%A5%E7%A7%9F%E6%88%B7%E4%BB%8D%E5%8F%AF%E8%83%BD%E5%91%BD%E4%B8%AD%EF%BC%89----%0A%20%20const%20pickCss%20%3D%20(selectors)%20%3D%3E%20%7B%0A%20%20%20%20for%20(const%20sel%20of%20selectors)%20%7B%0A%20%20%20%20%20%20const%20el%20%3D%20frameDoc.querySelector(sel)%3B%0A%20%20%20%20%20%20if%20(el)%20%7B%0A%20%20%20%20%20%20%20%20const%20txt%20%3D%20(el.innerText%20%7C%7C%20el.textContent%20%7C%7C%20'').trim()%3B%0A%20%20%20%20%20%20%20%20if%20(txt)%20return%20txt%3B%0A%20%20%20%20%20%20%7D%0A%20%20%20%20%7D%0A%20%20%20%20return%20''%3B%0A%20%20%7D%3B%0A%0A%20%20%2F%2F%20----%20%E7%A7%9F%E6%88%B7%E2%86%92%E5%85%AC%E5%8F%B8%E5%90%8D%20fallback%EF%BC%88%E8%B7%AF%E5%BE%84%E8%AF%86%E5%88%AB%EF%BC%8C%E4%B8%8D%E6%98%AF%20hostname%EF%BC%89----%0A%20%20const%20tenantCompany%20%3D%20(()%20%3D%3E%20%7B%0A%20%20%20%20const%20p%20%3D%20location.pathname%3B%0A%20%20%20%20if%20(p.includes('high-flyer'))%20return%20'DeepSeek'%3B%0A%20%20%20%20if%20(p.includes('moonshot'))%20return%20'%E6%9C%88%E4%B9%8B%E6%9A%97%E9%9D%A2%20Moonshot'%3B%0A%20%20%20%20if%20(p.includes('megviihr'))%20return%20'%E6%97%B7%E8%A7%86'%3B%0A%20%20%20%20return%20''%3B%0A%20%20%7D)()%3B%0A%0A%20%20const%20info%20%3D%20parseInfoBlock(rawFull)%3B%0A%20%20const%20header%20%3D%20parsePipeHeader(rawFull)%3B%0A%20%20const%20title%20%3D%20parseTitle(rawFull)%3B%0A%20%20const%20desc%20%3D%20parseDescription(rawFull)%3B%0A%0A%20%20const%20extracted%20%3D%20%7B%0A%20%20%20%20job_title%3A%0A%20%20%20%20%20%20info%5B'%E8%81%8C%E4%BD%8D%E5%90%8D%E7%A7%B0'%5D%20%7C%7C%0A%20%20%20%20%20%20title%20%7C%7C%0A%20%20%20%20%20%20pickCss(%5B'.job-detail-title'%2C%20'.position-name'%2C%20'%5Bclass*%3D%22job-title%22%5D'%2C%20'%5Bclass*%3D%22position-title%22%5D'%2C%20'h1'%2C%20'h2'%5D)%2C%0A%20%20%20%20company%3A%0A%20%20%20%20%20%20info%5B'%E6%89%80%E5%B1%9E%E9%83%A8%E9%97%A8'%5D%20%7C%7C%0A%20%20%20%20%20%20header%5B'%E6%89%80%E5%B1%9E%E9%83%A8%E9%97%A8'%5D%20%7C%7C%0A%20%20%20%20%20%20pickCss(%5B'.company-name'%2C%20'%5Bclass*%3D%22company%22%5D'%2C%20'.brand-name'%5D)%20%7C%7C%0A%20%20%20%20%20%20tenantCompany%2C%0A%20%20%20%20location%3A%0A%20%20%20%20%20%20info%5B'%E5%B7%A5%E4%BD%9C%E5%9C%B0%E7%82%B9'%5D%20%7C%7C%0A%20%20%20%20%20%20header%5B'%E5%B7%A5%E4%BD%9C%E5%9C%B0%E7%82%B9'%5D%20%7C%7C%0A%20%20%20%20%20%20pickCss(%5B'.job-location'%2C%20'%5Bclass*%3D%22location%22%5D'%2C%20'%5Bclass*%3D%22city%22%5D'%5D)%2C%0A%20%20%20%20salary%3A%20info%5B'%E8%96%AA%E8%B5%84%E8%8C%83%E5%9B%B4'%5D%20%7C%7C%20pickCss(%5B'.salary'%2C%20'%5Bclass*%3D%22salary%22%5D'%5D)%2C%0A%20%20%20%20job_type%3A%20info%5B'%E8%81%8C%E4%BD%8D%E6%80%A7%E8%B4%A8'%5D%20%7C%7C%20header%5B'%E8%81%8C%E4%BD%8D%E6%80%A7%E8%B4%A8'%5D%20%7C%7C%20''%2C%0A%20%20%20%20function_category%3A%20info%5B'%E8%81%8C%E8%83%BD%E7%B1%BB%E5%9E%8B'%5D%20%7C%7C%20header%5B'%E8%81%8C%E8%83%BD%E7%B1%BB%E5%9E%8B'%5D%20%7C%7C%20''%2C%0A%20%20%20%20published_at%3A%20info%5B'%E5%8F%91%E5%B8%83%E6%97%A5%E6%9C%9F'%5D%20%7C%7C%20''%2C%0A%20%20%20%20description%3A%0A%20%20%20%20%20%20desc%20%7C%7C%0A%20%20%20%20%20%20pickCss(%5B%0A%20%20%20%20%20%20%20%20'.job-detail-content'%2C%0A%20%20%20%20%20%20%20%20'.job-description'%2C%0A%20%20%20%20%20%20%20%20'.position-detail'%2C%0A%20%20%20%20%20%20%20%20'%5Bclass*%3D%22job-detail%22%5D'%2C%0A%20%20%20%20%20%20%20%20'%5Bclass*%3D%22position-content%22%5D'%2C%0A%20%20%20%20%20%20%20%20'%5Bclass*%3D%22content%22%5D'%2C%0A%20%20%20%20%20%20%20%20'.job-content'%2C%0A%20%20%20%20%20%20%5D)%2C%0A%20%20%7D%3B%0A%0A%20%20const%20payload%20%3D%20%7B%0A%20%20%20%20url%3A%20location.href%2C%0A%20%20%20%20page_title%3A%20document.title%2C%0A%20%20%20%20captured_at%3A%20new%20Date().toISOString()%2C%0A%20%20%20%20platform%3A%20'mokahr'%2C%0A%20%20%20%20extracted%3A%20%7B%20...extracted%2C%20raw_text%3A%20rawFull%20%7D%2C%0A%20%20%7D%3B%0A%0A%20%20try%20%7B%0A%20%20%20%20const%20res%20%3D%20await%20fetch('http%3A%2F%2Flocalhost%3A8787%2Fjd'%2C%20%7B%0A%20%20%20%20%20%20method%3A%20'POST'%2C%0A%20%20%20%20%20%20headers%3A%20%7B%20'Content-Type'%3A%20'application%2Fjson'%20%7D%2C%0A%20%20%20%20%20%20body%3A%20JSON.stringify(payload)%2C%0A%20%20%20%20%7D)%3B%0A%20%20%20%20const%20result%20%3D%20await%20res.json()%3B%0A%20%20%20%20if%20(result.ok)%20%7B%0A%20%20%20%20%20%20alert(%0A%20%20%20%20%20%20%20%20'%E2%9C%93%20Mokahr%20JD%20captured%5Cn%E2%86%92%20'%20%2B%20result.file%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%B2%97%E4%BD%8D%EF%BC%9A'%20%2B%20(extracted.job_title%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%E5%85%AC%E5%8F%B8%EF%BC%9A'%20%2B%20(extracted.company%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%E5%9C%B0%E7%82%B9%EF%BC%9A'%20%2B%20(extracted.location%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%E8%81%8C%E8%83%BD%EF%BC%9A'%20%2B%20(extracted.function_category%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%E5%8F%91%E5%B8%83%EF%BC%9A'%20%2B%20(extracted.published_at%20%7C%7C%20'%3F')%20%2B%0A%20%20%20%20%20%20%20%20%20%20'%5Cn%5Cn%E5%9B%9E%E5%88%B0%20Claude%20%E8%B7%91%20%2Fcareer-ops%20inbox'%0A%20%20%20%20%20%20)%3B%0A%20%20%20%20%7D%20else%20%7B%0A%20%20%20%20%20%20alert('%E2%9D%8C%20Server%20error%3A%20'%20%2B%20(result.error%20%7C%7C%20'unknown'))%3B%0A%20%20%20%20%7D%0A%20%20%7D%20catch%20%7B%0A%20%20%20%20alert('%E2%9D%8C%20%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%B2%A1%E5%90%AF%E5%8A%A8%EF%BC%9F%5Cn%5Cn%E8%AF%B7%E8%BF%90%E8%A1%8C%EF%BC%9Anode%20tools%2Fjd-inbox-server.mjs')%3B%0A%20%20%7D%0A%7D)()%3B" style="background:#8b5cf6">🔑 Mokahr ATS</a>
       <div class="meta">
         <code>mokahr.js</code>
-        <span class="size">4.7 KB</span>
+        <span class="size">12.7 KB</span>
       </div>
     </div>
     <p class="desc">DeepSeek 等独角兽用的 Mokahr ATS。如是 iframe 嵌入需先单开 iframe 链接。</p>
     <details>
       <summary>查看源码</summary>
-      <pre><code>// Mokahr 专用 JD 捕获
-// 多家 AI 独角兽（DeepSeek / 部分大厂）用 Mokahr 作为社招 ATS。
-// Mokahr 通常嵌入在 iframe 里，需要尝试穿透 iframe 取内容。
+      <pre><code>// Mokahr 专用 JD 捕获 — v2 (2026-04-19 fix)
+// 多家 AI 独角兽（DeepSeek / Moonshot / 旷视）用 Mokahr 作为社招 ATS。
+//
+// v2 变更：
+// - 旧版 CSS selectors 在 2025+ Mokahr DOM 下失效 → 结构化字段全空
+// - 改为解析 innerText 里的「职位信息」label-value 块（DeepSeek + Moonshot 两租户都稳定命中）
+// - &quot;分享&quot; 锚点抽 title；pipe-header 做备用；CSS 降级为最后兜底
+// - 租户识别从 hostname 改为 pathname（Mokahr tenant slug 在 path 而非子域名）
 
 (async function () {
   document.querySelectorAll(&#39;*&#39;).forEach((el) =&gt; {
@@ -643,7 +648,6 @@
     } catch {}
   });
 
-  // 尝试找 Mokahr iframe（同源时可访问）
   let frameDoc = document;
   const mokahrFrame =
     document.querySelector(&#39;iframe[src*=&quot;mokahr.com&quot;]&#39;) ||
@@ -653,50 +657,147 @@
       if (mokahrFrame.contentDocument) {
         frameDoc = mokahrFrame.contentDocument;
       }
-    } catch (e) {
-      alert(&#39;⚠️ Mokahr iframe 是跨域的，无法直接读取。\n\n请直接打开 iframe 内的链接（在新 tab 打开 iframe），然后再点这个 bookmarklet。&#39;);
+    } catch {
+      alert(&#39;⚠️ Mokahr iframe 是跨域的，无法直接读取。\n\n请在新 tab 打开 iframe 链接，再点这个 bookmarklet。&#39;);
       return;
     }
   }
 
-  const pickText = (selectors) =&gt; {
+  const rawFull = (frameDoc.body || document.body).innerText.trim();
+
+  // ---- 主策略：解析 &quot;职位信息&quot; label-value 块 ----
+  // Mokahr 表格典型形状（label 重复 2 次 + 值一行）：
+  //   职位信息
+  //   职位名称
+  //   职位名称
+  //   Agent 数据策略工程师
+  //   薪资范围 / 薪资范围 / -
+  //   职位性质 / 职位性质 / 全职
+  //   职能类型 / 职能类型 / 其他
+  //   所属部门 / 所属部门 / DeepSeek
+  //   工作地点 / 工作地点 / 浙江·杭州市 北京市
+  //   发布日期 / 发布日期 / 2026-04-17
+  const FIELDS = [&#39;职位名称&#39;, &#39;薪资范围&#39;, &#39;职位性质&#39;, &#39;职能类型&#39;, &#39;所属部门&#39;, &#39;工作地点&#39;, &#39;发布日期&#39;];
+  const parseInfoBlock = (text) =&gt; {
+    const idx = text.indexOf(&#39;职位信息&#39;);
+    if (idx &lt; 0) return {};
+    const tail = text.slice(idx).split(&#39;\n&#39;).map((s) =&gt; s.trim()).filter(Boolean);
+    const out = {};
+    for (let i = 0; i &lt; tail.length; i++) {
+      const line = tail[i];
+      if (!FIELDS.includes(line)) continue;
+      let j = i + 1;
+      while (j &lt; tail.length &amp;&amp; tail[j] === line) j++;
+      const value = tail[j] &amp;&amp; !FIELDS.includes(tail[j]) ? tail[j] : &#39;&#39;;
+      if (value &amp;&amp; value !== &#39;-&#39;) out[line] = value;
+    }
+    return out;
+  };
+
+  // ---- 备用：顶部 pipe 头（&quot;全职|其他|DeepSeek|浙江·杭州市 北京市&quot;） ----
+  const parsePipeHeader = (text) =&gt; {
+    const lines = text.split(&#39;\n&#39;).map((s) =&gt; s.trim()).filter(Boolean);
+    const shareIdx = lines.indexOf(&#39;分享&#39;);
+    if (shareIdx &lt; 0) return {};
+    for (let i = shareIdx + 1; i &lt; Math.min(shareIdx + 5, lines.length); i++) {
+      if (lines[i].includes(&#39;|&#39;)) {
+        const [nature, func, dept, loc] = lines[i].split(&#39;|&#39;).map((s) =&gt; s.trim());
+        return {
+          职位性质: nature || &#39;&#39;,
+          职能类型: func || &#39;&#39;,
+          所属部门: dept || &#39;&#39;,
+          工作地点: loc || &#39;&#39;,
+        };
+      }
+    }
+    return {};
+  };
+
+  // ---- 标题：取 &quot;分享&quot; 前一行，若是 &quot;急&quot;/&quot;热招&quot; tag 再往前一行 ----
+  const TITLE_TAGS = [&#39;急&#39;, &#39;热招&#39;, &#39;紧急&#39;, &#39;HOT&#39;, &#39;NEW&#39;];
+  const TITLE_BLACKLIST = [&#39;职位列表&#39;, &#39;社招职位&#39;, &#39;校招&amp;实习职位&#39;, &#39;登录&#39;, &#39;首页&#39;, &#39;关于我们&#39;];
+  const parseTitle = (text) =&gt; {
+    const lines = text.split(&#39;\n&#39;).map((s) =&gt; s.trim()).filter(Boolean);
+    const shareIdx = lines.indexOf(&#39;分享&#39;);
+    if (shareIdx &lt; 1) return &#39;&#39;;
+    let t = lines[shareIdx - 1];
+    if (TITLE_TAGS.includes(t) &amp;&amp; shareIdx &gt;= 2) t = lines[shareIdx - 2];
+    if (TITLE_BLACKLIST.includes(t)) return &#39;&#39;;
+    return t;
+  };
+
+  // ---- 描述：取 &quot;职位描述&quot; 到 &quot;职位信息&quot; 之间 ----
+  const parseDescription = (text) =&gt; {
+    const start = text.indexOf(&#39;职位描述&#39;);
+    const end = text.indexOf(&#39;职位信息&#39;);
+    if (start &lt; 0) return &#39;&#39;;
+    const slice = end &gt; start ? text.slice(start, end) : text.slice(start);
+    return slice.trim();
+  };
+
+  // ---- CSS fallback（旧 DOM 或未知租户仍可能命中）----
+  const pickCss = (selectors) =&gt; {
     for (const sel of selectors) {
       const el = frameDoc.querySelector(sel);
       if (el) {
         const txt = (el.innerText || el.textContent || &#39;&#39;).trim();
-        if (txt.length &gt; 0) return txt;
+        if (txt) return txt;
       }
     }
     return &#39;&#39;;
   };
 
-  const extracted = {
-    job_title: pickText([
-      &#39;.job-detail-title&#39;, &#39;.position-name&#39;, &#39;[class*=&quot;job-title&quot;]&#39;,
-      &#39;[class*=&quot;position-title&quot;]&#39;, &#39;h1&#39;, &#39;h2&#39;,
-    ]),
-    company: pickText([
-      &#39;.company-name&#39;, &#39;[class*=&quot;company&quot;]&#39;,
-      &#39;.brand-name&#39;,
-    ]) || (location.hostname.includes(&#39;high-flyer&#39;) ? &#39;DeepSeek&#39; : &#39;&#39;),
-    location: pickText([&#39;.job-location&#39;, &#39;[class*=&quot;location&quot;]&#39;, &#39;[class*=&quot;city&quot;]&#39;]),
-    salary: pickText([&#39;.salary&#39;, &#39;[class*=&quot;salary&quot;]&#39;]),
-    description: pickText([
-      &#39;.job-detail-content&#39;, &#39;.job-description&#39;, &#39;.position-detail&#39;,
-      &#39;[class*=&quot;job-detail&quot;]&#39;, &#39;[class*=&quot;position-content&quot;]&#39;,
-      &#39;[class*=&quot;content&quot;]&#39;, &#39;.job-content&#39;,
-    ]),
-  };
+  // ---- 租户→公司名 fallback（路径识别，不是 hostname）----
+  const tenantCompany = (() =&gt; {
+    const p = location.pathname;
+    if (p.includes(&#39;high-flyer&#39;)) return &#39;DeepSeek&#39;;
+    if (p.includes(&#39;moonshot&#39;)) return &#39;月之暗面 Moonshot&#39;;
+    if (p.includes(&#39;megviihr&#39;)) return &#39;旷视&#39;;
+    return &#39;&#39;;
+  })();
 
-  // raw_text 兜底
-  const raw = (frameDoc.body || document.body).innerText.trim();
+  const info = parseInfoBlock(rawFull);
+  const header = parsePipeHeader(rawFull);
+  const title = parseTitle(rawFull);
+  const desc = parseDescription(rawFull);
+
+  const extracted = {
+    job_title:
+      info[&#39;职位名称&#39;] ||
+      title ||
+      pickCss([&#39;.job-detail-title&#39;, &#39;.position-name&#39;, &#39;[class*=&quot;job-title&quot;]&#39;, &#39;[class*=&quot;position-title&quot;]&#39;, &#39;h1&#39;, &#39;h2&#39;]),
+    company:
+      info[&#39;所属部门&#39;] ||
+      header[&#39;所属部门&#39;] ||
+      pickCss([&#39;.company-name&#39;, &#39;[class*=&quot;company&quot;]&#39;, &#39;.brand-name&#39;]) ||
+      tenantCompany,
+    location:
+      info[&#39;工作地点&#39;] ||
+      header[&#39;工作地点&#39;] ||
+      pickCss([&#39;.job-location&#39;, &#39;[class*=&quot;location&quot;]&#39;, &#39;[class*=&quot;city&quot;]&#39;]),
+    salary: info[&#39;薪资范围&#39;] || pickCss([&#39;.salary&#39;, &#39;[class*=&quot;salary&quot;]&#39;]),
+    job_type: info[&#39;职位性质&#39;] || header[&#39;职位性质&#39;] || &#39;&#39;,
+    function_category: info[&#39;职能类型&#39;] || header[&#39;职能类型&#39;] || &#39;&#39;,
+    published_at: info[&#39;发布日期&#39;] || &#39;&#39;,
+    description:
+      desc ||
+      pickCss([
+        &#39;.job-detail-content&#39;,
+        &#39;.job-description&#39;,
+        &#39;.position-detail&#39;,
+        &#39;[class*=&quot;job-detail&quot;]&#39;,
+        &#39;[class*=&quot;position-content&quot;]&#39;,
+        &#39;[class*=&quot;content&quot;]&#39;,
+        &#39;.job-content&#39;,
+      ]),
+  };
 
   const payload = {
     url: location.href,
     page_title: document.title,
     captured_at: new Date().toISOString(),
     platform: &#39;mokahr&#39;,
-    extracted: { ...extracted, raw_text: raw },
+    extracted: { ...extracted, raw_text: rawFull },
   };
 
   try {
@@ -711,12 +812,15 @@
         &#39;✓ Mokahr JD captured\n→ &#39; + result.file +
           &#39;\n\n岗位：&#39; + (extracted.job_title || &#39;?&#39;) +
           &#39;\n公司：&#39; + (extracted.company || &#39;?&#39;) +
+          &#39;\n地点：&#39; + (extracted.location || &#39;?&#39;) +
+          &#39;\n职能：&#39; + (extracted.function_category || &#39;?&#39;) +
+          &#39;\n发布：&#39; + (extracted.published_at || &#39;?&#39;) +
           &#39;\n\n回到 Claude 跑 /career-ops inbox&#39;
       );
     } else {
       alert(&#39;❌ Server error: &#39; + (result.error || &#39;unknown&#39;));
     }
-  } catch (e) {
+  } catch {
     alert(&#39;❌ 服务器没启动？\n\n请运行：node tools/jd-inbox-server.mjs&#39;);
   }
 })();
@@ -821,7 +925,7 @@
   </div>
 
   <div class="footer">
-    <p>生成时间：2026-04-15T07:38:56.898Z　|　总数：6 个</p>
+    <p>生成时间：2026-04-19T14:50:43.336Z　|　总数：6 个</p>
     <p>修改源码后重跑 <code>npm run build-bookmarklets</code> 重新生成本页</p>
   </div>
 </body>

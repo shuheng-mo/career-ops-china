@@ -494,7 +494,85 @@ git checkout china-main
 git merge origin/main       # 会有冲突，需要逐个解决
 ```
 
-### 10. 隐私保护
+### 10. Tracker 后端：applications.md vs 飞书 Bitable（⭐ 2026-04-20 新增）
+
+默认投递追踪走 `data/applications.md` 一张 Markdown 表。但 100+ 条记录后 Markdown 的局限暴露：没有 Kanban、没有 filter、没有 formula、没有多视图。所以增加了**飞书 Bitable 后端**做可选升级。
+
+**两种后端，用户通过 `config/profile.yml` 的 `tracker.backend` 字段切换：**
+
+| Backend | 特点 | 适合谁 |
+|---------|------|--------|
+| `md`（默认）| applications.md 是唯一源；零依赖；git diff 友好 | 喜欢 markdown、不想装额外工具 |
+| `bitable` | Bitable 为唯一写源，md 由 `npm run tracker:export` regen 成只读快照；Kanban / 多视图 / formula | 100+ 条记录、想看生命周期、想要 dashboard |
+
+**启用 Bitable（全自动，5 分钟）：**
+
+```bash
+# 前置：安装 lark-cli 并认证（见 https://github.com/larksuite/lark-cli）
+# 1. 全自动建 Base + 13 字段 + 默认视图
+npm run tracker:setup
+# → 选 [a] 自动创建  →  输入 Base 名（回车用默认）
+# → 自动跑 +base-create / +table-create / +field-create × 13
+# → 写回 profile.yml 的 app_token + table_id + base_url
+
+# 2. 一次性迁移现有 applications.md → Bitable
+npm run tracker:migrate     # 幂等，可重跑
+
+# 3. 回填 URL（从 reports/ 的 **URL：** 头扫出来）+ 补 Closed At
+npm run tracker:backfill
+
+# 4. 改 profile.yml → tracker.backend: bitable → 激活
+```
+
+**Bitable 预置 schema（13 字段 + 3 视图）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| Num, Date, Company, Role, Score, Status, PDF, URL, Report, Notes | 基础 10 列 | 对齐 md 格式 |
+| **Closed At** | datetime | 终止状态（Rejected/Discarded/SKIP/Offer）自动打时间戳 → 生命周期可视化 |
+| **Days Since Added** | formula: `0 + IF(ISBLANK([Date]), 0, INT(DATEDIF([Date], TODAY(), "D")))` | 每条记录躺了多少天 |
+| **Lifecycle Flag** | formula: IFS 5 分支 emoji 标签 | 🎯活跃 / ⏰该 follow-up / 🔥高优待投 / 🔒已结束 |
+| **Score Value** | formula: `ROUND(IFERROR(VALUE(LEFT([Score], 3)), 0), 1)` | 数值化 Score（"4.2/5" → 4.2）用于排序 |
+
+| 视图 | 类型 | 配置 |
+|------|------|------|
+| All | Grid | 所有记录 |
+| **Kanban by Status** | Kanban | 按 Status 分列（Evaluated / Applied / Interview / Offer / Rejected 等），拖卡片改状态 |
+| **待投（Evaluated 按分降序）** | Grid | Filter: Status=Evaluated；Sort: Score desc；Top 12 带 🔥 标签 |
+
+**新命令：**
+
+```bash
+npm run tracker:setup     # 初始化 Bitable（交互式，支持自动建或粘贴现有 URL）
+npm run tracker:migrate   # applications.md → Bitable（幂等）
+npm run tracker:export    # Bitable → applications.md 重建只读快照
+npm run tracker:backfill  # 从 reports/ 补 URL + 为历史终止记录补 Closed At
+```
+
+**自动行为（两后端都有）：**
+
+- 状态变 Rejected / Discarded / SKIP / Offer → **自动打 Closed At = 今天**（除非显式指定）
+- `npm run merge` 在 Bitable 模式下：TSV 合并进 Bitable 后自动 regen md 快照
+
+**切换回 md（数据不丢）：**
+profile.yml 改 `tracker.backend: md`。md 是 bitable 的最新快照，所有工具立刻恢复用 md。Bitable 本身不删，可随时再切回。
+
+**📕 飞书 Bitable 集成的踩坑经验**（已固化到 memory + `CLAUDE.md`，让 Claude 下次不重复踩）：
+
+| 坑 | 症状 | 规避 |
+|----|------|------|
+| `+record-upsert` 的 `--json` 不是 `{"fields":{...}}` 包装 | API 报 `Invalid input / fields: Match one of the supported request payload shapes` | 用**扁平字段对象** `{"Num":89,"Company":"...","Status":"Evaluated",...}` |
+| 日期字段不是 ms 时间戳 | 写入报错 | 用 `"YYYY-MM-DD HH:mm:ss"` 字符串，如 `"2026-04-20 00:00:00"` |
+| `+record-list` 分页 flag 不是 `--page-size` | `unknown flag` 错误 | 用 `--limit`（默认 100）+ `--offset`，靠响应里的 `has_more` 判断终止 |
+| 响应是列式 `data.data[]` + `data.fields[]` | 解析出全空对象 | 先拿 `data.fields` 字段名数组，再 zip 到每行的 `data.data[i]` 值数组 |
+| Formula 字段**输出类型只在创建时推断一次** | UI 报 `计算结果和字段格式不匹配` + emoji 显示成灰色圆圈感叹号 | **删除 + 重建**，首 token 要锚定类型：text 用 `"" & (...)`，number 用 `0 + (...)`，date 用 `TODATE(...)` |
+| Bitable view filter 对 **formula 字段的数值比较 `>=`**  静默失效 | 过滤条件 API 返回 ok 但记录数不对 | filter 条件只用原生存储字段（Status 单选用 `intersects`、Number 用 `>=`、Date 用 `ExactDate`）。formula 结果可做展示/排序不要做过滤 |
+| Select 字段返回 `["OptionName"]` 数组 | 直接等于比较失败 | 读时 `Array.isArray(v) ? v[0] : v` 解包 |
+| 破坏性操作需要 `--yes` | `high-risk operation requires confirmation` | `+record-delete` / `+field-delete` / `+base-delete` 必须加 `--yes` |
+| Formula 字段创建要先读 guide | CLI 直接 fail fast 拒绝 | 调用 `+field-create` 和 `+field-update` 时加 `--i-have-read-guide` 且确实先读 `~/.agents/skills/lark-base/references/formula-field-guide.md` |
+| `site:X/deep/path` WebSearch 查询返回 0 条 | site: + 深路径（如 `site:v2ex.com/go/jobs`）或多站点 OR（`site:A OR site:B`）失效 | 改自然语言关键词 + 顶域 site:（仅顶级域名 + 关键词组 OR 可用） |
+
+### 11. 隐私保护
 
 下面这些文件**已经在 .gitignore 里**，永远不会被 commit：
 

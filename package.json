@@ -11,7 +11,11 @@
     "sync-check": "node tools/cv-sync-check.mjs",
     "inbox-server": "node tools/jd-inbox-server.mjs",
     "build-bookmarklets": "node tools/build-bookmarklets.mjs",
-    "sync-outreach": "node tools/sync-outreach-status.mjs"
+    "sync-outreach": "node tools/sync-outreach-status.mjs",
+    "tracker:setup": "node tools/setup-bitable-tracker.mjs",
+    "tracker:migrate": "node tools/migrate-tracker-md-to-bitable.mjs",
+    "tracker:export": "node tools/sync-md-from-bitable.mjs",
+    "tracker:backfill": "node tools/backfill-tracker-fields.mjs"
   },
   "keywords": ["ai", "job-search", "claude-code", "career", "automation"],
   "author": "Santiago Fernández de Valderrama <hi@santifer.io> (https://santifer.io)",

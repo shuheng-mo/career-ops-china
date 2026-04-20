@@ -71,3 +71,7 @@ pids/
 
 # === .playwright-mcp ===
 .playwright-mcp
+
+
+# === interview-prep ===
+interview-prep/mock-interviews/*.md

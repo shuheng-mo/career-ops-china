@@ -125,6 +125,33 @@ function parseAppLine(line) {
  * Parse a TSV file content into a structured addition object.
  * Handles: 9-col TSV, 8-col TSV, pipe-delimited markdown.
  */
+/**
+ * Extract URL from a report file's `**URL：**` or `**URL:**` header line.
+ * Accepts report field like `[147](reports/147-foo.md)` or just `reports/147-foo.md`.
+ * Returns first non-empty URL found, or '' if no file / no URL line.
+ */
+function extractUrlFromReport(reportField) {
+  if (!reportField) return '';
+  // Match `[NNN](reports/...)` or raw path; grab the path
+  let path = '';
+  const m = reportField.match(/\(([^)]+\.md)\)/) || reportField.match(/(reports\/[^\s\]]+\.md)/);
+  if (m) path = m[1];
+  if (!path) return '';
+  const full = path.startsWith('/') ? path : join(CAREER_OPS, path);
+  if (!existsSync(full)) return '';
+  try {
+    const text = readFileSync(full, 'utf-8');
+    // Support both Chinese full-width colon `：` and ASCII `:`
+    const urlMatch = text.match(/\*\*URL[：:]\*\*\s*(\S+)/);
+    if (urlMatch) {
+      const u = urlMatch[1].trim();
+      // Skip placeholders like "pending", "—", "TBD"
+      if (/^https?:\/\//.test(u)) return u;
+    }
+  } catch {}
+  return '';
+}
+
 function parseTsvContent(content, filename) {
   content = content.trim();
   if (!content) return null;
@@ -199,6 +226,17 @@ function parseTsvContent(content, filename) {
   if (isNaN(addition.num) || addition.num === 0) {
     console.warn(`⚠️  Skipping ${filename}: invalid entry number`);
     return null;
+  }
+
+  // Auto-extract URL from report file's `**URL：**` line.
+  // TSV schema (9-col) has no URL column; report header carries it canonically.
+  if (!addition.url) addition.url = extractUrlFromReport(addition.report);
+
+  // Normalize Report field: `local:inbox/...json` is an internal hint used by
+  // Bucket B/C TSVs to carry a URL source. After URL extraction, the Report
+  // field should display `—` in the tracker (no actual report written).
+  if (typeof addition.report === 'string' && addition.report.startsWith('local:inbox/')) {
+    addition.report = '—';
   }
 
   return addition;

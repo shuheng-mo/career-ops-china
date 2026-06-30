@@ -41,11 +41,14 @@ function runLarkCli(args, { timeoutMs = 30000 } = {}) {
     if (/unknown flag|unknown command|invalid argument/i.test(stderr)) {
       throw new Error(`lark-cli usage error (bug in bitable-backend):\n${stderr}`);
     }
-    if (/permission_violations|permission denied/i.test(stderr)) {
-      throw new Error(`lark-cli permission denied — missing scope.\n${stderr}`);
+    // Auth-before-permission: an expired/missing user token surfaces as
+    // need_user_authorization / token_missing and must route to re-login,
+    // not be misread as a scope problem.
+    if (/need_user_authorization|token_missing|token expired|invalid token|please login|unauthenticated|auth required|auth login/i.test(stderr)) {
+      throw new Error(`lark-cli auth failed — run \`lark-cli auth login\` to refresh the user token.\n${stderr}`);
     }
-    if (/token expired|invalid token|please login|unauthenticated|auth required/i.test(stderr)) {
-      throw new Error(`lark-cli auth failed — run \`lark-cli auth login\` to refresh.\n${stderr}`);
+    if (/permission_violations|permission denied|don't have permission|\b91403\b/i.test(stderr)) {
+      throw new Error(`lark-cli permission denied — missing scope (writes need user identity, base:record:create/update).\n${stderr}`);
     }
     throw new Error(`lark-cli error: ${stderr.trim() || e.message}`);
   }
@@ -178,6 +181,7 @@ export function create(cfg) {
         '--table-id', tableId,
         '--limit', String(LIMIT),
         '--offset', String(offset),
+        '--format', 'json',  // lark-cli >=1.0.48 defaults to markdown output; force JSON
       ]);
       const parsed = parseJsonOut(out);
       const data = parsed?.data || {};
@@ -233,6 +237,7 @@ export function create(cfg) {
 
       runLarkCli([
         'base', '+record-upsert',
+        '--as', 'user',  // writes require user identity; bot has read-only scope (91403 on write)
         '--base-token', appToken,
         '--table-id', tableId,
         '--json', payload,
@@ -259,6 +264,7 @@ export function create(cfg) {
       const fields = normalizedToFields(withClosed);
       runLarkCli([
         'base', '+record-upsert',
+        '--as', 'user',  // writes require user identity; bot has read-only scope (91403 on write)
         '--base-token', appToken,
         '--table-id', tableId,
         '--record-id', recordId,

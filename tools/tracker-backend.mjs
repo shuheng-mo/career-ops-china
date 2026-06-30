@@ -166,13 +166,42 @@ export function isTerminal(status) {
   return TERMINAL_STATES.has(status);
 }
 
+// Keep CJK letters + numbers; drop only whitespace/punctuation/symbols.
+// The old `[^a-z0-9]` stripped ALL Chinese, collapsing every CN company
+// name to "" (so all CN companies compared equal — see dedup bug).
 export function normalizeCompany(name) {
-  return (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return (name || '')
+    .toLowerCase()
+    .replace(/[\s　]+/g, '')          // whitespace incl. full-width space
+    .replace(/[^\p{L}\p{N}]/gu, '');  // keep all Unicode letters (incl. CJK) + numbers
 }
 
+// Matches both English (multi-word) and CJK (no-space) role titles.
+// NOTE: in dedup this only fires AFTER normalizeCompany matched, i.e. within
+// the SAME company — so a loose match here can at worst create a duplicate
+// (recoverable), never merge two different companies (data loss).
 export function roleFuzzyMatch(a, b) {
+  const norm = s => (s || '')
+    .toLowerCase()
+    .replace(/[\s　]+/g, '')
+    .replace(/[^\p{L}\p{N}]/gu, '');
+  const na = norm(a), nb = norm(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  // Substring containment: "数据工程师" vs "高级数据工程师", "X工程师" vs "X工程师(K12方向)"
+  if (na.includes(nb) || nb.includes(na)) return true;
+  // English titles: ≥2 shared words of length >3
   const wordsA = (a || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
   const wordsB = (b || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
   const overlap = wordsA.filter(w => wordsB.some(wb => wb.includes(w) || w.includes(wb)));
-  return overlap.length >= 2;
+  if (overlap.length >= 2) return true;
+  // CJK titles that aren't exact/substring: character-set Jaccard ≥ 0.7
+  if (/[一-鿿]/.test(na + nb)) {
+    const setA = new Set(na), setB = new Set(nb);
+    let inter = 0;
+    for (const c of setA) if (setB.has(c)) inter++;
+    const union = new Set([...na, ...nb]).size;
+    if (union > 0 && inter / union >= 0.7) return true;
+  }
+  return false;
 }

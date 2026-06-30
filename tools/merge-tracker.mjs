@@ -17,7 +17,7 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, renameSync, existsSync } from 'fs';
 import { join, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { readProfileTracker } from './tracker-backend.mjs';
+import { readProfileTracker, normalizeCompany, roleFuzzyMatch } from './tracker-backend.mjs';
 
 // fileURLToPath handles spaces in path correctly (vs .pathname which encodes them as %20)
 // Script lives in tools/; project root is one level up.
@@ -72,16 +72,8 @@ function validateStatus(status) {
   return 'Evaluated';
 }
 
-function normalizeCompany(name) {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-function roleFuzzyMatch(a, b) {
-  const wordsA = a.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-  const wordsB = b.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-  const overlap = wordsA.filter(w => wordsB.some(wb => wb.includes(w) || w.includes(wb)));
-  return overlap.length >= 2;
-}
+// normalizeCompany + roleFuzzyMatch imported from tracker-backend.mjs
+// (single source of truth; local copies removed — they had the CN-strip bug).
 
 function extractReportNum(reportStr) {
   const m = reportStr.match(/\[(\d+)\]/);

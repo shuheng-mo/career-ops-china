@@ -853,3 +853,11 @@ node tools/scan-helper.mjs <URL> [--mode=jd|list] [--wait=5000]
 ## License
 
 MIT — 见 [LICENSE](LICENSE)
+
+---
+
+## Star History
+
+如果这个项目对你的求职有帮助，欢迎点个 ⭐ —— 这是对持续维护最直接的鼓励。
+
+[![Star History Chart](https://api.star-history.com/svg?repos=shuheng-mo/career-ops-china&type=Date)](https://star-history.com/#shuheng-mo/career-ops-china&Date)

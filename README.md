@@ -861,4 +861,8 @@ MIT — 见 [LICENSE](LICENSE)
 如果这个项目对你的求职有帮助，欢迎点个 ⭐ —— 这是对持续维护最直接的鼓励。
 
 <!-- star-history:start -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/star-history/star-history-dark-20260711090343.svg">
+  <img alt="Star history" src="assets/star-history/star-history-light-20260711090343.svg">
+</picture>
 <!-- star-history:end -->

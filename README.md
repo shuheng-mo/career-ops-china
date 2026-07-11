@@ -860,6 +860,5 @@ MIT — 见 [LICENSE](LICENSE)
 
 如果这个项目对你的求职有帮助，欢迎点个 ⭐ —— 这是对持续维护最直接的鼓励。
 
-> **[直接查看 Star History 图表](https://star-history.com/#shuheng-mo/career-ops-china&Date)**
->
-> *star-history.com 的 SVG API 存在已知上游问题 [☆ #539](https://github.com/star-history/star-history/issues/539)，网站端正常渲染。已反馈，修复后恢复内嵌。*
+<!-- star-history:start -->
+<!-- star-history:end -->

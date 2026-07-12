@@ -862,7 +862,7 @@ MIT — 见 [LICENSE](LICENSE)
 
 <!-- star-history:start -->
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/star-history/star-history-dark-20260711090343.svg">
-  <img alt="Star history" src="assets/star-history/star-history-light-20260711090343.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/star-history/star-history-dark.svg">
+  <img alt="Star history" src="assets/star-history/star-history-light.svg">
 </picture>
 <!-- star-history:end -->

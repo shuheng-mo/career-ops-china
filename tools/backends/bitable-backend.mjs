@@ -23,19 +23,18 @@
  *  - Status value must be in pre-created single-select options
  */
 
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { normalizeCompany, roleFuzzyMatch, CANONICAL_STATES, isTerminal } from '../tracker-backend.mjs';
 
 // ---- low-level lark-cli bridge ----
 
 function runLarkCli(args, { timeoutMs = 30000 } = {}) {
-  // args is an array; use shell-escaped join for safety
-  const cmd = ['lark-cli', ...args].map(shellEscape).join(' ');
-  let stdout;
-  try {
-    stdout = execSync(cmd, { encoding: 'utf-8', timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'] });
-  } catch (e) {
-    const stderr = (e.stderr?.toString?.() || '') + (e.stdout?.toString?.() || '');
+  // Use spawnSync with an args array to avoid shell interpolation (no command injection)
+  const result = spawnSync('lark-cli', args, { encoding: 'utf-8', timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'] });
+  const stdout = result.stdout || '';
+  if (result.status !== 0 || result.error) {
+    const e = result.error || {};
+    const stderr = (result.stderr || '') + (e.message ? `\n${e.message}` : '');
     // Order matters: most-specific first. "auth" appears in CLI help text
     // for every command, so matching it naively misclassifies flag errors.
     if (/unknown flag|unknown command|invalid argument/i.test(stderr)) {
@@ -55,10 +54,6 @@ function runLarkCli(args, { timeoutMs = 30000 } = {}) {
   return stdout.trim();
 }
 
-function shellEscape(s) {
-  if (/^[A-Za-z0-9_\-.+=/:@,]+$/.test(s)) return s;
-  return `'${String(s).replace(/'/g, `'\\''`)}'`;
-}
 
 function parseJsonOut(stdout) {
   if (!stdout) return null;

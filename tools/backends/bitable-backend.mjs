@@ -23,19 +23,22 @@
  *  - Status value must be in pre-created single-select options
  */
 
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { normalizeCompany, roleFuzzyMatch, CANONICAL_STATES, isTerminal } from '../tracker-backend.mjs';
 
 // ---- low-level lark-cli bridge ----
 
 function runLarkCli(args, { timeoutMs = 30000 } = {}) {
-  // args is an array; use shell-escaped join for safety
-  const cmd = ['lark-cli', ...args].map(shellEscape).join(' ');
-  let stdout;
-  try {
-    stdout = execSync(cmd, { encoding: 'utf-8', timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'] });
-  } catch (e) {
-    const stderr = (e.stderr?.toString?.() || '') + (e.stdout?.toString?.() || '');
+  // spawnSync takes the args array directly — no shell interpolation, so no
+  // command injection via user-controlled args.
+  const result = spawnSync('lark-cli', args, { encoding: 'utf-8', timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'] });
+  const stdout = result.stdout || '';
+  if (result.status !== 0 || result.error) {
+    const e = result.error || {};
+    // Preserve BOTH stdout and stderr: lark-cli may surface API/auth errors on
+    // stdout rather than stderr, and dropping stdout would break the classifiers
+    // below (callers would get an empty/generic error instead of a specific one).
+    const stderr = (result.stderr || '') + (result.stdout || '') + (e.message ? `\n${e.message}` : '');
     // Order matters: most-specific first. "auth" appears in CLI help text
     // for every command, so matching it naively misclassifies flag errors.
     if (/unknown flag|unknown command|invalid argument/i.test(stderr)) {
@@ -53,11 +56,6 @@ function runLarkCli(args, { timeoutMs = 30000 } = {}) {
     throw new Error(`lark-cli error: ${stderr.trim() || e.message}`);
   }
   return stdout.trim();
-}
-
-function shellEscape(s) {
-  if (/^[A-Za-z0-9_\-.+=/:@,]+$/.test(s)) return s;
-  return `'${String(s).replace(/'/g, `'\\''`)}'`;
 }
 
 function parseJsonOut(stdout) {

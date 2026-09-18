@@ -44,7 +44,30 @@ function timestamp() {
   return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 }
 
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 60;
+const requestCounts = new Map();
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  const entry = requestCounts.get(ip) || { count: 0, start: now };
+  if (now - entry.start > RATE_LIMIT_WINDOW_MS) {
+    entry.count = 0;
+    entry.start = now;
+  }
+  entry.count += 1;
+  requestCounts.set(ip, entry);
+  return entry.count > RATE_LIMIT_MAX_REQUESTS;
+}
+
 const server = http.createServer((req, res) => {
+  req.setTimeout(10_000, () => req.destroy());
+
+  if (isRateLimited(req.socket.remoteAddress)) {
+    res.writeHead(429, { ...CORS, 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ ok: false, error: 'rate limit exceeded' }));
+  }
+
   if (req.method === 'OPTIONS') {
     res.writeHead(204, CORS);
     return res.end();
@@ -89,6 +112,8 @@ const server = http.createServer((req, res) => {
   res.writeHead(404, { ...CORS, 'Content-Type': 'text/plain' });
   res.end('not found');
 });
+
+server.maxConnections = 50;
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`JD Inbox Server listening on http://localhost:${PORT}`);

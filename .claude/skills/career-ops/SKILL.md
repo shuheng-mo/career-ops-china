@@ -2,7 +2,7 @@
 name: career-ops
 description: 中国大陆 AI 求职指挥中心 — 评估岗位、生成定制简历、扫描门户、追踪申请
 user_invocable: true
-argument-hint: "[JD截图/文本/URL] | scan | inbox | tracker | offer | offers | pdf | contact | deep | apply | pipeline | batch | training | project | story-sync"
+argument-hint: "[JD截图/文本/URL] | scan | radar | inbox | tracker | offer | offers | pdf | contact | deep | apply | pipeline | batch | training | project | story-sync"
 arguments: mode
 ---
 
@@ -29,6 +29,7 @@ arguments: mode
 | `pipeline` | `pipeline`（处理待办 URL inbox） |
 | `apply` | `apply`（实时表单填写助手） |
 | `scan` | `scan`（**线索发现**，仅 URL+标题，不取 JD） |
+| `radar` | `radar`（管理远程"求职线索雷达"定期 routine — 创建/查看/立即跑/改节奏）|
 | `inbox` | `inbox`（处理 bookmarklet 捕获的 JD 文件，自动评估）|
 | `story-sync` | `story-sync`（扫 reports/* 抽取 Block F，累积到 story-bank.md）|
 | `batch` | `batch`（批量处理） |
@@ -57,10 +58,12 @@ career-ops — 中国大陆求职指挥中心
 🎯 主路径：JD 截图 / 粘贴文本 / 公司+岗位 URL → 直接发给我 → 自动评估 + report + PDF + tracker
 
 ⚡ 子命令（/career-ops <name>）：
-  线索 & 批处理   scan       inbox      pipeline    batch
+  线索 & 批处理   scan       radar      inbox       pipeline    batch
   单岗位          offer      offers     pdf         contact     deep        apply
   追踪 & 沉淀     tracker    story-sync
   ROI 评估        training   project
+
+🛰️ radar：每 2 天云端自动扫上海/杭州 AI应用·Agent 新岗，出线索清单（/career-ops radar 管理）
 
 ⚠️ 国内 URL（Boss/拉勾/猎聘/Mokahr/飞书）90% 抓不到 JD → 截图最快
 🔖 bookmarklet：tools/README.md（一次安装，之后任意 JD 页一键 → inbox）
@@ -82,7 +85,7 @@ Applies to: `auto-pipeline`, `offer`, `offers`, `pdf`, `contact`, `apply`, `pipe
 ### Standalone modes (only their mode file):
 Read `modes/{mode}.md`
 
-Applies to: `tracker`, `deep`, `training`, `project`, `story-sync`
+Applies to: `tracker`, `deep`, `training`, `project`, `story-sync`, `radar`
 
 ### Modes delegated to subagent:
 For `scan`, `apply` (with Playwright), and `pipeline` (3+ URLs): launch as Agent with the content of `_shared.md` + `modes/{mode}.md` injected into the subagent prompt.

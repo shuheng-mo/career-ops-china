@@ -6,6 +6,8 @@
 data/applications.md
 data/pipeline.md
 data/scan-history.tsv
+data/radar-leads-*.md
+scratchpad-manifest.json
 reports/*.md
 !reports/.gitkeep
 outreach/*.md

@@ -13,7 +13,7 @@
 > - **预置 50+ 公司**：12 家一线互联网大厂 + 8 家大模型独角兽 + 数据创业 + AI Infra
 > - **触达模式** 从 LinkedIn 改为 脉脉 + 微信 双轨
 > - **CV 模板** 加入中文字体回退（PingFang SC / Microsoft YaHei / Noto Sans SC）
-> - **硬红线机制** 直接 SKIP 不接受的公司类型（用户可定义如华为/外包/大小周），含 **HR 派遣公司识别**（人瑞 / 中智 / FESCO / 外企德科 / 万宝盛华 / 科锐国际 等）
+> - **硬红线机制** 直接 SKIP 不接受的公司类型（用户可定义，如前雇主 / 外包 / 大小周），含 **HR 派遣公司识别**（人瑞 / 中智 / FESCO / 外企德科 / 万宝盛华 / 科锐国际 等）
 > - **大厂职级对标** 加入阿里 P / 字节 / 腾讯 T / 美团 L 等职级映射表
 >
 > 原版 [`santifer/career-ops`](https://github.com/santifer/career-ops) 在 MIT License 下保留所有版权 — 见 [LICENSE](LICENSE)。
@@ -307,7 +307,7 @@ Claude（2026-04 重定位后）：
 2. 跑 portals.yml 里 enabled 的 search_queries 发现 URL（不尝试取 JD 内容）
 3. Playwright 抓 tracked_companies 的 careers 列表页（仅标题 + URL）
 4. 按 title_filter 过滤
-5. 按 deal_breakers 过滤（华为/外包/大小周/HR 派遣公司直接 SKIP）
+5. 按 deal_breakers 过滤（前雇主 / 外包 / 大小周 / HR 派遣公司直接 SKIP）
 6. 三重去重（scan-history / applications / pipeline）
 7. 写新发现的岗位到 data/pipeline.md（带优先级 P1/P2/P3 + [!] 标记取 JD 方式）
 8. 显示汇总 + 明确提示"下一步请用 bookmarklet 或截图取每个 JD"

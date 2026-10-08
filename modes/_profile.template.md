@@ -40,7 +40,7 @@
 
 | 如果岗位是… | 强调候选人身上的… | proof points 来源 |
 |------------|------------------|------------------|
-| 数据工程师 | NL2SQL/ChatBI 端到端、数据治理 + LLM、Elytra Agent SQL、华为 92% 准确率 | article-digest.md + cv.md |
+| 数据工程师 | NL2SQL/ChatBI 端到端、数据治理 + LLM、[你的相关项目 + 量化成果] | article-digest.md + cv.md |
 | 数据治理（带 LLM）| 元数据/血缘 + NL2SQL 闭环、跨部门推动、数据资产 → LLM 落地 | article-digest.md + cv.md |
 | 大模型应用工程师 | 端到端 RAG/Agent、Eval（173/173 tests + 14 case 量化）、Observability、多模型路由、SELECT-only 安全 | cv.md + article-digest.md |
 

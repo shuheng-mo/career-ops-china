@@ -12,8 +12,8 @@
 3. **对每个 JSON 提取元信息**（title / company / real_company via HR 反推 / salary / location / deal-breaker flag）
 4. **分类到 4 个桶**：
    - **A. 完整评估**：用户确认处理的高优先级
-   - **B. 批量 Discarded**：title 过关但用户决定不做完整评估（P3 低优 / "华为"误报 / 其他 keep 类）
-   - **C. SKIP（Deal-breaker）**：真派遣 / 真华为系 / 明确命中候选人 deal-breaker
+   - **B. 批量 Discarded**：title 过关但用户决定不做完整评估（P3 低优 / deal-breaker 公司误报 / 其他 keep 类）
+   - **C. SKIP（Deal-breaker）**：真派遣 / 真命中 deal-breaker 公司系 / 明确命中候选人 deal-breaker
    - **D. Title-skip**：title 过滤不过关（AI 产品经理 / 数据分析师 / 应届实习 等）
 
 ### Phase 1 — 交互式确认（Token 控制）

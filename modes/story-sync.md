@@ -40,7 +40,7 @@ Agent(
 1. `ls reports/*.md | sort` → 所有已生成的 report
 2. `ls interview-prep/mock-interviews/*.md | sort` → 所有 mock interview 备战笔记（gitignored，本地专属）
 3. `Read interview-prep/story-bank.md` → 看已有的 master story（找 `## Stories` 段）
-4. **tracker # 交叉索引：** 从 mock-interviews/*.md 文件名头 3 位数字（`061-freebeat-round2-...` → tracker #61）对齐到 `data/applications.md` 第 # 列，拿到 company/role，再定位对应的 `reports/{report#}-{slug}-*.md`
+4. **tracker # 交叉索引：** 从 mock-interviews/*.md 文件名头 3 位数字（`061-{company-slug}-round2-...` → tracker #61）对齐到 `data/applications.md` 第 # 列，拿到 company/role，再定位对应的 `reports/{report#}-{slug}-*.md`
 
 ### Step 2 — 问候选人：增量 or 重建
 
@@ -66,17 +66,17 @@ Agent(
    ```markdown
    | # | JD 要求 | 故事 | S | T | A | R | Reflection |
    |---|--------|------|---|---|---|---|-----------|
-   | 1 | 大模型工程落地 | DBGPT 改造 | 华为需要降低查询成本 | 主导改造 | 重构 + SFT + 召回 | 准确率 92% | 微调数据质量比模型选型重要 |
+   | 1 | 大模型工程落地 | [项目名] | [业务背景] | [你的角色] | [关键动作] | [量化结果] | [你学到的] |
    ```
 
    **格式 B（列表 — 较新 report）：**
    ```markdown
-   ### 1. DBGPT 改造 → 92% 准确率
+   ### 1. [项目名] → [标志性指标]
    - **Theme:** 大模型应用
-   - **S:** 华为无线产品线...
-   - **T:** 主导 DBGPT 改造...
-   - **A:** 重构数据库连接 + SFT + Rerank...
-   - **R:** 准确率 92%，提效 60%...
+   - **S:** [业务背景 / 痛点]...
+   - **T:** [你负责什么]...
+   - **A:** [具体做了哪几件事]...
+   - **R:** [量化结果]...
    - **Reflection:** 微调数据质量比模型选型重要
    - **Best for:** 个人项目 / LLM 工程化 / 数据质量
    ```
@@ -87,12 +87,12 @@ Agent(
    ```json
    {
      "source_type": "report",
-     "source_file": "001-kuaishou-llm-fintech-2026-04-07.md",
-     "source_company": "快手",
-     "source_role": "大模型应用开发工程师（金融支付）",
+     "source_file": "001-{company-slug}-{role-slug}-{date}.md",
+     "source_company": "[公司名]",
+     "source_role": "[岗位名]",
      "theme_tags": ["LLM应用", "SFT", "工程落地"],
-     "story_title": "DBGPT 改造 → 92% 准确率",
-     "canonical_key": "dbgpt",  // 用于跨 report 去重
+     "story_title": "[项目名] → [标志性指标]",
+     "canonical_key": "{{项目 slug}}",  // 用于跨 report 去重
      "S": "...", "T": "...", "A": "...", "R": "...",
      "Reflection": "...",
      "best_for": ["个人项目", "LLM 工程化", "数据质量"]
@@ -108,7 +108,7 @@ Agent(
 
    | 内容类型 | 识别信号 | 贡献到 story-bank |
    |---------|---------|------------------|
-   | **Refined 故事段落**（如"Elytra 代码 blind recall"、"架构 trade-off"）| 出现 canonical_key 的关键词（Elytra / DBGPT / Moss / ACCESS / Kaggle）| 更新对应 master story 的 S/T/A/R（取字数更长或更新近的版本） |
+   | **Refined 故事段落**（如"某项目的代码 blind recall"、"架构 trade-off"）| 命中 `_profile.md` 中任一 canonical_key 的识别关键词 | 更新对应 master story 的 S/T/A/R（取字数更长或更新近的版本） |
    | **新的 Reflection / 踩坑心得** | "为什么 / 如果改 X 会 / 踩过 / 教训" 等问答对 | 追加到对应 story 的 `Reflection` 段，标签 `from mock prep (Round N · tracker #NN · YYYY-MM-DD)` |
    | **真实 Q&A（架构题 / 场景题 / 代码题）** | "问：... / 答：..." 或 trade-off 表格 | 加入新段 `## 实战 Q&A 清单` 按 canonical_key 分组 |
    | **文化深聊 / 红线问题话术** | "能接受 996 吗 / 为什么离职 / 期望薪资" 等 | 更新 `## 红线问题应对` 表（合并新话术）|
@@ -118,16 +118,16 @@ Agent(
    ```json
    {
      "source_type": "mock",
-     "source_file": "061-freebeat-round2-prep-2026-04-20.md",
-     "tracker_num": 61,
-     "company": "freebeat.ai",
+     "source_file": "0NN-{company-slug}-round2-prep-{date}.md",
+     "tracker_num": NN,
+     "company": "{公司名}",
      "round": "round2",
      "date": "2026-04-20",
      "contributions": [
-       {"type": "refined_story", "canonical_key": "elytra", "field": "A", "new_text": "..."},
-       {"type": "reflection_add", "canonical_key": "elytra", "lesson": "retry budget 3 的选择是经验值..."},
-       {"type": "real_qa", "canonical_key": "elytra", "question": "...", "answer": "..."},
-       {"type": "code_skeleton", "canonical_key": "elytra", "title": "LangGraph 8 节点状态机", "code": "..."},
+       {"type": "refined_story", "canonical_key": "{{key}}", "field": "A", "new_text": "..."},
+       {"type": "reflection_add", "canonical_key": "{{key}}", "lesson": "..."},
+       {"type": "real_qa", "canonical_key": "{{key}}", "question": "...", "answer": "..."},
+       {"type": "code_skeleton", "canonical_key": "{{key}}", "title": "...", "code": "..."},
        {"type": "red_line", "issue": "期望薪资", "answer_template": "..."}
      ]
    }
@@ -137,15 +137,14 @@ Agent(
 
 候选人的故事库**不是** 13 份 report × 7 故事 = 91 条流水账，而是 **5-10 个 master story 被多次复用**。去重 key：
 
+**canonical_key 表从 `modes/_profile.md` 的「Story Bank canonical keys」段读取**（那个文件 gitignored，放你自己的真实项目名和指标）。表的形状：
+
 | canonical_key | 识别关键词 | 预期出现在 |
 |---------------|----------|----------|
-| `elytra` | "Elytra", "Agentic SQL", "Hybrid Schema Retrieval", "Self-Correcting", "Multi-Model Routing" | 几乎每份 LLM / Agent 报告 |
-| `dbgpt` | "DBGPT", "DB-GPT", "NL2SQL", "Spider 数据集", "DBGPT_HUB", "92%" | 几乎每份 LLM 报告 |
-| `moss` | "Moss", "小苔藓", "5G AW", "faiss", "Milvus", "S3 向量索引", "70%" | RAG / 知识检索类 |
-| `access` | "ACCESS", "PBAC", "权限", "SpringBoot", "iAuth", "60% 审批提速" | 后端 / 架构类 |
-| `kaggle` | "Kaggle", "OTTO", "推荐系统", "银牌", "前 3%" | 推荐 / 数据科学类 |
-| `cross_team` | "跨部门", "AAS", "MARP", "5G AW", "推动落地" | 协作 / Leadership 类 |
-| `eval_methodology` | "Eval 体系", "Spider 测试集", "评估集", "数据驱动迭代" | Agent / LLM Eval 类 |
+| `{{项目 slug}}` | 该项目的专有名词、技术栈、标志性指标数字 | 哪类 JD 的报告里会出现 |
+
+一般 5-10 个 key 就够：2-3 个个人项目 + 2-3 个工作项目 + 1-2 个竞赛/开源 + 跨部门协作 + 方法论。
+**没有 `_profile.md` 或该段为空** → 先扫 `reports/*.md` 的 Block F 自动归纳出候选 key，列给用户确认后写进 `_profile.md`，再继续。
 
 **合并规则：** 同 `canonical_key` 的多个 candidate 合并为一个 master：
 - **S/T/A/R 文本：** 优先级 **mock（实战） > report（冷生成）**。若 mock 版本存在且字数 ≥ report 版本的 70% → 采用 mock 版本；否则仍按最详细原则
@@ -158,18 +157,20 @@ Agent(
 
 主题桶（按国内面试高频行为题）：
 
+「适用故事」列填 canonical_key，映射关系从 `modes/_profile.md` 的「主题桶 → 适用故事」表读取。高频问题映射是通用的：
+
 | 主题 | 适用故事 | 高频问题映射 |
 |------|---------|------------|
-| **个人项目 / Ownership** | Elytra | "最自豪的项目" / "独立负责过什么" / "业余时间在做什么" |
-| **大模型应用落地** | DBGPT / Moss / Elytra | "LLM 工程化" / "从 demo 到生产" / "Eval" / "RAG 踩坑" |
-| **RAG / 知识检索** | Moss / DBGPT | "向量检索经验" / "召回优化" / "embedding 选型" |
-| **Agent / 多步推理** | Elytra | "Agent 架构" / "工具调用" / "自纠错" |
-| **SFT / 模型训练** | DBGPT | "微调经验" / "数据构造" / "小模型 vs 大模型" |
-| **数据工程 / 数仓** | DBGPT（数据侧）/ Moss（数据整合） | "ETL 经验" / "大规模数据处理" |
-| **后端工程 / 架构** | ACCESS / Moss（接口设计） | "复杂系统重构" / "高并发" / "性能优化" |
-| **数据科学 / 推荐** | Kaggle OTTO | "推荐系统经验" / "AB 实验" / "模型上线" |
-| **跨部门协作 / Leadership** | Moss（5G AW 对接）/ ACCESS（跨团队）| "如何推动项目" / "跨团队冲突" / "影响他人" |
-| **Eval / 方法论** | Elytra / DBGPT | "如何判断模型好坏" / "评估体系设计" |
+| **个人项目 / Ownership** | `{{key}}` | "最自豪的项目" / "独立负责过什么" / "业余时间在做什么" |
+| **大模型应用落地** | `{{key}}` | "LLM 工程化" / "从 demo 到生产" / "Eval" / "RAG 踩坑" |
+| **RAG / 知识检索** | `{{key}}` | "向量检索经验" / "召回优化" / "embedding 选型" |
+| **Agent / 多步推理** | `{{key}}` | "Agent 架构" / "工具调用" / "自纠错" |
+| **SFT / 模型训练** | `{{key}}` | "微调经验" / "数据构造" / "小模型 vs 大模型" |
+| **数据工程 / 数仓** | `{{key}}` | "ETL 经验" / "大规模数据处理" |
+| **后端工程 / 架构** | `{{key}}` | "复杂系统重构" / "高并发" / "性能优化" |
+| **数据科学 / 推荐** | `{{key}}` | "推荐系统经验" / "AB 实验" / "模型上线" |
+| **跨部门协作 / Leadership** | `{{key}}` | "如何推动项目" / "跨团队冲突" / "影响他人" |
+| **Eval / 方法论** | `{{key}}` | "如何判断模型好坏" / "评估体系设计" |
 | **离职 / 转方向叙事** | （从 profile.yml 读，不是 STAR） | "为什么离开上家" / "为什么转大模型" |
 | **红线问题应对** | （话术，不是 STAR） | "996 接受吗 / 婚育计划 / 频繁跳槽" |
 
@@ -190,16 +191,18 @@ Agent(
 
 ## 主题快速导航
 
-- **个人项目 / Ownership** → [Elytra](#elytra)
-- **大模型应用落地** → [Elytra](#elytra), [DBGPT](#dbgpt), [Moss](#moss)
-- **RAG / 知识检索** → [Moss](#moss), [DBGPT](#dbgpt)
-- **Agent / 多步推理** → [Elytra](#elytra)
-- **SFT / 微调** → [DBGPT](#dbgpt)
-- **数据工程 / 数仓** → [DBGPT](#dbgpt), [Moss](#moss)
-- **后端 / 架构** → [ACCESS](#access)
-- **数据科学 / 推荐** → [Kaggle OTTO](#kaggle)
-- **跨部门协作** → [Moss](#moss), [ACCESS](#access)
-- **Eval / 方法论** → [Elytra](#elytra), [DBGPT](#dbgpt)
+每个主题指向对应 canonical_key 的锚点，按 `modes/_profile.md` 的主题桶表生成：
+
+- **个人项目 / Ownership** → `[{{key}}](#{{key}})`
+- **大模型应用落地** → `[{{key}}](#{{key}})`, ...
+- **RAG / 知识检索** → `[{{key}}](#{{key}})`, ...
+- **Agent / 多步推理** → `[{{key}}](#{{key}})`
+- **SFT / 微调** → `[{{key}}](#{{key}})`
+- **数据工程 / 数仓** → `[{{key}}](#{{key}})`
+- **后端 / 架构** → `[{{key}}](#{{key}})`
+- **数据科学 / 推荐** → `[{{key}}](#{{key}})`
+- **跨部门协作** → `[{{key}}](#{{key}})`
+- **Eval / 方法论** → `[{{key}}](#{{key}})`
 - **离职 / 转方向叙事** → [narrative](#narrative)
 - **红线问题** → [red-lines](#red-lines)
 
@@ -209,42 +212,40 @@ Agent(
 
 | 面试问题 | 推荐组合 |
 |---------|---------|
-| "自我介绍" | Elytra（个人项目破冰）→ DBGPT（上个工作主线）→ Moss（深度证据） — 3 min 版本 |
-| "最有成就感的项目" | **Elytra**（独立设计 + 技术前沿 + 持续打磨）|
-| "讲一次失败 / 改进" | DBGPT Reflection（微调数据 > 模型选型）或 Moss（召回必须加 rerank）|
-| "跨部门冲突" | Moss 对接 5G AW / AAS / MARP 多团队协调 |
-| "为什么离职" | narrative.exit_story — OD 身份限制 + 想转大模型主线 |
+| "自我介绍" | `{{个人项目 key}}`（破冰）→ `{{上个工作主线 key}}` → `{{深度证据 key}}` — 3 min 版本 |
+| "最有成就感的项目" | **`{{最强个人项目 key}}`**（独立设计 + 技术前沿 + 持续打磨）|
+| "讲一次失败 / 改进" | 带最有洞察的 Reflection 的那个 key |
+| "跨部门冲突" | `cross_team` key（多团队协调那段经历）|
+| "为什么离职" | narrative.exit_story（从 `config/profile.yml` 读）|
 
 ---
 
 ## Stories
 
-### <a id="elytra"></a>[LLM 应用 · Agent · Eval · 个人项目] Elytra — Agentic SQL Generation
+### <a id="{{key}}"></a>[LLM 应用 · Agent · Eval · 个人项目] {{项目名}} — {{一句话定位}}
 
-**Sources — Reports:** #001 (快手 LLM 应用), #003 (DeepSeek Agent 数据策略), #005 (DeepSeek 全栈), #006 (蚂蚁 Harness Agent)...  
-**Sources — Mock Interviews:** #61 Round2 (freebeat.ai, 2026-04-20)  
-**Theme tags:** LLM应用, Agent, Eval, 个人项目, Ownership, 前沿探索  
-**Canonical key:** `elytra`
+**Sources — Reports:** #NNN ({公司} {岗位方向}), #NNN (...), ...  
+**Sources — Mock Interviews:** #NN RoundN ({公司}, {date})  
+**Theme tags:** {所有出现过的 tags 并集}  
+**Canonical key:** `{{key}}`
 
 **S (Situation):** {若 Mock 有更新版本用 Mock；否则取最详细 report 版本}
 
 **T (Task):** {同上}
 
-**A (Action):** {同上，重点写 Hybrid Schema Retrieval + Self-Correcting + Multi-Model Routing 三个模块}
+**A (Action):** {同上，重点写该项目 2-3 个最硬的技术模块}
 
 **R (Result):** {如有数据就写，没有就写"持续打磨中，README/架构图公开"}
 
 **Reflection（按来源分别列出）：**
-- *From Report #001 (快手):* 单一模型 + 单次生成必然不够，必须做 Agent 化反馈闭环
-- *From Report #003 (DeepSeek Agent Eval):* Eval 是 LLM 应用最大杠杆 — Self-Correcting 本质是把 eval 嵌到 inference
-- *From Report #006 (蚂蚁):* 好的个人项目要经得起推翻重来 ≥2 次
-- *From Mock #61 Round2 (freebeat.ai, 2026-04-20):* retry budget 3 是经验值，5 过高会累加幻觉导致发散；面试官会追问"为什么是 3" — 答"基于 HumanEval 实验，n=3 时正确率收敛 95%，n=5 只涨 1.5% 但成本翻倍"
+- *From Report #NNN ({公司}):* {那份报告里提炼的心得}
+- *From Mock #NN RoundN ({公司}, {date}):* {实战打磨过的更深版本 —— 通常含面试官的追问和你的答法}
 
-**Best for questions about:** 最有成就感的项目 / 个人时间在做什么 / Agent 架构 / Eval 体系 / 大模型应用前沿 / Ownership / 持续学习 / retry 策略 / trade-off 设计
+**Best for questions about:** {该 story 适配的问题清单，所有来源的并集}
 
 ---
 
-### <a id="dbgpt"></a>[LLM 应用 · SFT · RAG · 数据工程] DBGPT 改造 — NL2SQL 工程化
+### <a id="{{key-2}}"></a>[{主题标签}] {{项目名 2}} — {{一句话定位}}
 
 {... 同样结构 ...}
 
@@ -258,20 +259,16 @@ Agent(
 
 **来源：** `interview-prep/mock-interviews/*.md`（gitignored，本地专属实战打磨）。每条记录**真实被问过或高概率被问**的问题 + 打磨过的答案。按 canonical_key 索引。
 
-### [elytra] Elytra Agent 相关
+### [{{key}}] {{项目名}} 相关
 
-- **Q（Mock #61 Round2, 2026-04-20）：** retry budget 为什么是 3？改 5 会怎样？
-  **A：** 经验值 — HumanEval 实验 n=3 时正确率收敛 95%，n=5 只涨 1.5% 但成本翻倍；且多轮容易幻觉累积，反而降低准确率
-- **Q：** {其他从 mock 抽出来的真实问题}
-  **A：** {对应答案}
+- **Q（Mock #NN RoundN, {date}）：** {真实被问过的问题}
+  **A：** {打磨过的答案 —— 带数据和 trade-off 理由，不要空话}
+- **Q：** {下一个}
+  **A：** {...}
 
-### [dbgpt] DBGPT 改造相关
+### [{{key-2}}] {{项目名 2}} 相关
 
 {...同上结构...}
-
-### [moss] Moss RAG 相关
-
-{...}
 
 ---
 
@@ -279,19 +276,13 @@ Agent(
 
 **来源：** `interview-prep/mock-interviews/*.md` 中的 "blind recall" / "白板写" 段落。每条 ≤ 20 行，面试前 1 晚复习。
 
-### [elytra] LangGraph 8 节点状态机定义（Mock #61 Round2）
+### [{{key}}] {{要能白板写出来的那个核心结构}}（Mock #NN RoundN）
 
 ```python
 {从 mock 文件抽取的代码骨架 ≤20 行}
 ```
 
-### [elytra] Self-Correcting retry 循环
-
-```python
-{...}
-```
-
-### [elytra] Hybrid Retrieval 归一化 + 加权融合
+### [{{key}}] {{第二个}}
 
 ```python
 {...}
@@ -302,9 +293,9 @@ Agent(
 ## <a id="narrative"></a>Narrative — 转方向叙事（非 STAR，但面试必问）
 
 **问题模板：**
-- 「为什么从华为离职？」
-- 「为什么从数据治理转大模型？」
-- 「gap 8 个月在做什么？」
+- 「为什么从上家离职？」
+- 「为什么从 {原方向} 转 {目标方向}？」
+- 「gap 这段在做什么？」
 
 **标准答话（从 `config/profile.yml → narrative.exit_story` 生成）：**
 
@@ -355,12 +346,12 @@ Story Bank 同步完成 — {YYYY-MM-DD}
 分组主题：T 个
 
 Master stories:
-  1. Elytra (个人项目 · Agent · Eval)
-     — Reports: 4 份 / Mock: 1 份（#61 Round2 freebeat）
-  2. DBGPT (LLM 应用 · SFT)
-     — Reports: 8 份 / Mock: 0 份
-  3. Moss (RAG · 知识检索)
-     — Reports: 5 份 / Mock: 0 份
+  1. {{key}} (主题标签)
+     — Reports: N 份 / Mock: N 份（#NN RoundN {公司}）
+  2. {{key-2}} (主题标签)
+     — Reports: N 份 / Mock: N 份
+  3. {{key-3}} (主题标签)
+     — Reports: N 份 / Mock: N 份
   ...
 
 Mock-only contributions（不对应任何 master story 的独立素材）:
@@ -384,7 +375,7 @@ Mock-only contributions（不对应任何 master story 的独立素材）:
 
 ### 永远不要
 1. 覆盖用户手动加的段（用 `<!-- MANUAL START -->` / `<!-- MANUAL END -->` 识别）
-2. 重复录入同一个 canonical_key 的故事（去重失败会产生 5 个"Elytra" 条目）
+2. 重复录入同一个 canonical_key 的故事（去重失败会产生 5 个同名条目）
 3. 编造不存在于 source 中的 STAR 字段（如果原 report/mock 的 A 段写得短，就保留短的，不要脑补）
 4. 删除 narrative / red-lines 等非 STAR 段 — 这些是从 profile.yml 来的，不受 source 变化影响
 5. **把 mock-interview 的内容回流到 `reports/*.md`** — reports 已 commit 到 git，不要把候选人专属细节（薪资底牌、对家 offer、实时面试官原话）写回 reports；这类信息只保留在 story-bank.md（gitignored）和 mock-interviews/（gitignored）

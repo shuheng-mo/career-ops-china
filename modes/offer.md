@@ -22,7 +22,7 @@ Archetype 决定：
 1. **真实门槛硬筛**：JD 命中 `target_pool.md` 中 Tier D 触发关键词 → **立刻 SKIP**，不浪费 token
 2. **Tier 归类**（写入 report 头）：对照 `target_pool.md` 的 Tier A/B/C/D 清单 + 画像反推
 3. Tier A/B → 正常进 Block A-F
-4. Tier C → 进 A-F 但标注"延后投递"
+4. Tier C → 进 A-F；综评 ≥ 4.0 才进投递候选，< 4.0 标 SKIP（2026-10-08 规则，不再用"延后投递"）
 5. Tier D → SKIP，写一句理由
 
 ## Block A — 角色摘要

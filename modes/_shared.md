@@ -51,7 +51,8 @@
 
 4. **Tier 处理**：
    - Tier A/B → 进 Block A-F 全评估
-   - Tier C → 给"延后投递"建议
+   - Tier C → 进 Block A-F 全评估；**综评 ≥ 4.0 才进投递候选，< 4.0 给 SKIP**
+     （2026-10-08 起生效：Tier C 从"8 月底前延后"改为"按分数放行"，见 `config/target_pool.md` Tier C 段）
    - Tier D → SKIP，写一句"不在真实可达池"理由
 
 ---

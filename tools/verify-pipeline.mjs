@@ -17,6 +17,10 @@
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+// Shared normalizers — these keep CJK codepoints. A local `[^a-z0-9]` strip
+// erased every Chinese character, collapsing all CJK-named rows into one key
+// and reporting them as duplicates of each other.
+import { normalizeCompany, roleFuzzyMatch } from './tracker-backend.mjs';
 
 // fileURLToPath handles spaces in path correctly (vs .pathname which encodes them as %20)
 // Script lives in tools/; project root is one level up.
@@ -65,17 +69,45 @@ if (!existsSync(APPS_FILE)) {
 const content = readFileSync(APPS_FILE, 'utf-8');
 const lines = content.split('\n');
 
+// Column layout is NOT fixed: the md backend writes 9 columns while the Bitable
+// export writes 11 (URL and Closed At added). Hardcoding indices made every
+// report-link check read the URL column instead. Derive indices from the header.
+const LEGACY_COLS = { '#': 1, date: 2, company: 3, role: 4, score: 5, status: 6, pdf: 7, report: 8, notes: 9 };
+
+function findColumnMap(allLines) {
+  for (const line of allLines) {
+    if (!line.startsWith('|')) continue;
+    const parts = line.split('|').map(s => s.trim().toLowerCase());
+    // Header = the row naming the core columns; everything else is data or separator.
+    if (!parts.includes('company') || !parts.includes('status')) continue;
+    const map = {};
+    parts.forEach((name, i) => { if (name) map[name] = i; });
+    return map;
+  }
+  return null;
+}
+
+const cols = findColumnMap(lines) || LEGACY_COLS;
+const expectedCols = Object.keys(cols).length;
+const col = (parts, name) => (cols[name] !== undefined ? (parts[cols[name]] ?? '') : '');
+
 const entries = [];
 for (const line of lines) {
   if (!line.startsWith('|')) continue;
   const parts = line.split('|').map(s => s.trim());
-  if (parts.length < 9) continue;
-  const num = parseInt(parts[1]);
+  const num = parseInt(col(parts, '#'));
   if (isNaN(num)) continue;
   entries.push({
-    num, date: parts[2], company: parts[3], role: parts[4],
-    score: parts[5], status: parts[6], pdf: parts[7], report: parts[8],
-    notes: parts[9] || '',
+    num,
+    date: col(parts, 'date'),
+    company: col(parts, 'company'),
+    role: col(parts, 'role'),
+    score: col(parts, 'score'),
+    status: col(parts, 'status'),
+    pdf: col(parts, 'pdf'),
+    url: col(parts, 'url'),
+    report: col(parts, 'report'),
+    notes: col(parts, 'notes'),
   });
 }
 
@@ -108,18 +140,27 @@ for (const e of entries) {
 if (badStatuses === 0) ok('All statuses are canonical');
 
 // --- Check 2: Duplicates ---
-const companyRoleMap = new Map();
+// Group by normalized company, then compare roles within the group — same
+// two-stage rule the tracker backend uses when deciding whether a row exists.
+const byCompany = new Map();
 let dupes = 0;
 for (const e of entries) {
-  const key = e.company.toLowerCase().replace(/[^a-z0-9]/g, '') + '::' +
-    e.role.toLowerCase().replace(/[^a-z0-9 ]/g, '');
-  if (!companyRoleMap.has(key)) companyRoleMap.set(key, []);
-  companyRoleMap.get(key).push(e);
+  const key = normalizeCompany(e.company);
+  if (!key) continue;  // header/separator leftovers and the empty #0 record
+  if (!byCompany.has(key)) byCompany.set(key, []);
+  byCompany.get(key).push(e);
 }
-for (const [key, group] of companyRoleMap) {
-  if (group.length > 1) {
-    warn(`Possible duplicates: ${group.map(e => `#${e.num}`).join(', ')} (${group[0].company} — ${group[0].role})`);
-    dupes++;
+for (const group of byCompany.values()) {
+  const seen = [];
+  for (const e of group) {
+    const hit = seen.find(g => roleFuzzyMatch(g[0].role, e.role));
+    if (hit) hit.push(e); else seen.push([e]);
+  }
+  for (const g of seen) {
+    if (g.length > 1) {
+      warn(`Possible duplicates: ${g.map(e => `#${e.num}`).join(', ')} (${g[0].company} — ${g[0].role})`);
+      dupes++;
+    }
   }
 }
 if (dupes === 0) ok('No exact duplicates found');
@@ -152,10 +193,10 @@ if (badScores === 0) ok('All scores valid');
 let badRows = 0;
 for (const line of lines) {
   if (!line.startsWith('|')) continue;
-  if (line.includes('---') || line.includes('Empresa')) continue;
+  if (/^\|[\s|:-]+\|$/.test(line) || line.includes('Empresa')) continue;
   const parts = line.split('|');
-  if (parts.length < 9) {
-    error(`Row with <9 columns: ${line.substring(0, 80)}...`);
+  if (parts.length < expectedCols) {
+    error(`Row with <${expectedCols} columns: ${line.substring(0, 80)}...`);
     badRows++;
   }
 }

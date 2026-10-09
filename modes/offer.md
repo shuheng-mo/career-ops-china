@@ -2,28 +2,46 @@
 
 候选人贴一个职位（文本或 URL）时，**必须按顺序输出 A-F 六个 block**。
 
-## Step 0 — Archetype 检测 + Tier 归类（评估前置，必须先于 Block A）
+## Step 0 — Track 归类 + Tier 归类（评估前置，必须先于 Block A）
 
-### 0.1 读 Archetype
+### 0.1 定 Track
 
-读 `modes/_profile.md` 的核心 Archetypes 表，把岗位归类到候选人的核心 archetype 之一（混合型标最近的 2 个）。
+读 `modes/_profile.md` 的 **Track 表**。两步交叉：
 
-Archetype 决定：
-- Block B 优先突出哪些 proof points（见 `_profile.md` 的自适应包装表）
-- Block E 怎么改写 summary
-- Block F 准备哪种 STAR 故事
+1. **domain** — 这家公司/这个岗位是汽车、智驾、Tier1 供应商吗？
+2. **archetype** — 核心职责落在哪条技能轴（AI 应用/Agent · 数据闭环/数据平台 · 感知/规控算法 · 数据工程 bridge · 数据治理 bridge）
+
+交叉查表得到 track_id，6 个合法值：`ai-app` / `ai-app-auto` / `auto-data` / `auto-algo` / `ai-data-bridge` / `ai-gov-bridge`。混合型标最近的一个并在 Block A 说明理由。
+
+**Track 决定四件事：**
+- **CV 选源** — `ai-app` 系用 `cv.md`，汽车系用 `cv-auto.md`（缺失则回落并标注）
+- **北极星对齐度的评分上限** — 按 `fit`：primary 5.0 / secondary 4.0 / bridge 3.5
+- **投递闸门** — 见 `modes/_shared.md` 的闸门表（汽车轨要更高分）
+- Block B 的 proof point 优先级、Block E 的 summary 改写、Block F 的 STAR 选材（见 `_profile.md` 的「按 Track 自适应包装」表）
+
+⚠️ `auto-data` **只在车企/智驾场景成立**。判据是「这份数据工作是不是服务于智驾/车端」，不是「JD 里有没有数据字样」。普通互联网数仓/数据分析岗仍按 deal_breakers SKIP。
 
 ### 0.2 Tier 硬筛
 
 `_profile.md` 中标记为"已弃用"的 archetype，JD 命中且与核心 archetype 无强重叠 → 直接 SKIP。
+⚠️ **先看那张表右列的「汽车轨例外」** —— 「后端工程师」「AI Infra」「纯数仓」这三条对汽车轨有例外，不加判断就 SKIP 会把整条汽车轨毙掉。
 
 对未跳过的岗位，按 `modes/_shared.md` 的 Tier 检测规则执行（对照 `config/target_pool.md`）：
 
 1. **真实门槛硬筛**：JD 命中 `target_pool.md` 中 Tier D 触发关键词 → **立刻 SKIP**，不浪费 token
 2. **Tier 归类**（写入 report 头）：对照 `target_pool.md` 的 Tier A/B/C/D 清单 + 画像反推
-3. Tier A/B → 正常进 Block A-F
-4. Tier C → 进 A-F；综评 ≥ 4.0 才进投递候选，< 4.0 标 SKIP（2026-10-08 规则，不再用"延后投递"）
-5. Tier D → SKIP，写一句理由
+3. Tier A/B/C → 进 Block A-F 全评估，然后查 `_shared.md` 的**投递闸门表**（`fit` × Tier）
+4. Tier D → SKIP，写一句理由
+
+### 0.3 证据闸门（仅 track = `auto-algo`）
+
+完整规则见 `modes/_profile.md` 的「证据缺口闸门」段。要点：
+
+- **不走 SKIP，走 `Status = Blocked`** —— 活态、可解锁。SKIP 是终态会自动打 `Closed At`，漏斗里算死
+- 数 evidence 表里 ✅ 的个数 `E`
+- **`E < 2`** → 照常出完整 A-F（Block B 的 gap 分析就是闸门的输入），但 `Status = Blocked`、**不生成 PDF、不进投递候选**，notes 写 `证据缺口 E=N/4，缺 {missing ids}`
+- **`E ≥ 2` 且该 JD 的 hard requirement 全部被已有 evidence 覆盖** → 解锁，按 secondary 闸门走
+- 额外输出 **Block B2 — 证据缺口清单**（见下）
 
 ## Block A — 角色摘要
 
@@ -41,23 +59,38 @@ Archetype 决定：
 
 ## Block B — CV 匹配
 
-读 `cv.md`。建一张表：JD 的每条要求 → 候选人 CV 中的具体行。
+**读 Step 0.1 定下的 track 对应的 CV 文件**（`ai-app` 系 → `cv.md`；汽车系 → `cv-auto.md`，缺失则回落 `cv.md` 并在 report 里标注）。建一张表：JD 的每条要求 → 候选人 CV 中的具体行。
 
-**按 archetype 调整优先级：**
-- 数据工程 → 优先：管道吞吐、调度系统、Spark/Flink/Kafka、SLA、降本案例
-- 数据仓库/平台 → 优先：分层规范、维度建模、查询提速、湖仓技术（Iceberg/Hudi/Paimon）、引擎选型（Doris/StarRocks/CK）
-- 数据治理 → 优先：元数据/血缘/质量平台、跨部门推动、主数据、合规、数据资产
-- 大模型应用 → 优先：RAG/Agent 架构、Eval 体系、Prompt 工程、向量检索、上线效果
-- AI Infra → 优先：训推性能、显存优化、vLLM/SGLang、GPU 调度、模型服务化
-- 后端 → 优先：QPS、可用性、p99、复杂业务建模、重构案例
-- 平台/架构 → 优先：内部用户数、效能数据、SLO、平台演进
-- 大数据算法 → 优先：业务指标提升、AB 实验、特征工程
+**按 track 调整优先级：**
+
+| track | 优先突出 |
+|---|---|
+| `ai-app` | RAG/Agent 架构、Eval 体系、Prompt 工程、向量检索、多模型路由、成本与时延、上线效果 |
+| `ai-app-auto` | 同上，但把叙事挂到车载场景：多模型路由 → 车端/云端分流；Eval 闭环 → 安全关键场景的质量门；成本控制 → 车厂对单次调用成本极敏感；可观测性 → 车队规模的监控 |
+| `auto-data` | 数据治理的体系化能力 + 元数据/血缘 → 迁移到「路测数据资产化」；分层数仓（ODS/DWD/DWS）与数据质量闭环；跨部门推动落地 |
+| `auto-algo` | ⚠️ **诚实承认 gap，不要硬包装。** 能讲的只有工程化那一面（数据管线、Eval 体系、可观测性）；感知算法本身没有证据 —— 这正是 Block B2 要列的东西 |
+| `ai-data-bridge` | NL2SQL/ChatBI 端到端、数据治理 + LLM、Agent SQL |
+| `ai-gov-bridge` | 元数据/血缘/质量平台、跨部门推动、主数据、合规、数据资产 |
 
 输出一个 **gaps 段落**，对每个 gap 给出缓解策略：
 1. 是 hard blocker 还是 nice-to-have？
 2. 候选人能否用相邻经验论证？
 3. 有没有作品集/GitHub 项目能填补这个 gap？
 4. 具体的缓解动作（cover letter 的一句话 / 一个快速 side project / 引用某个开源贡献等）
+
+## Block B2 — 证据缺口清单（**仅 track = `auto-algo`**）
+
+其它 track 跳过这一块。
+
+逐条列出 JD 的 hard requirement 对照 `modes/_profile.md` 的 evidence 表：
+
+| JD 硬要求 | 对应 evidence_id | 现状 | 最小补齐动作 | 预估工时 |
+|---|---|---|---|---|
+| （如 "熟悉 BEV 感知"）| `bev-occ` | ❌ | （如 "跑通一个开源 BEVFormer，在 nuScenes mini 上出可视化结果，写 README"）| （如 "2-3 周"）|
+
+末尾给一行结论：`证据缺口 E=N/4，缺 {missing ids}` → 决定 `Status = Blocked` 还是解锁。
+
+**这一块的意义**：把「HR 初筛就挂」（`#62 佑驾创新` 的真实结果）转成一个可执行的待办队列。补齐 2 项以上这一轨就自动解禁，不需要改规则。
 
 ## Block C — 级别与策略
 
@@ -134,15 +167,18 @@ Archetype 决定：
 
 **Story Bank**：如果 `interview-prep/story-bank.md` 存在，检查这些故事是否已入库，没有就追加。长期下来会形成 5-10 个 master story 可以应付各种行为面试题。
 
-**按 archetype 选材：**
-- 数据工程 → 强调链路稳定性、数据质量、降本提效的具体数字
-- 数据仓库 → 强调建模决策、迭代取舍、查询提速对业务的影响
-- 数据治理 → 强调跨部门推动、自上而下/自下而上的策略
-- 大模型应用 → 强调 Eval 闭环、效果迭代、成本控制、业务影响
-- AI Infra → 强调性能数字、稳定性事故复盘、降本
-- 后端 → 强调高并发、可用性、复杂业务抽象
-- 平台/架构 → 强调内部用户数、采纳率、平台演进决策
-- 算法 → 强调 AB 实验设计、业务指标提升
+**按 track 选材：**
+
+| track | 强调 |
+|---|---|
+| `ai-app` | Eval 闭环、效果迭代、成本控制、业务影响、从 demo 到生产的过程 |
+| `ai-app-auto` | 同上 + **为什么想进汽车行业**（必被问）；把「物理世界约束 / 安全关键 / 成本敏感」讲成自己理解这个行业的证据，而不是泛泛说看好 |
+| `auto-data` | 跨部门推动落地、数据质量闭环、从「数据可用」到「数据可训练」的思路迁移 |
+| `auto-algo` | ⚠️ 不要装懂。主讲工程化那一面，并**主动点出自己在感知算法上的缺口和正在补的动作**（Block B2 的补齐计划就是答案）—— 面试官最反感的是硬撑 |
+| `ai-data-bridge` | NL2SQL 的效果迭代、数据建模决策 |
+| `ai-gov-bridge` | 跨部门推动、自上而下/自下而上的策略 |
+
+⚠️ 技术面试三条铁律（见 memory `feedback_technical_interview_rules`）：①「没想过」要翻译成 tentative guess，不要直接认输 ②结尾必反问 1 个 ③面试前 24h 过一遍简历一致性（双 CV 之后这条更要紧 —— 确认自己讲的是哪一版）
 
 **还要包含：**
 - 1 个推荐主讲的 case study（哪个项目最适合主讲、怎么讲）
@@ -166,6 +202,8 @@ Archetype 决定：
 
 **日期：** {YYYY-MM-DD}
 **Archetype：** {检测到的}
+**Track：** {ai-app | ai-app-auto | auto-data | auto-algo | ai-data-bridge | ai-gov-bridge}
+**Tier：** {A1/A2/A3/B1/B2/B3/C1/C2/D/未明确}
 **Score：** {X.X/5}
 **URL：** {岗位原始 URL}
 **PDF：** {路径或 pending}

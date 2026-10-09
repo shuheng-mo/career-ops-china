@@ -17,116 +17,142 @@
 # 至少 1 个 positive 命中 + 0 个 negative 命中（不区分大小写）
 
 title_filter:
-  positive:
-    # -- 数据方向（核心）--
-    - "数据工程"
-    - "数据开发"
-    - "数据平台"
-    - "数据仓库"
-    - "数仓"
-    - "数据治理"
-    - "数据资产"
-    - "数据中台"
-    - "数据架构"
-    - "数据建模"
-    - "ETL"
-    - "ELT"
-    - "BI"
-    - "Data Engineer"
-    - "Data Platform"
-    - "Data Warehouse"
-    - "Data Governance"
-    - "Data Architect"
+  # 判定顺序（track-scoped）：
+  #   1. 命中 `negative`（全局硬红线）任意一条 → 丢弃，与方向无关
+  #   2. 否则对每个 track 分别判：命中该 track 的 positive >=1 且未命中该 track 的
+  #      negative → keep，并打上该 track 标签
+  #   3. 没有任何 track 命中 → 丢弃
+  #
+  # 为什么要分 track（这是踩过的坑）：原来是一张扁平表 + 「positive>=1 且 negative=0」
+  # 的全局合取。一旦你要并行找第二个方向，第二方向的 JD 会双向被毙 —— 既拿不到第一
+  # 方向的 positive，又必撞第一方向的 negative（比如找智能驾驶时，JD 必然带
+  # 「嵌入式 / 车端部署 / 推理优化 / 服务端」而这些本来是用来挡互联网后端岗的）。
+  # 所以往 positive 加词是无效的，必须把方向性红线从全局搬进对应 track。
+  #
+  # 只有一个方向时也可以只写一个 track，结构不变。
 
-    # -- 大数据 / 引擎方向 --
-    - "大数据"
-    - "Spark"
-    - "Flink"
-    - "Hive"
-    - "Hadoop"
-    - "Kafka"
-    - "ClickHouse"
-    - "Doris"
-    - "StarRocks"
-    - "Iceberg"
-    - "Hudi"
-    - "Paimon"
-    - "湖仓"
-    - "数据湖"
-
-    # -- AI / 大模型 --
-    - "大模型"
-    - "LLM"
-    - "AIGC"
-    - "Agent"
-    - "智能体"
-    - "RAG"
-    - "AI 应用"
-    - "AI应用"
-    - "GenAI"
-    - "Generative AI"
-    - "LLMOps"
-    - "AI Infra"
-    - "AI 基础设施"
-    - "训练框架"
-    - "推理"
-    - "vLLM"
-
-    # -- 后端 / 平台 --
-    - "后端"
-    - "Backend"
-    - "服务端"
-    - "平台"
-    - "Platform"
-    - "架构师"
-    - "Architect"
-    - "中间件"
-
-    # -- 算法（数据/工程方向）--
-    - "推荐"
-    - "搜索"
-    - "广告"
-    - "风控"
-    - "用户画像"
-    - "特征工程"
-
+  # -- 全局硬红线：命中即丢，与方向无关 --
   negative:
-    # -- 不要的语言/方向 --
-    - "Java 中级"
-    - "iOS"
-    - "Android"
-    - "前端"
-    - "Frontend"
-    - "Web 前端"
-    - "C++ 客户端"
-    - "Unity"
-    - "游戏引擎"
-    - "嵌入式"
-    - "FPGA"
-    - "硬件"
-    - "Embedded"
-    - "Firmware"
-    - ".NET"
-    - "PHP"
-    - "Ruby"
-    - "WordPress"
-    - "Salesforce"
-    - "SAP"
-    - "Oracle EBS"
-
-    # -- 不要的 seniority --
     - "实习"
     - "实习生"
     - "Intern"
     - "校招"
     - "应届"
-
-    # -- 不要的领域 --
     - "区块链"
     - "Blockchain"
     - "Web3"
     - "Crypto"
     - "数字货币"
+
+  # -- 按 track 分组 --
+  track_filters:
+    # track 1：你的主方向
+    primary:
+      positive:
+        # -- 数据方向（核心）--
+        - "数据工程"
+        - "数据开发"
+        - "数据平台"
+        - "数据仓库"
+        - "数仓"
+        - "数据治理"
+        - "数据资产"
+        - "数据中台"
+        - "数据架构"
+        - "数据建模"
+        - "ETL"
+        - "ELT"
+        - "BI"
+        - "Data Engineer"
+        - "Data Platform"
+        - "Data Warehouse"
+        - "Data Governance"
+        - "Data Architect"
+
+        # -- 大数据 / 引擎方向 --
+        - "大数据"
+        - "Spark"
+        - "Flink"
+        - "Hive"
+        - "Hadoop"
+        - "Kafka"
+        - "ClickHouse"
+        - "Doris"
+        - "StarRocks"
+        - "Iceberg"
+        - "Hudi"
+        - "Paimon"
+        - "湖仓"
+        - "数据湖"
+
+        # -- AI / 大模型 --
+        - "大模型"
+        - "LLM"
+        - "AIGC"
+        - "Agent"
+        - "智能体"
+        - "RAG"
+        - "AI 应用"
+        - "AI应用"
+        - "GenAI"
+        - "Generative AI"
+        - "LLMOps"
+        - "AI Infra"
+        - "AI 基础设施"
+        - "训练框架"
+        - "推理"
+        - "vLLM"
+
+        # -- 后端 / 平台 --
+        - "后端"
+        - "Backend"
+        - "服务端"
+        - "平台"
+        - "Platform"
+        - "架构师"
+        - "Architect"
+        - "中间件"
+
+        # -- 算法（数据/工程方向）--
+        - "推荐"
+        - "搜索"
+        - "广告"
+        - "风控"
+        - "用户画像"
+        - "特征工程"
+
+      # 方向性红线：只在本 track 生效。
+      # 这些词是用来挡「不是我这个方向」的岗 —— 换个方向它们可能是正向词。
+      negative:
+        - "Java 中级"
+        - "iOS"
+        - "Android"
+        - "前端"
+        - "Frontend"
+        - "Web 前端"
+        - "C++ 客户端"
+        - "Unity"
+        - "游戏引擎"
+        - "嵌入式"
+        - "FPGA"
+        - "硬件"
+        - "Embedded"
+        - "Firmware"
+        - ".NET"
+        - "PHP"
+        - "Ruby"
+        - "WordPress"
+        - "Salesforce"
+        - "SAP"
+        - "Oracle EBS"
+
+    # track 2：并行的第二方向（没有就删掉这一段）
+    # 示例保留为空，按你的第二方向填
+    # secondary:
+    #   positive:
+    #     - "第二方向的专有名词"
+    #   negative:
+    #     - "第二方向自己的红线"
 
   seniority_boost:
     # 命中加权（不强制）

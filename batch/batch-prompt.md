@@ -52,16 +52,23 @@
 
 ### Step 2 — A-F 评估
 
-按 `_profile.md` 里的 archetype 表归类岗位（混合型标最近的 2 个），再按 `_shared.md` 的 framing 规则写以下 block。**内容规范看 `_shared.md`，本文件只给结构：**
+**先定 Track**（`_profile.md` 的 Track 表）：定 domain（是不是汽车/智驾/Tier1）× 定 archetype → 交叉得 track_id，6 个合法值 `ai-app` / `ai-app-auto` / `auto-data` / `auto-algo` / `ai-data-bridge` / `ai-gov-bridge`。track 决定 **CV 选源**（`ai-app` 系用 `cv.md`，汽车系用 `cv-auto.md`）、**北极星对齐度上限**（primary 5.0 / secondary 4.0 / bridge 3.5）、**投递闸门**。
 
-- **Block A — 角色摘要**：Archetype / Domain / Function / Seniority（含大厂职级对标）/ 业务方向 / Remote / Base 城市 / 团队规模 / 公司类型 / TL;DR
-- **Block B — CV 匹配**：JD 每条要求 → CV 具体行（按 archetype 调优先级）。附 gaps 段：每个 gap 标 hard blocker / nice-to-have、相邻经验论证、portfolio 填补、缓解动作
+⚠️ 两个容易出错的点：
+- `_profile.md` 的「已弃用方向」表右列有**汽车轨例外**（后端 / AI Infra / 纯数仓三条）。不看例外就 SKIP 会把整条汽车轨毙掉
+- track = `auto-algo` → 走**证据缺口闸门**：`Status = Blocked`、不生成 PDF、额外出 Block B2（见 `modes/offer.md`）
+
+然后按 `_shared.md` 的 framing 规则写以下 block。**内容规范看 `_shared.md`，本文件只给结构：**
+
+- **Block A — 角色摘要**：Archetype / Track / Domain / Function / Seniority（含大厂职级对标）/ 业务方向 / Remote / Base 城市 / 团队规模 / 公司类型 / TL;DR
+- **Block B — CV 匹配**：JD 每条要求 → 按 track 选中的 CV 文件里的具体行（优先级见 `_profile.md` 的「按 Track 自适应包装」表）。附 gaps 段：每个 gap 标 hard blocker / nice-to-have、相邻经验论证、portfolio 填补、缓解动作
+- **Block B2 — 证据缺口清单**：**仅 `auto-algo`**，其它 track 跳过
 - **Block C — 级别与策略**：JD 暗示级别 vs 候选人自然级别 / 不撒谎卖资深方案 / 被压级方案
 - **Block D — 薪酬与需求**：**用 `_shared.md` 列出的中文源**（看准 / 脉脉 / OfferShow / 知乎 / 一亩三分地 / leetcode.cn）。查不到写"未查到"，**不要编造**，**不要用 Glassdoor / Levels.fyi / Blind**
 - **Block E — 个性化方案**：Top 5 CV 修改 + Top 5 LinkedIn/脉脉资料修改
 - **Block F — 面试准备**：6-10 个 STAR+R 故事（Reflection 是关键），按 archetype 选材 + 1 个主讲 case + 红线问题（"为什么离职" / "能 996 吗" / "频繁跳槽"）
 
-**全局 Score 表**：CV 匹配 / 北极星对齐 / Comp（含工时折算） / 文化信号 / 公司稳定性 / 红线扣分 / 总分 — 维度和权重看 `_shared.md`。
+**全局 Score 表**：CV 匹配 / 北极星对齐 / Comp（含工时折算） / 文化信号 / 公司稳定性 / 红线扣分 / 总分 — 维度、北极星对齐度的上限分档、投递闸门全部看 `modes/_shared.md` 的「评分维度与权重（单岗位 A-F 评估）」段。（不是 `modes/offers.md` 的 10 维表 —— 那是多 offer 横向比较用的。）
 
 ### Step 3 — 写 report .md
 
@@ -73,6 +80,8 @@
 
 **日期：** {{DATE}}
 **Archetype：** {检测到的}
+**Track：** {ai-app | ai-app-auto | auto-data | auto-algo | ai-data-bridge | ai-gov-bridge}
+**Tier：** {A1/A2/A3/B1/B2/B3/C1/C2/D/未明确}
 **Score：** {X.X/5}
 **URL：** {岗位 URL}
 **PDF：** career-ops/output/cv-candidate-{slug}-{{DATE}}.pdf

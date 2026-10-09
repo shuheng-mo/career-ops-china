@@ -169,7 +169,12 @@ WebSearch query：
 
 6. **过滤**（顺序固定，先 blacklist 后 title）：
    - **6a. dead_orgs_blacklist 硬过滤**（先做，不可绕过）：读 `portals.yml` 的 `dead_orgs_blacklist`。每个 candidate URL 或 company 命中任一 entry 的 `url_substrings` / `company_keywords` → 立刻丢弃，**不进入 pipeline.md**；写 scan-history.tsv 状态 `skipped_dead_org_blacklist`，备注 entry.reason。**spawn subagent 跑 scan 时，必须把整个 dead_orgs_blacklist 段以 YAML 文本形式塞进 prompt** — subagent 看不到 user-level memory，靠它自己 grep 不到这个红名单。
-   - **6b. title_filter**（在 6a 之后）：positive 命中 + negative 排除
+   - **6b. title_filter**（在 6a 之后）—— **2026-10-09 改成 track-scoped，判定顺序不能颠倒**：
+     1. 命中 `title_filter.negative`（**全局硬红线**：实习/校招/派遣/区块链/车规芯片验证…）任意一条 → 丢弃，与方向无关
+     2. 否则对每个 track 分别判：命中 `title_filter.track_filters.<track>.positive` ≥1 条 **且** 未命中该 track 自己的 `negative` → keep，并打上 track 标签（写进 pipeline.md 的来源标签里）
+     3. 没有任何 track 命中 → 丢弃，scan-history.tsv 状态 `skipped_title_filter`，**备注命中/未命中的具体词**（这是过滤器审计面，用来定期回看调得对不对）
+     
+     ⚠️ 不要用旧的「positive≥1 且全局 negative=0」合取 —— 那套规则下智驾岗**双向被毙**：既拿不到 AI 轨的 positive，又必撞 `嵌入式`/`推理优化`/`后端开发`。那 16 条方向类红线现在只在 `ai-app` 轨生效。
 
 7. **去重**（三重）：scan-history.tsv + applications.md + pipeline.md
 

@@ -19,56 +19,22 @@
  * Hard limits (from lark-base skill):
  *  - Batch 500 records/upsert; sleep 1s between batches
  *  - Don't write formula/lookup fields (they're auto-computed)
- *  - Date must be ms timestamp (not ISO string)
+ *  - Date writes use a "YYYY-MM-DD HH:mm:ss" string, NOT a ms timestamp
+ *    (reads tolerate both; see dateToUpsertString / toDateStr below)
  *  - Status value must be in pre-created single-select options
  */
 
-import { spawnSync } from 'child_process';
 import { normalizeCompany, roleFuzzyMatch, CANONICAL_STATES, isTerminal } from '../tracker-backend.mjs';
+// All lark-cli invocation goes through this one module: it guarantees --profile
+// (the CLI default is global state and may point at another tenant), --format
+// json, --as user on writes, and throttling. See tools/feishu/capabilities.mjs.
+import { runLarkCli as larkCli, parseJsonOut } from '../feishu/capabilities.mjs';
 
 // ---- low-level lark-cli bridge ----
-
-function runLarkCli(args, { timeoutMs = 30000 } = {}) {
-  // spawnSync takes the args array directly — no shell interpolation, so no
-  // command injection via user-controlled args.
-  const result = spawnSync('lark-cli', args, { encoding: 'utf-8', timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'] });
-  const stdout = result.stdout || '';
-  if (result.status !== 0 || result.error) {
-    const e = result.error || {};
-    // Preserve BOTH stdout and stderr: lark-cli may surface API/auth errors on
-    // stdout rather than stderr, and dropping stdout would break the classifiers
-    // below (callers would get an empty/generic error instead of a specific one).
-    const stderr = (result.stderr || '') + (result.stdout || '') + (e.message ? `\n${e.message}` : '');
-    // Order matters: most-specific first. "auth" appears in CLI help text
-    // for every command, so matching it naively misclassifies flag errors.
-    if (/unknown flag|unknown command|invalid argument/i.test(stderr)) {
-      throw new Error(`lark-cli usage error (bug in bitable-backend):\n${stderr}`);
-    }
-    // Auth-before-permission: an expired/missing user token surfaces as
-    // need_user_authorization / token_missing and must route to re-login,
-    // not be misread as a scope problem.
-    if (/need_user_authorization|token_missing|token expired|invalid token|please login|unauthenticated|auth required|auth login/i.test(stderr)) {
-      throw new Error(`lark-cli auth failed — run \`lark-cli auth login\` to refresh the user token.\n${stderr}`);
-    }
-    if (/permission_violations|permission denied|don't have permission|\b91403\b/i.test(stderr)) {
-      throw new Error(`lark-cli permission denied — missing scope (writes need user identity, base:record:create/update).\n${stderr}`);
-    }
-    throw new Error(`lark-cli error: ${stderr.trim() || e.message}`);
-  }
-  return stdout.trim();
-}
-
-function parseJsonOut(stdout) {
-  if (!stdout) return null;
-  try {
-    return JSON.parse(stdout);
-  } catch {
-    // Some lark-cli commands emit multi-line diagnostic headers then JSON.
-    // Try to find the JSON object by scanning for the last top-level `{` or `[`.
-    const m = stdout.match(/[\[{][\s\S]*[\]}]\s*$/);
-    if (m) return JSON.parse(m[0]);
-    throw new Error(`Failed to parse lark-cli output as JSON. Got:\n${stdout.slice(0, 500)}`);
-  }
+// Thin shim over tools/feishu/capabilities.mjs. `write: true` makes it add
+// `--as user`, which writes require (the bot identity is read-only → 91403).
+function runLarkCli(args, { timeoutMs = 30000, write = false } = {}) {
+  return larkCli(args, { timeoutMs, write });
 }
 
 // ---- Field mapping helpers ----
@@ -235,11 +201,10 @@ export function create(cfg) {
 
       runLarkCli([
         'base', '+record-upsert',
-        '--as', 'user',  // writes require user identity; bot has read-only scope (91403 on write)
         '--base-token', appToken,
         '--table-id', tableId,
         '--json', payload,
-      ]);
+      ], { write: true });
 
       return { num, inserted: true };
     },
@@ -262,12 +227,77 @@ export function create(cfg) {
       const fields = normalizedToFields(withClosed);
       runLarkCli([
         'base', '+record-upsert',
-        '--as', 'user',  // writes require user identity; bot has read-only scope (91403 on write)
         '--base-token', appToken,
         '--table-id', tableId,
         '--record-id', recordId,
         '--json', JSON.stringify(fields),
-      ]);
+      ], { write: true });
+    },
+
+    /**
+     * Update many records in one pass.
+     *
+     * updateApplication() re-lists the whole table on every call just to turn a
+     * business `num` into a Bitable `record_id`. That is fine for one edit and
+     * ruinous for a bulk pass: 240 updates meant ~240 full listings (3 pages
+     * each) at ~5 req/s. Here we list once, build the num -> record_id index,
+     * and hand the writes to +record-batch-update.
+     *
+     * @param records  [{num, ...fields}]  — `num` selects the row, the rest is
+     *                                       the same normalized shape as
+     *                                       updateApplication's `updates`.
+     * @returns {updated, missing[]}       — `missing` lists nums not in the table
+     *                                       (reported, not thrown: a bulk pass
+     *                                       should not abort on one stale row).
+     */
+    async updateMany(records) {
+      if (!records || records.length === 0) return { updated: 0, missing: [] };
+
+      const all = await listRaw();
+      const index = new Map();
+      for (const r of all) {
+        const n = r.fields?.Num ?? r.fields?.['#'];
+        if (n !== undefined && n !== null && n !== '') index.set(Number(n), r);
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      const payload = [];
+      const missing = [];
+
+      for (const rec of records) {
+        const existing = index.get(Number(rec.num));
+        if (!existing) { missing.push(rec.num); continue; }
+
+        const { num, ...updates } = rec;
+        const withClosed = { ...updates };
+        // Same terminal-transition rule as updateApplication, so a bulk pass and
+        // a single edit cannot disagree about Closed At.
+        if (updates.status && isTerminal(updates.status) && !updates.closedAt && !existing.fields?.['Closed At']) {
+          withClosed.closedAt = today;
+        }
+        payload.push({
+          record_id: existing.record_id || existing.id,
+          fields: normalizedToFields(withClosed),
+        });
+      }
+
+      // 500 records/request is the documented ceiling; sleep between batches.
+      const BATCH = 500;
+      for (let i = 0; i < payload.length; i += BATCH) {
+        const slice = payload.slice(i, i + BATCH);
+        runLarkCli([
+          'base', '+record-batch-update',
+          '--base-token', appToken,
+          '--table-id', tableId,
+          '--json', JSON.stringify(slice),
+        ], { write: true, timeoutMs: 120000 });
+        if (i + BATCH < payload.length) {
+          const until = Date.now() + 1000;
+          while (Date.now() < until) { /* 1s between batches */ }
+        }
+      }
+
+      return { updated: payload.length, missing };
     },
 
     async findByCompanyRole(company, role) {

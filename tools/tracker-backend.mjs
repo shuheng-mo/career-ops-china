@@ -139,6 +139,15 @@ export async function updateApplication(num, fields) {
   return (await getBackend()).updateApplication(num, fields);
 }
 
+/**
+ * Bulk update. Prefer this over looping updateApplication(): on the Bitable
+ * backend each single update re-lists the entire table to resolve num ->
+ * record_id, so a loop over N rows costs N full listings.
+ */
+export async function updateMany(records) {
+  return (await getBackend()).updateMany(records);
+}
+
 export async function findByCompanyRole(company, role) {
   return (await getBackend()).findByCompanyRole(company, role);
 }

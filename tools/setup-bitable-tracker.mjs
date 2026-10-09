@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
+import { runLarkCli as larkCli, parseJsonOut } from './feishu/capabilities.mjs';
 import readline from 'readline';
 
 const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -98,6 +99,7 @@ function buildFieldsJson() {
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const ask = q => new Promise(res => rl.question(q, res));
 
+// Plain shell command (used only for `which lark-cli`).
 function run(cmd) {
   try {
     return { stdout: execSync(cmd, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] }).trim(), error: null };
@@ -106,19 +108,35 @@ function run(cmd) {
   }
 }
 
-function runOrThrow(cmd, label) {
-  const { stdout, error } = run(cmd);
+/**
+ * Run a lark-cli command through tools/feishu/capabilities.mjs.
+ *
+ * Takes an argv ARRAY, not a shell string. The previous version concatenated a
+ * command line and escaped it by hand, which (a) needed a bespoke shellEsc and
+ * (b) passed no --profile — so setup could create a Base in whichever tenant
+ * the CLI's global default profile happened to point at.
+ */
+function lark(args, { write = false } = {}) {
+  try {
+    return { stdout: larkCli(args, { write, timeoutMs: 60000 }), error: null };
+  } catch (e) {
+    return { stdout: '', error: e.message };
+  }
+}
+
+function larkOrThrow(args, label, opts) {
+  const { stdout, error } = lark(args, opts);
   if (error) throw new Error(`${label} failed:\n${error}`);
   return stdout;
 }
 
 function parseLarkJson(stdout) {
-  if (!stdout) return null;
+  // Shared parser: tolerates the multi-line diagnostic headers some lark-cli
+  // commands print before the JSON payload. Returns null instead of throwing
+  // because setup probes responses whose shape it is not sure about.
   try {
-    return JSON.parse(stdout);
+    return parseJsonOut(stdout);
   } catch {
-    const m = stdout.match(/[\[{][\s\S]*[\]}]\s*$/);
-    if (m) return JSON.parse(m[0]);
     return null;
   }
 }
@@ -134,7 +152,7 @@ async function main() {
   }
   console.log('✅ lark-cli:', which.stdout);
 
-  const auth = run('lark-cli auth status');
+  const auth = lark(['auth', 'status'], {});
   if (auth.error || !/user|bot/.test(auth.stdout)) {
     console.error('❌ lark-cli not authenticated. Run: lark-cli auth login');
     if (auth.error) console.error(auth.error);
@@ -195,9 +213,9 @@ async function automatedCreate() {
   const name = ((await ask(`Base name [${defaultName}]: `)).trim() || defaultName);
 
   console.log(`\nCreating Base "${name}"...`);
-  const createOut = runOrThrow(
-    `lark-cli base +base-create --name ${shellEsc(name)}`,
-    'base-create'
+  const createOut = larkOrThrow(
+    ['base', '+base-create', '--name', name],
+    'base-create', { write: true }
   );
   const created = parseLarkJson(createOut);
   const base = created?.base || created?.data?.base || created;
@@ -211,13 +229,14 @@ async function automatedCreate() {
   console.log(`✅ Base created: ${token}`);
   if (url) console.log(`   URL: ${url}`);
 
-  console.log('\nCreating Applications table + 10 fields...');
+  console.log(`\nCreating Applications table + ${buildFieldsJson().length} fields...`);
   const fields = buildFieldsJson();
   const view = [{ name: 'All', type: 'grid' }];
 
-  const tableOut = runOrThrow(
-    `lark-cli base +table-create --base-token ${shellEsc(token)} --name Applications --fields ${shellEsc(JSON.stringify(fields))} --view ${shellEsc(JSON.stringify(view))}`,
-    'table-create'
+  const tableOut = larkOrThrow(
+    ['base', '+table-create', '--base-token', token, '--name', 'Applications',
+     '--fields', JSON.stringify(fields), '--view', JSON.stringify(view)],
+    'table-create', { write: true }
   );
   const tableResp = parseLarkJson(tableOut);
   const table = tableResp?.table || tableResp?.data?.table || tableResp;
@@ -229,7 +248,7 @@ async function automatedCreate() {
   console.log(`✅ Applications table created: ${tableId}`);
 
   // Verify field count
-  const fieldListOut = run(`lark-cli base +field-list --base-token ${shellEsc(token)} --table-id ${shellEsc(tableId)}`);
+  const fieldListOut = lark(['base', '+field-list', '--base-token', token, '--table-id', tableId]);
   const parsed = parseLarkJson(fieldListOut.stdout);
   const fieldList = parsed?.items || parsed?.data?.items || parsed?.fields || parsed || [];
   const fieldNames = fieldList.map(f => f.field_name || f.name);
@@ -255,8 +274,8 @@ async function validateExisting() {
   console.log(`   table_id:  ${tableId}\n`);
 
   console.log('Probing schema...');
-  const out = runOrThrow(
-    `lark-cli base +field-list --base-token ${shellEsc(appToken)} --table-id ${shellEsc(tableId)}`,
+  const out = larkOrThrow(
+    ['base', '+field-list', '--base-token', appToken, '--table-id', tableId],
     'field-list'
   );
   const parsed = parseLarkJson(out);
@@ -279,11 +298,6 @@ async function validateExisting() {
 }
 
 // ---- helpers ----
-
-function shellEsc(s) {
-  if (/^[A-Za-z0-9_\-.+=/:@,]+$/.test(s)) return s;
-  return `'${String(s).replace(/'/g, `'\\''`)}'`;
-}
 
 async function countMdRows() {
   const mdMod = await import('./backends/md-backend.mjs');

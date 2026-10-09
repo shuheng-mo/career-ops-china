@@ -146,6 +146,40 @@ export function create(_cfg) {
       writeFileSync(APPS_FILE, lines.join('\n'));
     },
 
+    /**
+     * Update many records in one read + one write.
+     *
+     * Mirrors the Bitable backend's updateMany contract so callers (e.g. the
+     * Track backfill) behave identically on either backend.
+     */
+    async updateMany(records) {
+      if (!records || records.length === 0) return { updated: 0, missing: [] };
+
+      const { lines, apps } = readAll();
+      const byNum = new Map(apps.map(a => [a.num, a]));
+      const today = new Date().toISOString().slice(0, 10);
+      const missing = [];
+      let updated = 0;
+
+      for (const rec of records) {
+        const existing = byNum.get(Number(rec.num));
+        if (!existing) { missing.push(rec.num); continue; }
+
+        const { num, ...fields } = rec;
+        const merged = { ...existing, ...fields };
+        if (fields.status && isTerminal(fields.status) && !fields.closedAt && !existing.closedAt) {
+          merged.closedAt = today;
+        }
+        const idx = lines.indexOf(existing._raw);
+        if (idx < 0) { missing.push(rec.num); continue; }
+        lines[idx] = formatLine(merged);
+        updated++;
+      }
+
+      writeFileSync(APPS_FILE, lines.join('\n'));
+      return { updated, missing };
+    },
+
     async findByCompanyRole(company, role) {
       const { apps } = readAll();
       const normC = normalizeCompany(company);

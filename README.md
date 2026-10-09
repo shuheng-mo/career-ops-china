@@ -699,7 +699,7 @@ career-ops-china/
 ├── fonts/                          # Space Grotesk + DM Sans woff2
 ├── docs/                           # 英文技术文档（架构 / 安装 / 定制）
 ├── examples/                       # 上游样例（保留）
-├── dashboard/                      # Go TUI 可视化看板（可选）
+├── attic-dashboard/                # ⚠️ 已归档的 Go TUI 看板（见 attic-dashboard/WHY-ARCHIVED.md）
 │
 └── tools/                          # 所有 .mjs 脚本集中在这
     ├── scan-helper.mjs             # ⭐ Playwright 桥接（已基本被 bookmarklet 取代）

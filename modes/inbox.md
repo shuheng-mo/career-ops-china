@@ -31,13 +31,19 @@
 | **A 完整评估** | A-F 评估 | ✅ 1 行 | ✅ 完整 | 视 Score / 用户决定 | mv processed/ |
 | **B 批量 Discarded** | 无评估 | ✅ 1 行 notes=原因 | ❌ 无 | ❌ | **mv processed/** |
 | **C SKIP（Deal-breaker）** | 无评估 | ✅ 1 行 notes=派遣方 | ❌ 无 | ❌ | **mv processed/** |
-| **D Title-skip** | 无 | ❌ 不进 applications.md | ❌ | ❌ | **mv processed/** |
+| **D Title-skip** | 无评估 | ✅ 1 行 `Status=SKIP`，notes=`title-skip: {命中的过滤词}` | ❌ 无 | ❌ | **mv processed/** |
 
 ### 🚨 铁律：inbox 结束时必须清零
 
 **所有被 triage 过（无论哪个桶）的 JSON 都必须 mv 到 `inbox/processed/`。**
 
 - 不能有"看过但不处理"的 JSON 留在 inbox — 那下次 `/career-ops inbox` 会重复 triage 浪费 token
+
+**桶 D 也要进 tracker（2026-10-09 改）。** 以前桶 D 只 mv 不记录，结果是：
+- 同一个 JD 再被 bookmarklet 抓到时无从去重，又要重新 triage
+- **过滤器误杀完全不可见** —— 复盘时查不到「哪些岗被 title 过滤挡掉了、挡得对不对」
+
+这在双方向（AI + 智能驾驶）下尤其要紧：`portals.yml` 的 `title_filter` 原本是按单方向写的，智驾岗很容易被 `嵌入式`/`后端开发`/`推理优化` 这类词误杀。notes 里写清命中的是哪个过滤词，才能定期回看过滤器调得对不对。
 - 不能有"用户选了 top 4 处理，剩下 10 个留原位" — 剩下 10 个按桶 B 批量 Discarded 处理
 - 唯一留 inbox 的情况：**该 JSON 从未被 triage 过**（比如正在处理时用户又抓了新 JD）
 

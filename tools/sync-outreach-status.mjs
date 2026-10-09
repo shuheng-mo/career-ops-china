@@ -3,71 +3,61 @@
 //
 // Convention: in `outreach/{NN}-{slug}-{channel}-{date}.md`, when the
 // 发送记录 table's "消息 1" row gets a YYYY-MM-DD in the 时间 column,
-// upgrade applications.md row #NN from Evaluated → Applied.
+// upgrade tracker row #NN from Evaluated → Applied.
 //
 // Rules:
-//   - Never downgrade. If row is already Applied/Responded/Interview/
-//     Offer/Rejected/Discarded/SKIP, do nothing.
+//   - Never downgrade. If the row already moved past Evaluated, do nothing.
 //   - Idempotent. Running twice produces no extra changes.
 //   - HR 回复 column is NOT auto-parsed — too fragile. Prints a hint
 //     so the user can upgrade Responded/Interview manually.
+//
+// Reads and writes the tracker through tools/tracker-backend.mjs rather than
+// editing data/applications.md directly. Two reasons:
+//   1. Under `tracker.backend: bitable` the md file is a generated snapshot;
+//      writing to it silently lost every change at the next `tracker:export`.
+//   2. The previous version indexed raw table cells by position against the
+//      old 9-column layout, so after the 11-column migration `cells[9]` was
+//      the Report column, not Notes — notes were being written into Report.
 
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, dirname, basename } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { listApplications, updateMany, getBackend } from "./tracker-backend.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUTREACH = join(ROOT, "outreach");
-const TRACKER = join(ROOT, "data", "applications.md");
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const FILE_RE = /^(\d{1,3})-([a-z0-9-]+)-(boss|maimai|linkedin|wechat|portal|email)-(\d{4}-\d{2}-\d{2})\.md$/;
 
-function parseOutreach(path) {
-  const content = readFileSync(path, "utf8");
-  const lines = content.split("\n");
+// Anything at or past "we reached out" — never walk these back to Applied.
+const PAST_EVALUATED = new Set([
+  "Applied", "Responded", "Interview", "Offer", "Rejected", "Discarded", "SKIP", "Blocked",
+]);
 
-  // Find the 消息 1 row in the 发送记录 table
-  for (const line of lines) {
+function parseOutreach(path) {
+  for (const line of readFileSync(path, "utf8").split("\n")) {
     if (!line.includes("| 消息 1 |")) continue;
-    const cells = line.split("|").map((c) => c.trim());
     // cells: ["", "时间", "消息 1", "HR 回复", "备注", ""]
+    const cells = line.split("|").map((c) => c.trim());
     const sentDate = cells[1];
     const hrReply = cells[3] || "";
-    if (DATE_RE.test(sentDate)) {
-      return { sentDate, hrReply };
-    }
+    if (DATE_RE.test(sentDate)) return { sentDate, hrReply };
   }
   return null;
 }
 
-function loadTracker() {
-  const text = readFileSync(TRACKER, "utf8");
-  return { text, lines: text.split("\n") };
-}
+const dryRun = process.argv.includes("--dry-run");
 
-function findTrackerRow(lines, num) {
-  const re = new RegExp(`^\\| ${num} \\|`);
-  const idx = lines.findIndex((l) => re.test(l));
-  if (idx < 0) return null;
-  const cells = lines[idx].split("|").map((c) => c.trim());
-  // cells: ["", "#", "Date", "Company", "Role", "Score", "Status", "PDF", "Report", "Notes", ""]
-  return { idx, cells };
-}
-
-function rebuildRow(cells) {
-  return "| " + cells.slice(1, -1).join(" | ") + " |";
-}
-
-const TERMINAL = new Set(["Applied", "Responded", "Interview", "Offer", "Rejected", "Discarded", "SKIP"]);
+const backend = await getBackend();
+const apps = await listApplications();
+const byNum = new Map(apps.map((a) => [a.num, a]));
 
 const files = readdirSync(OUTREACH).filter((f) => f.endsWith(".md"));
-let upgraded = 0;
+const pending = [];
+const hrReplyHints = [];
 let noop = 0;
 let skipped = 0;
-const hrReplyHints = [];
-
-const tracker = loadTracker();
 
 for (const file of files) {
   const m = file.match(FILE_RE);
@@ -78,25 +68,23 @@ for (const file of files) {
   }
   const num = parseInt(m[1], 10);
   const channel = m[3];
-  const outreachPath = join(OUTREACH, file);
 
-  const parsed = parseOutreach(outreachPath);
+  const parsed = parseOutreach(join(OUTREACH, file));
   if (!parsed) {
     console.log(`⏭  #${num} (${channel}): 消息 1 时间未填，跳过`);
     noop++;
     continue;
   }
 
-  const row = findTrackerRow(tracker.lines, num);
+  const row = byNum.get(num);
   if (!row) {
     console.log(`⚠️  #${num}: tracker 没找到对应行`);
     skipped++;
     continue;
   }
 
-  const status = row.cells[6];
-  if (TERMINAL.has(status)) {
-    console.log(`⏭  #${num}: tracker 已是 ${status}（不降级）`);
+  if (PAST_EVALUATED.has(row.status)) {
+    console.log(`⏭  #${num}: tracker 已是 ${row.status}（不降级）`);
     if (parsed.hrReply && !["", "待回复"].includes(parsed.hrReply)) {
       hrReplyHints.push(`#${num} HR 回复："${parsed.hrReply}" → 你可能要手动升 Responded/Interview/Rejected`);
     }
@@ -104,29 +92,31 @@ for (const file of files) {
     continue;
   }
 
-  if (status !== "Evaluated") {
-    console.log(`⏭  #${num}: tracker 状态是 ${status}（非 Evaluated，不动）`);
+  if (row.status !== "Evaluated") {
+    console.log(`⏭  #${num}: tracker 状态是 ${row.status}（非 Evaluated，不动）`);
     noop++;
     continue;
   }
 
-  // Upgrade Evaluated → Applied
-  row.cells[6] = "Applied";
   const noteRef = `${parsed.sentDate} ${channel} 消息 1 已发（outreach/${file}）`;
-  const oldNotes = row.cells[9];
-  if (!oldNotes.includes(`outreach/${file}`)) {
-    row.cells[9] = `${noteRef}；${oldNotes}`;
+  const notes = (row.notes || "").includes(`outreach/${file}`)
+    ? row.notes
+    : `${noteRef}；${row.notes || ""}`;
+
+  pending.push({ num, status: "Applied", notes });
+  console.log(`${dryRun ? "🔍" : "✅"} #${num}: Evaluated → Applied (outreach/${file})`);
+}
+
+if (pending.length > 0 && !dryRun) {
+  const { updated, missing } = await updateMany(pending);
+  if (missing.length) console.log(`⚠️  写入时未找到: ${missing.join(", ")}`);
+  console.log(`\n📝 已写入 ${backend.backendName} 后端：${updated} 条`);
+  if (backend.backendName === "bitable") {
+    console.log("   运行 `npm run tracker:export` 刷新 data/applications.md 快照");
   }
-  tracker.lines[row.idx] = rebuildRow(row.cells);
-  console.log(`✅ #${num}: Evaluated → Applied (outreach/${file})`);
-  upgraded++;
 }
 
-if (upgraded > 0) {
-  writeFileSync(TRACKER, tracker.lines.join("\n"));
-}
-
-console.log(`\n📊 升级: ${upgraded}, 无变化: ${noop}, 跳过: ${skipped}`);
+console.log(`\n📊 升级: ${pending.length}${dryRun ? "（dry-run，未写入）" : ""}, 无变化: ${noop}, 跳过: ${skipped}`);
 if (hrReplyHints.length > 0) {
   console.log(`\n💬 HR 回复提示（脚本不自动升级，请手动告诉 Claude）：`);
   hrReplyHints.forEach((h) => console.log(`   ${h}`));

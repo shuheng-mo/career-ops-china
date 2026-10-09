@@ -13,11 +13,29 @@
  * moving duplicate-marker info to the notes column.
  *
  * Run: node tools/normalize-statuses.mjs [--dry-run]   (or: npm run normalize)
+ *
+ * md backend only. Under `tracker.backend: bitable` this script is a no-op:
+ * Status there is a single-select whose options are pre-created, so the field
+ * cannot hold a non-canonical value in the first place — and data/applications.md
+ * is a generated snapshot, so rewriting it would be undone by the next
+ * `tracker:export`. The script exits 0 with an explanation rather than
+ * pretending to have cleaned anything.
  */
 
 import { readFileSync, writeFileSync, copyFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { readProfileTracker } from './tracker-backend.mjs';
+
+const { backend } = readProfileTracker();
+if (backend === 'bitable') {
+  console.log('⏭  normalize-statuses: no-op under the bitable backend.');
+  console.log('   Status is a pre-created single-select there, so non-canonical values');
+  console.log('   cannot be stored, and data/applications.md is a generated snapshot.');
+  console.log('   If you need to clean imported data, switch tracker.backend to md,');
+  console.log('   run this once, then switch back.');
+  process.exit(0);
+}
 
 // fileURLToPath handles spaces in path correctly (vs .pathname which encodes them as %20)
 // Script lives in tools/; project root is one level up.

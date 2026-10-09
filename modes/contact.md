@@ -28,7 +28,7 @@
 
 ## 快捷语法：发送记录 → tracker 自动同步
 
-**触发规则：** 在 outreach 文件 `## 发送记录` 表的 **"消息 1"** 这一行，**"时间"** 列填入 `YYYY-MM-DD` → 跑 `npm run sync-outreach` 会把 `data/applications.md` 里对应 # 的状态从 `Evaluated` 自动改为 `Applied`，并在 notes 里加上 outreach 文件引用。
+**触发规则：** 在 outreach 文件 `## 发送记录` 表的 **"消息 1"** 这一行，**"时间"** 列填入 `YYYY-MM-DD` → 跑 `npm run sync-outreach` 会把对应 # 的状态从 `Evaluated` 自动改为 `Applied`，并在 notes 里加上 outreach 文件引用。写入走 `tools/tracker-backend.mjs`（bitable 后端下直接写 Bitable，之后跑 `npm run tracker:export` 刷新本地快照）。
 
 **示例：**
 
@@ -51,7 +51,8 @@
 **HR 回复升级（手动路径）：**
 - 用户在发送记录 HR 回复列填 "约一面"、"加微信了"、"拒了"
 - 用户告诉 Claude：「#XX HR 回了」/「#XX 进面试了」
-- Claude 根据 `templates/states.yml` aliases 直接 Edit applications.md
+- Claude 根据 `templates/states.yml` aliases 调 `updateApplication(num, { status, notes })`
+  ⚠️ **不要 Edit `data/applications.md`** —— `backend: bitable` 下它是 `tracker:export` 生成的只读快照，改了会被下次 export 覆盖
 
 ## Boss 直聘触达（国内求职主渠道）
 

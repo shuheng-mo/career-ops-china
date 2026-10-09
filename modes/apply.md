@@ -43,7 +43,7 @@
 - **提醒候选人**："岗位从 [X] 变成了 [Y]，要重新评估还是直接适配回答？"
 - **适配方案**：调整回答到新 title，不重新评估
 - **重新评估**：跑完整 A-F，更新 report，重生成 Section G
-- **更新 tracker**：在 applications.md 里改岗位 title
+- **更新 tracker**：调 `updateApplication(num, { role })` 改岗位 title（不要直接编辑 `data/applications.md`）
 
 ## Step 4 — 分析表单
 
@@ -103,7 +103,7 @@
 ## Step 6 — 提交后（可选）
 
 如果候选人确认已提交：
-1. `applications.md` 中状态从 `Evaluated` 改为 `Applied`
+1. 调 `updateApplication(num, { status: 'Applied' })`（或直接在 Bitable UI 改 Status）
 2. 更新 report 的 Section G 为最终回答
 3. 建议下一步：`/career-ops contact` 做脉脉/LinkedIn 主动触达
 

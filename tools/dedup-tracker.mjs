@@ -1,197 +1,159 @@
 #!/usr/bin/env node
 /**
- * dedup-tracker.mjs — Remove duplicate entries from applications.md
+ * dedup-tracker.mjs — Collapse duplicate company+role entries in the tracker.
  *
- * Groups by normalized company + fuzzy role match.
- * Keeps entry with highest score. If discarded entry had more advanced status,
- * preserves that status. Merges notes.
+ * Within one company, entries whose roles fuzzy-match are one cluster. The
+ * highest-scoring entry is the keeper; it inherits the most advanced status
+ * found anywhere in the cluster (an active application outranks a terminal one).
  *
- * Run: node tools/dedup-tracker.mjs [--dry-run]    (or: npm run dedup)
+ * Backend behaviour differs on purpose:
+ *   - md:      losers are deleted from the table (a .bak is written first).
+ *   - bitable: losers are marked Discarded with `DUP of #N` in notes, NOT
+ *              deleted. The abstraction layer has no delete, and Bitable's
+ *              +record-delete is a high-risk-write needing --yes, which an
+ *              agent must not supply on its own. Marking also fits Bitable
+ *              better: records carry history, and Discarded rows are already
+ *              filtered out of the funnel views.
+ *
+ * Run: node tools/dedup-tracker.mjs [--dry-run]   (or: npm run dedup)
  */
 
 import { readFileSync, writeFileSync, copyFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import {
+  listApplications, updateMany, getBackend,
+  normalizeCompany, roleFuzzyMatch,
+} from './tracker-backend.mjs';
 
-// fileURLToPath handles spaces in path correctly (vs .pathname which encodes them as %20)
-// Script lives in tools/; project root is one level up.
 const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..');
-// Support both layouts: data/applications.md (boilerplate) and applications.md (original)
 const APPS_FILE = existsSync(join(CAREER_OPS, 'data/applications.md'))
   ? join(CAREER_OPS, 'data/applications.md')
   : join(CAREER_OPS, 'applications.md');
 const DRY_RUN = process.argv.includes('--dry-run');
 
-// Status advancement order (higher = more advanced in pipeline)
-// Applied > Rejected because active application > terminal state
-// Lowercase keys; English canonical only (Chinese aliases are normalized upstream)
+// Status advancement order (higher = more advanced in the pipeline).
+// Applied outranks Rejected: an active application beats a terminal state.
+// Blocked sits just above Evaluated — it is an active state awaiting evidence.
 const STATUS_RANK = {
-  // English canonical
-  'skip': 0,
-  'discarded': 0,
-  'rejected': 1,
-  'evaluated': 2,
-  'applied': 3,
-  'responded': 4,
-  'interview': 5,
-  'offer': 6,
+  skip: 0,
+  discarded: 1,
+  evaluated: 2,
+  blocked: 3,
+  rejected: 4,
+  applied: 5,
+  responded: 6,
+  interview: 7,
+  offer: 8,
 };
 
-function normalizeCompany(name) {
-  return name.toLowerCase()
-    .replace(/[()]/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/[^a-z0-9 ]/g, '')
-    .trim();
-}
-
-function normalizeRole(role) {
-  return role.toLowerCase()
-    .replace(/[()]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/[^a-z0-9 /]/g, '')
-    .trim();
-}
-
-function roleMatch(a, b) {
-  const wordsA = normalizeRole(a).split(/\s+/).filter(w => w.length > 3);
-  const wordsB = normalizeRole(b).split(/\s+/).filter(w => w.length > 3);
-  const overlap = wordsA.filter(w => wordsB.some(wb => wb.includes(w) || w.includes(wb)));
-  return overlap.length >= 2;
-}
-
 function parseScore(s) {
-  const m = s.replace(/\*\*/g, '').match(/([\d.]+)/);
+  const m = String(s || '').replace(/\*\*/g, '').match(/([\d.]+)/);
   return m ? parseFloat(m[1]) : 0;
 }
 
-function parseAppLine(line) {
-  const parts = line.split('|').map(s => s.trim());
-  if (parts.length < 9) return null;
-  const num = parseInt(parts[1]);
-  if (isNaN(num)) return null;
-  return {
-    num,
-    date: parts[2],
-    company: parts[3],
-    role: parts[4],
-    score: parts[5],
-    status: parts[6],
-    pdf: parts[7],
-    report: parts[8],
-    notes: parts[9] || '',
-    raw: line,
-  };
+const backend = await getBackend();
+const apps = (await listApplications()).filter(a => a.num > 0);
+
+console.log(`\n📊 Checking ${apps.length} entries (${backend.backendName} backend)\n`);
+
+// Group by normalized company. normalizeCompany/roleFuzzyMatch come from the
+// shared layer because the local copies here used /[^a-z0-9 ]/ , which erased
+// every CJK codepoint — all Chinese company names collapsed to "" and role
+// matching then had no tokens to compare, so this script silently did nothing
+// on a tracker that is almost entirely Chinese.
+const groups = new Map();
+for (const a of apps) {
+  const key = normalizeCompany(a.company);
+  if (!key) continue;
+  if (!groups.has(key)) groups.set(key, []);
+  groups.get(key).push(a);
 }
 
-// Read
-if (!existsSync(APPS_FILE)) {
-  console.log('No applications.md found. Nothing to dedup.');
+const clusters = [];
+for (const entries of groups.values()) {
+  if (entries.length < 2) continue;
+  const used = new Set();
+  for (let i = 0; i < entries.length; i++) {
+    if (used.has(i)) continue;
+    const cluster = [entries[i]];
+    used.add(i);
+    for (let j = i + 1; j < entries.length; j++) {
+      if (used.has(j)) continue;
+      if (roleFuzzyMatch(entries[i].role, entries[j].role)) {
+        cluster.push(entries[j]);
+        used.add(j);
+      }
+    }
+    if (cluster.length > 1) clusters.push(cluster);
+  }
+}
+
+const updates = [];
+const losers = [];
+
+for (const cluster of clusters) {
+  cluster.sort((a, b) => parseScore(b.score) - parseScore(a.score));
+  const keeper = cluster[0];
+
+  let bestStatus = keeper.status;
+  let bestRank = STATUS_RANK[String(keeper.status).toLowerCase()] ?? 0;
+  for (const e of cluster.slice(1)) {
+    const rank = STATUS_RANK[String(e.status).toLowerCase()] ?? 0;
+    if (rank > bestRank) { bestRank = rank; bestStatus = e.status; }
+  }
+
+  console.log(`🔁 ${keeper.company} — ${keeper.role}`);
+  console.log(`   keep #${keeper.num} (${keeper.score || 'N/A'})`);
+
+  if (bestStatus !== keeper.status) {
+    const from = cluster.find(e => e.status === bestStatus);
+    updates.push({ num: keeper.num, status: bestStatus });
+    console.log(`   📝 #${keeper.num}: status ${keeper.status} → ${bestStatus} (from #${from?.num})`);
+  }
+
+  for (const dup of cluster.slice(1)) {
+    losers.push({ keeper, dup });
+    console.log(`   🗑️  #${dup.num} (${dup.score || 'N/A'}, ${dup.status})`);
+  }
+}
+
+if (losers.length === 0 && updates.length === 0) {
+  console.log('✅ No duplicates found');
   process.exit(0);
 }
-const content = readFileSync(APPS_FILE, 'utf-8');
-const lines = content.split('\n');
 
-// Parse all entries
-const entries = [];
-const entryLineMap = new Map(); // num → line index
+if (DRY_RUN) {
+  console.log(`\n📊 ${losers.length} duplicates, ${updates.length} status promotions (dry-run — nothing written)`);
+  process.exit(0);
+}
 
-for (let i = 0; i < lines.length; i++) {
-  if (!lines[i].startsWith('|')) continue;
-  const app = parseAppLine(lines[i]);
-  if (app && app.num > 0) {
-    entries.push(app);
-    entryLineMap.set(app.num, i);
+if (backend.backendName === 'bitable') {
+  // Mark, don't delete — see the header comment.
+  for (const { keeper, dup } of losers) {
+    const note = `DUP of #${keeper.num}`;
+    updates.push({
+      num: dup.num,
+      status: 'Discarded',
+      notes: (dup.notes || '').includes(note) ? dup.notes : `${note}；${dup.notes || ''}`,
+    });
   }
-}
-
-console.log(`📊 ${entries.length} entries loaded`);
-
-// Group by company+role
-const groups = new Map();
-for (const entry of entries) {
-  const key = normalizeCompany(entry.company);
-  if (!groups.has(key)) groups.set(key, []);
-  groups.get(key).push(entry);
-}
-
-// Find duplicates
-let removed = 0;
-const linesToRemove = new Set();
-
-for (const [company, companyEntries] of groups) {
-  if (companyEntries.length < 2) continue;
-
-  // Within same company, find role matches
-  const processed = new Set();
-  for (let i = 0; i < companyEntries.length; i++) {
-    if (processed.has(i)) continue;
-    const cluster = [companyEntries[i]];
-    processed.add(i);
-
-    for (let j = i + 1; j < companyEntries.length; j++) {
-      if (processed.has(j)) continue;
-      if (roleMatch(companyEntries[i].role, companyEntries[j].role)) {
-        cluster.push(companyEntries[j]);
-        processed.add(j);
-      }
-    }
-
-    if (cluster.length < 2) continue;
-
-    // Keep the one with highest score
-    cluster.sort((a, b) => parseScore(b.score) - parseScore(a.score));
-    const keeper = cluster[0];
-
-    // Check if any removed entry has more advanced status
-    let bestStatusRank = STATUS_RANK[keeper.status.toLowerCase()] || 0;
-    let bestStatus = keeper.status;
-    for (let k = 1; k < cluster.length; k++) {
-      const rank = STATUS_RANK[cluster[k].status.toLowerCase()] || 0;
-      if (rank > bestStatusRank) {
-        bestStatusRank = rank;
-        bestStatus = cluster[k].status;
-      }
-    }
-
-    // Update keeper's status if a removed entry had a more advanced one
-    if (bestStatus !== keeper.status) {
-      const lineIdx = entryLineMap.get(keeper.num);
-      if (lineIdx !== undefined) {
-        const parts = lines[lineIdx].split('|').map(s => s.trim());
-        parts[6] = bestStatus;
-        lines[lineIdx] = '| ' + parts.slice(1, -1).join(' | ') + ' |';
-        console.log(`  📝 #${keeper.num}: status promoted to "${bestStatus}" (from #${cluster.find(e => e.status === bestStatus)?.num})`);
-      }
-    }
-
-    // Remove duplicates
-    for (let k = 1; k < cluster.length; k++) {
-      const dup = cluster[k];
-      const lineIdx = entryLineMap.get(dup.num);
-      if (lineIdx !== undefined) {
-        linesToRemove.add(lineIdx);
-        removed++;
-        console.log(`🗑️  Remove #${dup.num} (${dup.company} — ${dup.role}, ${dup.score}) → kept #${keeper.num} (${keeper.score})`);
-      }
-    }
-  }
-}
-
-// Remove lines (in reverse order to preserve indices)
-const sortedRemoveIndices = [...linesToRemove].sort((a, b) => b - a);
-for (const idx of sortedRemoveIndices) {
-  lines.splice(idx, 1);
-}
-
-console.log(`\n📊 ${removed} duplicates removed`);
-
-if (!DRY_RUN && removed > 0) {
-  copyFileSync(APPS_FILE, APPS_FILE + '.bak');
-  writeFileSync(APPS_FILE, lines.join('\n'));
-  console.log('✅ Written to applications.md (backup: applications.md.bak)');
-} else if (DRY_RUN) {
-  console.log('(dry-run — no changes written)');
+  const { updated, missing } = await updateMany(updates);
+  if (missing.length) console.log(`⚠️  未找到: ${missing.join(', ')}`);
+  console.log(`\n✅ ${updated} records updated in Bitable (${losers.length} marked Discarded + DUP of #N)`);
+  console.log('   Run `npm run tracker:export` to refresh the md snapshot.');
 } else {
-  console.log('✅ No duplicates found');
+  // md backend: apply promotions through the layer, then physically drop rows.
+  if (updates.length) await updateMany(updates);
+
+  const lines = readFileSync(APPS_FILE, 'utf-8').split('\n');
+  const dropNums = new Set(losers.map(l => l.dup.num));
+  const kept = lines.filter(line => {
+    if (!line.startsWith('|')) return true;
+    const num = parseInt(line.split('|')[1]?.trim(), 10);
+    return isNaN(num) || !dropNums.has(num);
+  });
+  copyFileSync(APPS_FILE, APPS_FILE + '.bak');
+  writeFileSync(APPS_FILE, kept.join('\n'));
+  console.log(`\n✅ ${losers.length} duplicates removed from applications.md (backup: applications.md.bak)`);
 }

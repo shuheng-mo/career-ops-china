@@ -239,12 +239,12 @@ Write one TSV file per evaluation to `batch/tracker-additions/{num}-{company-slu
 ### Pipeline Integrity
 
 1. **NEVER edit applications.md to ADD new entries** -- Write TSV in `batch/tracker-additions/` and `tools/merge-tracker.mjs` handles the merge.
-2. **YES you can edit applications.md to UPDATE status/notes of existing entries** *(only when `tracker.backend: md`; see Tracker Backend section below)*.
+2. **NEVER edit applications.md to UPDATE entries either, under `tracker.backend: bitable`** -- it is a generated read-only snapshot and your edit is silently discarded by the next `tracker:export`. Update through `tools/tracker-backend.mjs`: `updateApplication(num, fields)` for one row, `updateMany(records)` for several. Direct md editing is only valid when `tracker.backend: md`.
 3. All reports MUST include `**URL:**` in the header (between Score and PDF).
 4. All statuses MUST be canonical (see `templates/states.yml`).
-5. Health check: `node tools/verify-pipeline.mjs` (or `npm run verify`)
-6. Normalize statuses: `node tools/normalize-statuses.mjs` (or `npm run normalize`)
-7. Dedup: `node tools/dedup-tracker.mjs` (or `npm run dedup`)
+5. Health check: `node tools/verify-pipeline.mjs` (or `npm run verify`) -- reads the md snapshot, so under the bitable backend it lags one `tracker:export` behind.
+6. Normalize statuses: `node tools/normalize-statuses.mjs` (or `npm run normalize`) -- **md backend only**; no-ops under bitable, where Status is a pre-created single-select that cannot hold a non-canonical value.
+7. Dedup: `node tools/dedup-tracker.mjs` (or `npm run dedup`) -- under bitable, losers are marked `Discarded` with `DUP of #N` rather than deleted (the abstraction layer has no delete, and `+record-delete` is a high-risk-write needing `--yes`).
 
 ### Tracker Backend — md or Bitable
 
@@ -258,11 +258,52 @@ Write one TSV file per evaluation to `batch/tracker-additions/{num}-{company-slu
 **Bitable 模式铁律：**
 1. **不要手动编辑 `data/applications.md`** — 下次 `tracker:export` 会覆盖。直接去 Bitable 改。
 2. **merge-tracker 会自动分支**：检测到 `tracker.backend: bitable` 时，TSV 写入 Bitable，写完自动 `tracker:export`。
-3. **评估状态 → 投递：** 直接在 Bitable UI 里改 Status。Bitable 原生 enum 保障合法值（不需要 normalize/verify）。
+3. **评估状态 → 投递：** 直接在 Bitable UI 里改 Status。Bitable 原生 enum 保障合法值，所以 `normalize` 没有意义（已改成 no-op）。但 `verify` 仍然有用 —— 它校验的是 report 链接、URL 头、PDF 存在性这些 Bitable 管不到的东西。
 4. **要切换后端**：
    - md → bitable：`npm run tracker:setup` 初始化 + `npm run tracker:migrate` 一次性迁移（幂等，可重跑），然后 profile.yml 改 `backend: bitable`
    - bitable → md：profile.yml 改回 `md`（md 已是最新 snapshot 无数据丢失）；Bitable 不删，可随时再切回
 5. **工具抽象层**：`tools/tracker-backend.mjs` 是统一 API，scripts/modes 调它（不直接读 md 或 bitable），后端切换对上游透明。
+
+### lark-cli 集成铁律（写代码碰飞书前必读）
+
+**所有 lark-cli 调用只能走 `tools/feishu/capabilities.mjs` 的 `runLarkCli()`。** 它集中保证四件事，不要在别处重新发明：
+
+1. **必带 `--profile`** —— CLI 的默认 profile 是全局可变状态，别的会话跑一次 `lark-cli profile use` 就会把写入静默打到另一个租户。未配置时**抛错，绝不回落默认值**。
+2. **必带 `--format json`** —— lark-cli ≥ 1.0.48 默认输出 markdown，会让所有下游解析失效。
+3. **写操作自动 `--as user`** —— bot 身份只读，写会撞 `91403`。
+4. **节流 ~5 req/s**。
+
+**永不自行加 `--yes`。** 破坏性操作（`+record-delete` / `+field-delete` / `+base-delete`）需要它，而 CLI 明确要求 agent 不得自己加 —— 这类操作只打印命令，交给用户执行。
+
+#### 已踩过的坑（逐条都是真实事故）
+
+| 坑 | 规避 |
+|---|---|
+| `--json` 是**扁平对象**，没有 `{"fields":{...}}` 包装 | 直接传字段名为顶层 key |
+| 分页是 `--limit`(默认 100) + `--offset`，不是 `--page-size` | 靠响应 `has_more` 终止 |
+| 响应是**列式**：`data.fields[]` + `data.data[]`（行数组）+ `data.record_id_list[]` | 必须三者 zip 回对象 |
+| 写日期用 `"YYYY-MM-DD HH:mm:ss"` **字符串**，不是 ms 时间戳 | 读取要同时容忍 string 和 number |
+| select 字段**返回数组** `["Evaluated"]` | 取值要解包 |
+| select 写入值必须是**预建 option** | 加新状态前先去 Bitable 加 option |
+| 不要写 formula / lookup 字段 | 它们是自动计算的；写入 payload 要显式排除 |
+| **formula 字段的输出类型只在创建时推断一次，且只看首 token** | text 用 `"" & (...)`、number 用 `0 + (...)`、date 用 `TODATE(...)`。改类型**只能删字段重建**，不能 update |
+| 创建 formula 字段需 `--i-have-read-guide` | 且要真的先读 guide |
+| **view filter 对 formula 字段的数值比较会静默失效**（API 返回 ok 但记录数不对） | filter 只打原生存储字段（select 用 `intersects`、number 用 `>=`、date 用 `ExactDate`）；formula 只用于展示和排序 |
+| 批量上限 500 条/请求 | 批间 sleep 1s |
+| 错误可能打在 **stdout** 而不是 stderr | 分类器要同时读两个流 |
+| 错误分类**顺序敏感**："auth" 出现在每条命令的 help 文本里 | 先判 usage → 再 auth → 再 permission → 兜底。朴素匹配会把 flag 拼错报成授权问题 |
+| 部分命令先吐多行诊断头再吐 JSON | 解析失败时回退到正则抓尾部 JSON |
+
+#### 性能陷阱
+
+`updateApplication(num, ...)` 在 Bitable 后端**每次都会全量拉表**来把业务 `num` 翻译成 `record_id`。**改多条一定用 `updateMany(records)`**（一次拉表建索引 + `+record-batch-update` 分批）。曾经算过：240 条循环更新 ≈ 720 次 API @ 5 req/s ≈ 2.5 分钟且极易限流。
+
+#### 新增 scope 的流程
+
+1. `lark-cli auth scopes --profile <p>` —— 先看 **app 侧**开了哪些。app 没开的 scope，用户授权也拿不到，这步能避免白扫一次码
+2. `lark-cli auth check --profile <p> --scope "<具体 scope>"` —— 已有就整个跳过
+3. `lark-cli schema <service.resource.method>` —— 查准确的 scope 字符串，**别凭记忆写**
+4. `lark-cli auth login --profile <p> --domain <domain> --no-wait --json` 拿 verification_url → 出二维码给用户 → **当轮结束交还控制权** → 用户确认后再 `--device-code <code>`
 
 ### Canonical States (applications.md)
 

@@ -35,7 +35,7 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import { runLarkCli as larkCli, parseJsonOut } from './feishu/capabilities.mjs';
 import { CANONICAL_STATES, TRACKS } from './tracker-backend.mjs';
 import readline from 'readline';
@@ -388,13 +388,13 @@ async function main() {
 
   console.log('=== Feishu Bitable Tracker — Setup Wizard ===\n');
 
-  // 1. Check lark-cli + auth
-  const which = run('which lark-cli');
-  if (which.error) {
+  // 1. Check lark-cli + auth (probe the binary directly — cross-platform, no `which`)
+  const probe = spawnSync('lark-cli', ['--version'], { encoding: 'utf-8' });
+  if (probe.error || probe.status !== 0) {
     console.error('❌ lark-cli not found. Install from: https://github.com/larksuite/lark-cli');
     process.exit(1);
   }
-  console.log('✅ lark-cli:', which.stdout);
+  console.log('✅ lark-cli:', (probe.stdout || '').trim() || 'ok');
 
   const auth = lark(['auth', 'status'], {});
   // Match the parsed payload, not a substring: the words "user" and "bot" also

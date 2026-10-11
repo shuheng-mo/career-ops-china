@@ -25,7 +25,7 @@
 
 import { spawnSync } from 'child_process';
 import { readFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, delimiter } from 'path';
 import { fileURLToPath } from 'url';
 
 const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -176,6 +176,31 @@ function throttle() {
 }
 
 /**
+ * Resolve the lark-cli command to spawn.
+ *
+ * On Windows, `npm install -g @larksuite/cli` exposes `lark-cli` as a `.cmd`
+ * (and `.ps1`) shim, not an executable, and `spawnSync` with `shell: false`
+ * cannot execute a `.cmd` shim directly (EINVAL). Resolve to the real binary
+ * shipped inside the package's `bin/` directory instead. Unix is unaffected.
+ */
+let _larkCliBin;
+function resolveLarkCliBin() {
+  if (_larkCliBin) return _larkCliBin;
+  _larkCliBin = 'lark-cli';
+  if (process.platform === 'win32') {
+    // npm exposes `lark-cli` as a .cmd shim, which spawnSync can't execute
+    // directly (EINVAL). Find the shim on PATH, then the real binary shipped
+    // next to it. (Can't use `npm root -g` — npm is itself a .cmd shim.)
+    for (const dir of (process.env.PATH || '').split(delimiter)) {
+      if (!dir || !existsSync(join(dir, 'lark-cli.cmd'))) continue;
+      const exe = join(dir, 'node_modules', '@larksuite', 'cli', 'bin', 'lark-cli.exe');
+      if (existsSync(exe)) { _larkCliBin = exe; break; }
+    }
+  }
+  return _larkCliBin;
+}
+
+/**
  * Run a lark-cli command.
  *
  * @param args    argv array WITHOUT `lark-cli`, e.g. ['base','+record-list',...]
@@ -221,7 +246,7 @@ export function runLarkCli(args, opts = {}) {
   if ((write || as) && !full.includes('--as')) full.push('--as', as || 'user');
 
   throttle();
-  const result = spawnSync('lark-cli', full, {
+  const result = spawnSync(resolveLarkCliBin(), full, {
     encoding: 'utf-8', timeout: timeoutMs, stdio: ['ignore', 'pipe', 'pipe'],
   });
 

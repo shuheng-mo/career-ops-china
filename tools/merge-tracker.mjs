@@ -17,7 +17,7 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, renameSync, existsSync } from 'fs';
 import { join, basename, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { readProfileTracker, normalizeCompany, roleFuzzyMatch, CANONICAL_STATES, normalizeTrack, TERMINAL_STATES } from './tracker-backend.mjs';
+import { readProfileTracker, normalizeCompany, roleFuzzyMatch, sameJobUrl, CANONICAL_STATES, normalizeTrack, TERMINAL_STATES } from './tracker-backend.mjs';
 // The md row codec lives in exactly one place. This file used to carry its own
 // line-for-line copy of parseAppLine plus three hand-written `| ${...} |` template
 // strings, which is how the column count drifted apart in the first place.
@@ -106,6 +106,20 @@ function parseAppLine(line) {
  */
 function extractUrlFromReport(reportField) {
   if (!reportField) return '';
+  // Bucket B/C/D rows carry `local:inbox/jd-*.json` instead of a report: read
+  // the capture's own `url`. The file may already be archived to processed/.
+  const inbox = reportField.match(/^local:(inbox\/[^\s]+\.json)$/);
+  if (inbox) {
+    const name = inbox[1].slice('inbox/'.length);
+    for (const p of [join(CAREER_OPS, 'inbox', name), join(CAREER_OPS, 'inbox', 'processed', name)]) {
+      if (!existsSync(p)) continue;
+      try {
+        const u = JSON.parse(readFileSync(p, 'utf-8')).url || '';
+        if (/^https?:\/\//.test(u)) return u;
+      } catch {}
+    }
+    return '';
+  }
   // Match `[NNN](reports/...)` or raw path; grab the path
   let path = '';
   const m = reportField.match(/\(([^)]+\.md)\)/) || reportField.match(/(reports\/[^\s\]]+\.md)/);
@@ -379,6 +393,7 @@ for (const file of tsvFiles) {
     const normCompany = normalizeCompany(addition.company);
     duplicate = existingApps.find(app => {
       if (normalizeCompany(app.company) !== normCompany) return false;
+      if (sameJobUrl(addition.url, app.url) === false) return false;   // different posting
       return roleFuzzyMatch(addition.role, app.role);
     });
   }

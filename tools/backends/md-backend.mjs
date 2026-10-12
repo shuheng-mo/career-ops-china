@@ -11,7 +11,7 @@
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { CAREER_OPS, normalizeCompany, roleFuzzyMatch, isTerminal, normalizeTrack } from '../tracker-backend.mjs';
+import { CAREER_OPS, normalizeCompany, roleFuzzyMatch, sameJobUrl, isTerminal, normalizeTrack } from '../tracker-backend.mjs';
 
 // Support both layouts: data/applications.md (current) and applications.md (legacy boilerplate)
 const APPS_FILE = existsSync(join(CAREER_OPS, 'data/applications.md'))
@@ -98,7 +98,7 @@ export function create(_cfg) {
 
     async addApplication(rec) {
       // Reject if dup by company+role (per CLAUDE.md rule)
-      const existing = await this.findByCompanyRole(rec.company, rec.role);
+      const existing = await this.findByCompanyRole(rec.company, rec.role, rec.url);
       if (existing) {
         return { num: existing.num, inserted: false };
       }
@@ -199,11 +199,12 @@ export function create(_cfg) {
       return { updated, missing };
     },
 
-    async findByCompanyRole(company, role) {
+    async findByCompanyRole(company, role, url) {
       const { apps } = readAll();
       const normC = normalizeCompany(company);
       return apps.find(a => {
         if (normalizeCompany(a.company) !== normC) return false;
+        if (sameJobUrl(url, a.url) === false) return false;   // different posting, however similar the title
         return roleFuzzyMatch(role, a.role);
       }) || null;
     },

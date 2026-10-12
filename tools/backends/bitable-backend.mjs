@@ -30,7 +30,7 @@
  *  - Status value must be in pre-created single-select options
  */
 
-import { normalizeCompany, roleFuzzyMatch, CANONICAL_STATES, isTerminal, normalizeTrack } from '../tracker-backend.mjs';
+import { normalizeCompany, roleFuzzyMatch, sameJobUrl, CANONICAL_STATES, isTerminal, normalizeTrack } from '../tracker-backend.mjs';
 // All lark-cli invocation goes through this one module: it guarantees --profile
 // (the CLI default is global state and may point at another tenant), --format
 // json, --as user on writes, and throttling. See tools/feishu/capabilities.mjs.
@@ -208,7 +208,7 @@ export function create(cfg) {
     },
 
     async addApplication(rec) {
-      const existing = await this.findByCompanyRole(rec.company, rec.role);
+      const existing = await this.findByCompanyRole(rec.company, rec.role, rec.url);
       if (existing) {
         return { num: existing.num, inserted: false };
       }
@@ -334,11 +334,12 @@ export function create(cfg) {
       return { updated: count, missing };
     },
 
-    async findByCompanyRole(company, role) {
+    async findByCompanyRole(company, role, url) {
       const apps = await this.listApplications();
       const normC = normalizeCompany(company);
       return apps.find(a => {
         if (normalizeCompany(a.company) !== normC) return false;
+        if (sameJobUrl(url, a.url) === false) return false;   // different posting, however similar the title
         return roleFuzzyMatch(role, a.role);
       }) || null;
     },

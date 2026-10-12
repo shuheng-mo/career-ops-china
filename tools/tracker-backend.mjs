@@ -148,8 +148,8 @@ export async function updateMany(records) {
   return (await getBackend()).updateMany(records);
 }
 
-export async function findByCompanyRole(company, role) {
-  return (await getBackend()).findByCompanyRole(company, role);
+export async function findByCompanyRole(company, role, url) {
+  return (await getBackend()).findByCompanyRole(company, role, url);
 }
 
 export async function getMaxNum() {
@@ -243,6 +243,36 @@ export function normalizeCompany(name) {
     .toLowerCase()
     .replace(/[\s　]+/g, '')          // whitespace incl. full-width space
     .replace(/[^\p{L}\p{N}]/gu, '');  // keep all Unicode letters (incl. CJK) + numbers
+}
+
+/**
+ * Do two posting URLs point at the same job? true / false, or null when either
+ * side has no usable URL (then the caller falls back to company + role).
+ *
+ * Exists because company + roleFuzzyMatch is far too loose inside one big
+ * employer: one bulk pull from a large company's careers site had 12 distinct
+ * postings swallowed as "duplicates" of each other ("X Harness 工程师" vs
+ * "Y-X Harness 算法工程师", two different "支付-全栈开发工程师" roles...),
+ * plus a fresh role matched against a different, months-old role at the same
+ * company. Distinct posting URLs are a much stronger signal than title similarity.
+ *
+ * Compares host + path, plus the id-carrying query params some sites use
+ * (careers.tencent.com/jobdesc.html?postId=...); tracking params are ignored.
+ */
+export function sameJobUrl(a, b) {
+  const key = (u) => {
+    // Bitable stores the URL column as a markdown link: `[https://…](https://…)`
+    u = String(u || '').trim().replace(/^\[[^\]]*\]\((.*)\)$/, '$1');
+    if (!u || !/^https?:\/\//.test(u)) return null;
+    try {
+      const x = new URL(u);
+      const id = ['postId', 'jobId', 'positionId', 'id'].map(k => x.searchParams.get(k)).find(Boolean) || '';
+      return `${x.hostname.replace(/^(www|cn|m)\./, '')}${x.pathname.replace(/\/+$/, '')}${id ? `?${id}` : ''}`.toLowerCase();
+    } catch { return null; }
+  };
+  const ka = key(a), kb = key(b);
+  if (!ka || !kb) return null;
+  return ka === kb;
 }
 
 // Matches both English (multi-word) and CJK (no-space) role titles.

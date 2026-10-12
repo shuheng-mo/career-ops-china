@@ -67,6 +67,36 @@ nohup node tools/jd-inbox-server.mjs > logs/inbox-server.log 2>&1 &
 | 🔑 Mokahr ATS | DeepSeek / 部分独角兽 ATS（`mokahr.com`、`app.mokahr.com`、`*.mokahr.com`）|
 | 🏢 大厂 SPA | 字节 / 阿里 / 蚂蚁 / 腾讯 / 美团 / 快手 / 小红书 careers / B 站 / 网易 / 京东 / 拼多多 / 百度 / 滴滴 / 智谱 / MiniMax / 阶跃 / 面壁 等 careers SPA |
 
+## LinkedIn：不用 bookmarklet，跑脚本
+
+cn.linkedin.com 没登录时会把 JD 折叠起来，bookmarklet 抓不全。LinkedIn 自己有一套免登录接口，`tools/linkedin-jobs.mjs` 直接读它：
+
+```bash
+npm run linkedin -- <岗位链接或 ID> [...]            # 取 JD，存进 inbox/，和 bookmarklet 捕获的格式一样
+npm run linkedin -- search "AI Agent" --city 上海 --days 7 --pages 2   # 搜索，列出 ID / 标题 / 公司 / 城市
+npm run linkedin -- search "后端" --city 北京 --fetch              # 搜索结果全部存进 inbox/
+```
+
+- 岗位 ID 就是 `/jobs/view/…-1234567890` 末尾那串数字
+- `/jobs/search?…&trk=missing_jd_redirect` 这种搜索页链接说明原岗位已下线，没有 ID 可取
+- `--city` 认中文城市名（上海 / 苏州 / 杭州 / 南京 / 无锡 等），其他城市写拼音
+- 输出里标「↪ 转载自其他招聘站」的，JD 是从猎聘等平台同步过来的，挂名公司不一定是实际用人方
+- 请求逐条发、间隔 1.5 秒，搜索最多 5 页 —— 用来代替手动翻页，不是用来批量爬
+
+## 腾讯招聘：一次拉一整个搜索结果
+
+careers.tencent.com 是 SPA，背后是公开的 JSON 接口，搜索页上的筛选条件能原样对上接口参数。`tools/tencent-careers.mjs` 直接调接口：
+
+```bash
+npm run tencent -- "<careers.tencent.com/search.html?query=...&keyword=... 链接>" --days 30   # 只列出
+npm run tencent -- agent --city 上海,北京 --days 30 --fetch                                  # 存进 inbox/
+```
+
+- 在网页上把筛选调好，直接复制地址栏的链接传进来就行（`ot_` 是职类，`ci_` 是城市，`bg_` 是事业群）
+- `--days` 按「最后更新时间」过滤，接口不提供单独的发布日期
+- `--fetch` 会跳过 inbox/ 和 inbox/processed/ 里已经抓过的岗位，重复跑只会补新的
+- 关键词是全文匹配，「agent」会带出游戏测试、客户端这类只是 JD 里提到 Agent 的岗位，交给 inbox 的标题过滤去筛
+
 ## 常见问题
 
 **Q: 弹窗说"❌ 服务器没启动"**
@@ -102,6 +132,8 @@ A: 编辑 `tools/bookmarklets/{name}.js`，重跑 `npm run build-bookmarklets`�
 tools/
 ├── jd-inbox-server.mjs          # 本地 HTTP 服务器（端口 8787）
 ├── build-bookmarklets.mjs       # 生成 install.html
+├── linkedin-jobs.mjs            # LinkedIn 取 JD / 搜岗（npm run linkedin）
+├── tencent-careers.mjs          # 腾讯招聘整页拉取（npm run tencent）
 ├── install.html                 # 浏览器打开拖按钮（自动生成）
 ├── README.md                    # 本文件
 └── bookmarklets/

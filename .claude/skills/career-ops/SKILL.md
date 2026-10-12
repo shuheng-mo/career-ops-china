@@ -45,6 +45,8 @@ arguments: mode
 
 **🇨🇳 中国大陆使用规则：**
 > 如果用户给的是国内招聘门户 URL（zhipin.com / liepin.com / lagou.com / mokahr.com / feishu.cn 等），先尝试 WebFetch 一次，**失败就立刻停止自动化尝试**，让用户截图给你。**不要在反爬上反复挣扎**。
+>
+> **LinkedIn 例外：** `linkedin.com/jobs/view/…` 链接不用截图，直接跑 `npm run linkedin -- <链接>`（走 LinkedIn 免登录接口，JD 存进 inbox/），再按 inbox 流程评估。搜索页链接（`/jobs/search?…`，常带 `trk=missing_jd_redirect`）说明原岗位已下线，没有 ID 可取。
 
 ---
 
@@ -66,6 +68,8 @@ career-ops — 中国大陆求职指挥中心
 🛰️ radar：每 2 天云端自动扫上海/杭州 AI应用·Agent 新岗，出线索清单（/career-ops radar 管理）
 
 ⚠️ 国内 URL（Boss/拉勾/猎聘/Mokahr/飞书）90% 抓不到 JD → 截图最快
+🐧 腾讯招聘搜索页整页拉：npm run tencent -- "<search.html 链接>" --days 30 --fetch
+🔗 LinkedIn 链接 / 搜岗：npm run linkedin -- <链接>  ·  npm run linkedin -- search "关键词" --city 上海 --days 7
 🔖 bookmarklet：tools/README.md（一次安装，之后任意 JD 页一键 → inbox）
 
 不确定哪个？直接发 JD 给我（auto-pipeline 默认），或问"<name> 怎么用"。

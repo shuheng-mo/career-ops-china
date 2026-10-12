@@ -51,6 +51,14 @@
     requirements: pickText(['.job-item-list', '[class*="tag-list"]', '[class*="labels"]']),
   };
 
+  // 2026-10 改版后 h1 / 地点选择器都失效了，但页面标题仍是
+  // 「【城市 岗位名招聘】-公司城市招聘信息-猎聘」
+  const titleMatch = document.title.match(/^【(\S+)\s+(.+?)招聘】/);
+  if (titleMatch) {
+    if (!extracted.location) extracted.location = titleMatch[1];
+    if (!extracted.job_title) extracted.job_title = titleMatch[2];
+  }
+
   const payload = {
     url: location.href,
     page_title: document.title,

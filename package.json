@@ -22,7 +22,9 @@
     "feishu:insights": "node tools/feishu/insights.mjs",
     "tracker:backfill-track": "node tools/backfill-track.mjs",
     "tracker:reconcile": "node tools/setup-bitable-tracker.mjs --reconcile",
-    "cv": "node tools/cv-md-to-pdf.mjs"
+    "cv": "node tools/cv-md-to-pdf.mjs",
+    "linkedin": "node tools/linkedin-jobs.mjs",
+    "tencent": "node tools/tencent-careers.mjs"
   },
   "keywords": [
     "ai",

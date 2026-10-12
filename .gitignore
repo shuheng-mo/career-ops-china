@@ -85,6 +85,6 @@ pids/
 
 
 # === interview-prep ===
-interview-prep/mock-interviews/*
-interview-prep/story-bank.md
+# Everything here is personal (stories, mock transcripts, prep plans, backups).
+interview-prep/*
 config/track-backfill.json

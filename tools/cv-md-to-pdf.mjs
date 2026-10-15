@@ -28,8 +28,8 @@ import { fileURLToPath } from 'url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const FONTS = `file://${join(ROOT, 'fonts')}`;
 
-// Ends with "2023.03 – 2024.08" / "2025.08 — 至今" / "2024.08-至今"
-const DATE_TAIL = /\s*(\d{4}\.\d{1,2}\s*[–—-]+\s*(?:\d{4}\.\d{1,2}|至今|今))\s*$/;
+// Ends with "2023.03 – 2024.08" / "2025.08 — 至今" / "2024.08-至今" / "2025.08 – Present" (English CVs)
+const DATE_TAIL = /\s*(\d{4}\.\d{1,2}\s*[–—-]+\s*(?:\d{4}\.\d{1,2}|至今|今|Present))\s*$/;
 
 const CSS = `
 @font-face { font-family: 'DM Sans'; src: url('${FONTS}/dm-sans-latin.woff2') format('woff2'); font-weight: 100 1000; }

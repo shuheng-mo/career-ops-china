@@ -37,7 +37,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync, spawnSync } from 'child_process';
 import { runLarkCli as larkCli, parseJsonOut } from './feishu/capabilities.mjs';
-import { CANONICAL_STATES, TRACKS } from './tracker-backend.mjs';
+import { CANONICAL_STATES, TRACKS, CHANNELS, RESPONSE_TYPES, INTERVIEW_STAGES, EXIT_STAGES } from './tracker-backend.mjs';
 import readline from 'readline';
 
 const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -147,7 +147,26 @@ function buildFieldsJson() {
         lightness: 'Light',
       })),
     },
+    // ── Funnel detail (2026-10-15) ──
+    // Status keeps only the current state, so it cannot answer "how fast do
+    // people reply" or "which round do I fail in". These six do, and
+    // tools/feishu/pulse.mjs reads them. Appended after Track for the same reason
+    // Track was: the md snapshot's positional columns stay untouched (the md
+    // backend never sees these — they are Bitable-only).
+    select('Channel', CHANNELS, 'Blue'),
+    { type: 'datetime', name: 'Applied At', style: { format: 'yyyy-MM-dd' } },
+    { type: 'datetime', name: 'First Response At', style: { format: 'yyyy-MM-dd' } },
+    select('First Response', RESPONSE_TYPES, { 拒信: 'Red', HR沟通: 'Turquoise', 约面: 'Green' }),
+    select('Furthest Stage', INTERVIEW_STAGES, 'Yellow'),
+    select('Exit Stage', EXIT_STAGES, s => (s === '录用' ? 'Green' : s.endsWith('挂') || s === 'Offer被撤' ? 'Red' : 'Gray')),
   ];
+}
+
+// Single-select field definition. `hue` is one hue for every option, a per-option
+// map, or a function of the option name.
+function select(name, options, hue) {
+  const pick = o => (typeof hue === 'function' ? hue(o) : typeof hue === 'object' ? (hue[o] || 'Gray') : hue);
+  return { type: 'select', name, multiple: false, options: options.map(o => ({ name: o, hue: pick(o), lightness: 'Light' })) };
 }
 
 // Formula fields (4), in dependency order — `Lifecycle Flag` reads

@@ -203,12 +203,16 @@ export const DASHBOARD_BLOCKS = [
     dataConfig: t => ({ table_name: t, count_all: true }),
   },
   {
-    name: '漏斗（按 Status）',
-    type: 'funnel',
+    // Was a funnel grouped by Status until 2026-10-15. Status is the CURRENT
+    // state, so it is not a funnel: an interviewed-then-rejected row sits under
+    // Rejected, and Discarded/SKIP dwarf everything. The real funnel (cumulative
+    // reach per stage) is the Funnel-table chart synced by tools/feishu/pulse.mjs.
+    name: '当前状态分布',
+    type: 'column',
     dataConfig: t => ({
       table_name: t,
       count_all: true,
-      group_by: [{ field_name: 'Status', mode: 'integrated' }],
+      group_by: [{ field_name: 'Status', mode: 'integrated', sort: { type: 'value', order: 'desc' } }],
     }),
   },
   {

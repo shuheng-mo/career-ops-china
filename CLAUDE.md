@@ -270,6 +270,20 @@ Write one TSV file per evaluation to `batch/tracker-additions/{num}-{company-slu
    - bitable → md：profile.yml 改回 `md`（md 已是最新 snapshot 无数据丢失）；Bitable 不删，可随时再切回
 5. **工具抽象层**：`tools/tracker-backend.mjs` 是统一 API，scripts/modes 调它（不直接读 md 或 bitable），后端切换对上游透明。
 
+### 漏斗明细与投递脉搏（2026-10-15 起）
+
+Status 只存当前态，答不了「多久回复」「挂在哪一轮」。Bitable 主表另有 6 个存储字段（仅 Bitable 后端），**每次改状态时顺手写上**，否则反馈速度模型看不到这条：
+
+| 时机 | `updateMany` 要带的字段 |
+|------|------------------------|
+| 投出去（改 Applied，或打招呼已发） | `appliedAt: 'YYYY-MM-DD'`、`channel`（`官网 / Boss / 猎聘 / 猎头 / 内推 / LinkedIn / 其他`） |
+| 第一次收到任何回复（拒信也算） | `firstResponseAt`、`firstResponse`（`拒信 / HR沟通 / 约面`） |
+| 流程结束 | `exitStage`（`简历关 / 一面挂 / 二面挂 / … / Offer被撤 / 候选人放弃 / 无回复 / 岗位关闭 / 录用`） |
+
+每一轮面试用 `npm run interview -- add <num> <一面|二面|三面|HR面|终面|笔试> <YYYY-MM-DD> <通过|挂|待定|取消> --format 视频 --feedback "面试官原话"` 记到 Interviews 表；它会自动回写主表的 `furthestStage`、`exitStage` 和 Status，不要再手动改这三个。
+
+`npm run pulse` 出投递脉搏：按渠道的历史回复曲线算出「到今天应该收到几个回复」，和实际比，给出 🟩 正常 / 🟨 观察 / 🟥 暂停投递。**出现 🟥 时，先停下来复盘简历、渠道和定位，不要继续加量投递**，并主动告诉用户。`npm run pulse -- --sync` 把每周批次写进 Pulse 表并补看板图表。飞书日报开头也会带这个信号。
+
 ### lark-cli 集成铁律（写代码碰飞书前必读）
 
 **所有 lark-cli 调用只能走 `tools/feishu/capabilities.mjs` 的 `runLarkCli()`。** 它集中保证四件事，不要在别处重新发明：

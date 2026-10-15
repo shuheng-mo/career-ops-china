@@ -35,6 +35,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { runLarkCli, parseJsonOut, isEnabled, skipped, feishuConfig } from './capabilities.mjs';
 import { listApplications, readProfileTracker, trackDirection, TRACK_FIT } from '../tracker-backend.mjs';
+import { buildPulse } from './pulse.mjs';
 
 const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -102,8 +103,14 @@ export async function buildDigest() {
     byDirection[d] = (byDirection[d] || 0) + 1;
   }
 
+  // The stop-sending signal leads the digest: it is the one line that should
+  // change what the candidate does today. A failure here must not sink the digest.
+  let pulse = null;
+  try { const P = await buildPulse(); pulse = { signal: P.signal, reason: P.reason, missing: P.missingAppliedAt.length }; } catch { /* best-effort */ }
+
   return {
     total: apps.length,
+    pulse,
     stale,
     ready,
     blocked,
@@ -120,6 +127,12 @@ export function renderDigest(d) {
   const L = [`## career-ops 日报 · ${today}`, ''];
 
   const dirLine = Object.entries(d.byDirection).map(([k, v]) => `${k} ${v}`).join(' · ');
+  if (d.pulse) {
+    L.push(`### 投递脉搏：${d.pulse.signal}`);
+    L.push(`- ${d.pulse.reason}`);
+    if (d.pulse.missing) L.push(`- ${d.pulse.missing} 个在途岗位缺投递日期，没进模型`);
+    L.push('');
+  }
   L.push(`**在库 ${d.total} 条**　待投 ${d.ready.length}${dirLine ? `（${dirLine}）` : ''}　超期未跟进 ${d.stale.length}　证据闸门 ${d.blocked.length}`);
   L.push('');
 

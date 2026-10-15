@@ -231,6 +231,38 @@ export function normalizeTrack(value) {
   return hit;
 }
 
+// ---- Funnel detail (2026-10-15) ----
+// Status stores only the CURRENT state, so a row that went Interview → Rejected
+// forgets that it ever reached an interview, and nothing records when it was
+// sent or how fast anyone answered. These enums back the stored fields that keep
+// that history; tools/feishu/pulse.mjs turns them into the response-speed model.
+// Each is a Bitable single-select, so the option lists here ARE the schema.
+
+// Where the application went out. Channel drives the expected response curve —
+// a careers portal answering in 2 weeks is normal, Boss going quiet for 2 weeks
+// is not — so the pulse model baselines each channel separately.
+export const CHANNELS = ['官网', 'Boss', '猎聘', '猎头', '内推', 'LinkedIn', '其他'];
+
+// The first thing that came back. Rejection counts as a response: it proves the
+// CV was read, which is what the speed model measures.
+export const RESPONSE_TYPES = ['拒信', 'HR沟通', '约面'];
+
+// Ordered: index = how far the process got. '未面' means a response that never
+// became an interview (e.g. HR chat, then silence).
+export const INTERVIEW_STAGES = ['未面', '笔试', '一面', '二面', '三面', 'HR面', '终面', 'Offer'];
+
+// Where it ended. Separate from INTERVIEW_STAGES because "reached 二面" and
+// "failed at 二面" differ from "withdrew after 二面" — and that difference is
+// exactly what tells a CV problem from an interview problem.
+export const EXIT_STAGES = [
+  '简历关', '笔试挂', '一面挂', '二面挂', '三面挂', 'HR面挂', '终面挂',
+  'Offer被撤', '候选人放弃', '无回复', '岗位关闭', '录用',
+];
+
+// One row per interview round, in the Interviews table.
+export const ROUND_RESULTS = ['通过', '挂', '待定', '取消'];
+export const ROUND_FORMATS = ['电话', '视频', '现场', '笔试'];
+
 export function isTerminal(status) {
   return TERMINAL_STATES.has(status);
 }

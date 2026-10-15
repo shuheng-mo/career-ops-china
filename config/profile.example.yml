@@ -115,5 +115,6 @@ tracker:
     table_id_applications: ""
     table_id_outreach: ""
     table_id_reports: ""
-    table_id_interviews: ""
+    table_id_interviews: ""            # one row per interview round; created on first use by tools/feishu/interviews.mjs
+    table_id_pulse: ""                 # weekly cohorts for the response-speed model; created by `npm run pulse -- --sync`
     base_url: ""                       # UI link to the Bitable dashboard

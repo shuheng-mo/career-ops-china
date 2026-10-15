@@ -20,6 +20,8 @@
     "feishu:check": "node tools/feishu/check.mjs",
     "feishu:digest": "node tools/feishu/notify.mjs",
     "feishu:insights": "node tools/feishu/insights.mjs",
+    "pulse": "node tools/feishu/pulse.mjs",
+    "interview": "node tools/feishu/interviews.mjs",
     "tracker:backfill-track": "node tools/backfill-track.mjs",
     "tracker:reconcile": "node tools/setup-bitable-tracker.mjs --reconcile",
     "cv": "node tools/cv-md-to-pdf.mjs",

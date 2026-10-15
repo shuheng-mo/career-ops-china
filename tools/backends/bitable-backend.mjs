@@ -17,6 +17,12 @@
  *   Notes (long text)  ↔ notes
  *   Closed At (date)   ↔ closedAt
  *   Track (select)     ↔ track      (track id, or '' meaning ai-app)
+ *   Channel (select)            ↔ channel          (CHANNELS)
+ *   Applied At (date)           ↔ appliedAt        (YYYY-MM-DD, the day it was sent)
+ *   First Response At (date)    ↔ firstResponseAt  (first reply of any kind, rejections included)
+ *   First Response (select)     ↔ firstResponse    (RESPONSE_TYPES)
+ *   Furthest Stage (select)     ↔ furthestStage    (INTERVIEW_STAGES — how far it ever got)
+ *   Exit Stage (select)         ↔ exitStage        (EXIT_STAGES — where it ended)
  *
  * Read-only formula fields — never written (see normalizedToFields):
  *   Days Since Added, Lifecycle Flag, Score Value, Direction
@@ -30,7 +36,10 @@
  *  - Status value must be in pre-created single-select options
  */
 
-import { normalizeCompany, roleFuzzyMatch, sameJobUrl, CANONICAL_STATES, isTerminal, normalizeTrack } from '../tracker-backend.mjs';
+import {
+  normalizeCompany, roleFuzzyMatch, sameJobUrl, CANONICAL_STATES, isTerminal, normalizeTrack,
+  CHANNELS, RESPONSE_TYPES, INTERVIEW_STAGES, EXIT_STAGES,
+} from '../tracker-backend.mjs';
 // All lark-cli invocation goes through this one module: it guarantees --profile
 // (the CLI default is global state and may point at another tenant), --format
 // json, --as user on writes, and throttling. See tools/feishu/capabilities.mjs.
@@ -72,7 +81,18 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // tolerates a bare string. normalizedToFields emits the bare string that upsert
 // has always used, so this adapts it for the batch path rather than changing a
 // write path that works.
-const SELECT_FIELDS = new Set(['Status', 'Track']);
+const SELECT_FIELDS = new Set(['Status', 'Track', 'Channel', 'First Response', 'Furthest Stage', 'Exit Stage']);
+
+// The funnel-detail selects: normalized key → [Bitable field, allowed options].
+// A value outside the option list is thrown on, not written — Bitable would
+// otherwise reject the whole batch, or (for upsert) silently create a stray option.
+const DETAIL_SELECTS = {
+  channel: ['Channel', CHANNELS],
+  firstResponse: ['First Response', RESPONSE_TYPES],
+  furthestStage: ['Furthest Stage', INTERVIEW_STAGES],
+  exitStage: ['Exit Stage', EXIT_STAGES],
+};
+const DETAIL_DATES = { appliedAt: 'Applied At', firstResponseAt: 'First Response At' };
 
 function toBatchCells(fields) {
   const out = {};
@@ -85,6 +105,7 @@ function toBatchCells(fields) {
 function recordToNormalized(record) {
   const f = record.fields || record;
   const status = Array.isArray(f.Status) ? (f.Status[0] || '') : (f.Status || '');
+  const sel = v => (Array.isArray(v) ? (v[0] || '') : (v || ''));
   const toDateStr = (v) => {
     if (typeof v === 'string' && v.length >= 10) return v.slice(0, 10);
     if (typeof v === 'number') return msToDate(v);
@@ -105,6 +126,12 @@ function recordToNormalized(record) {
     closedAt: toDateStr(f['Closed At']),
     // Select fields come back as an array even when single-valued.
     track: Array.isArray(f.Track) ? (f.Track[0] || '') : (f.Track || ''),
+    channel: sel(f.Channel),
+    appliedAt: toDateStr(f['Applied At']),
+    firstResponseAt: toDateStr(f['First Response At']),
+    firstResponse: sel(f['First Response']),
+    furthestStage: sel(f['Furthest Stage']),
+    exitStage: sel(f['Exit Stage']),
     linked: {},
     _recordId: record.record_id || record.id,
   };
@@ -140,6 +167,17 @@ function normalizedToFields(rec) {
     // because a select rejects an empty string).
     const t = normalizeTrack(rec.track);
     f.Track = t || null;
+  }
+  for (const [key, [field, options]] of Object.entries(DETAIL_SELECTS)) {
+    if (rec[key] === undefined) continue;
+    if (rec[key] && !options.includes(rec[key])) {
+      throw new Error(`Invalid ${field} "${rec[key]}"; must be one of ${options.join(' / ')}`);
+    }
+    f[field] = rec[key] || null;   // '' clears the cell; a select rejects ""
+  }
+  for (const [key, field] of Object.entries(DETAIL_DATES)) {
+    if (rec[key] === undefined) continue;
+    f[field] = rec[key] ? dateToUpsertString(rec[key]) : null;
   }
   return f;
 }

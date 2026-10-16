@@ -134,7 +134,10 @@ export function assessWindow(rows, base, windowDays = 21) {
   const p = poissonCdf(O, E);
   const ttfrs = live.filter(r => r.ttfr !== null).map(r => r.ttfr);
   const ttfrMed = median(ttfrs);
-  const slow = ttfrMed !== null && base.ttfrMedian !== null && ttfrMed > 1.5 * base.ttfrMedian && ttfrs.length >= 3;
+  // 1.5× alone misfires when the historical median is 0 days (Boss same-day
+  // replies): then a 1-day reply would read as "slow". Require 2+ days too.
+  const slow = ttfrMed !== null && base.ttfrMedian !== null && ttfrs.length >= 3
+    && ttfrMed > Math.max(1.5 * base.ttfrMedian, base.ttfrMedian + 2);
 
   let signal, reason;
   if (E < 2) {
@@ -150,7 +153,7 @@ export function assessWindow(rows, base, windowDays = 21) {
     signal = '🟨 观察';
     reason = p < 0.2
       ? `期望 ${E.toFixed(1)} 个回复，实际 ${O} 个，低于预期（P=${(p * 100).toFixed(0)}%）；不要加量，先看下一周`
-      : `回复数正常，但回复中位数 ${ttfrMed} 天，比历史 ${base.ttfrMedian} 天慢 1.5 倍以上`;
+      : `回复数正常，但回复中位数 ${ttfrMed} 天，比历史 ${base.ttfrMedian} 天明显慢（超过 1.5 倍且多 2 天以上）`;
   } else {
     signal = '🟩 正常';
     reason = `期望 ${E.toFixed(1)} 个回复，实际 ${O} 个`;

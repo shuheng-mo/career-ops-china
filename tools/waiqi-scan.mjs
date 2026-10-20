@@ -19,7 +19,7 @@
  *
  * 过滤：tools/title-filter.mjs（portals.yml 的 track-scoped 规则，与 scan 模式同一套）。
  * 去重：scan-history.tsv URL + inbox/processed 已抓 id + applications.md 公司·岗位 + pipeline.md URL。
- * 节流：请求间隔 1000ms；失败重试 2 次，HTTP 429（限流）时退避 30s/60s/120s。
+ * 节流：请求间隔 1000ms；失败重试 2 次，HTTP 429（限流）时退避 30s/60s（重试 2 次）。
  * 详情接口配额低（~150 次/小时），大跑容易中途 429：中断后重跑即可续跑——已落盘的 JD
  * 有 history 记录不会重复拉；详情失败的岗位不入 scan-history，下次重跑自然重试。
  * 手动低频运行，只读公开数据。
@@ -125,7 +125,7 @@ function capturedIds() {
 function historyUrls() {
   const urls = new Set();
   if (!fs.existsSync(HISTORY)) return urls;
-  for (const line of fs.readFileSync(HISTORY, 'utf8').split('\n').slice(1)) {
+  for (const line of fs.readFileSync(HISTORY, 'utf8').split('\n')) {
     const url = line.split('\t')[0];
     if (url && url.startsWith('http')) urls.add(url);
   }
@@ -141,7 +141,8 @@ function trackerKeys() {
   if (fs.existsSync(APPLICATIONS)) {
     for (const line of fs.readFileSync(APPLICATIONS, 'utf8').split('\n')) {
       if (!line.startsWith('|') || /^\|\s*-/.test(line) || line.includes('Company')) continue;
-      const cols = line.split('|').map((c) => c.trim()).filter(Boolean);
+      // 不用 filter(Boolean)：空单元格会导致列下标漂移；剥首尾 | 后按下标固定取值
+      const cols = line.replace(/^\|/, '').replace(/\|\s*$/, '').split('|').map((c) => c.trim());
       if (cols.length < 4 || !/^\d+$/.test(cols[0])) continue;
       keys.add(`${norm(cols[2])}|${norm(cols[3])}`); // Company | Role
       const url = (cols[7] || '').match(/https?:\/\/[^\s|)\]]+/)?.[0];
@@ -188,7 +189,7 @@ function saveToInbox(rec, det) {
       salary: fmtSalary(rec, det),
       location: det.cityNamelist || det.cityNameList || rec.cityNameList || '',
       seniority_experience: [det.workExpName || rec.workExpName, det.educationName || rec.educationName].filter(Boolean).join(' · '),
-      description: (det.description || '').trim(),
+      description: (det.description || '').replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>\s*<p>/gi, '\n\n').replace(/<[^>]+>/g, '').trim(),
       requirements: [rec.posCategoryName, rec.posInfoName, ...(rec.tagNameList || [])].filter(Boolean).join('；'),
       raw_text: '',
     },
@@ -233,6 +234,10 @@ const selected = categories ? cats.filter((c) => categories.includes(c.name)) : 
 if (categories && selected.length === 0) {
   console.error(`❌ --categories 无匹配。可用类别：${cats.map((c) => c.name).join('、')}`);
   process.exit(1);
+}
+if (categories) {
+  const missing = categories.filter((n) => !cats.some((c) => c.name === n));
+  if (missing.length) console.error(`⚠️ --categories 未匹配：${missing.join('、')}（可用：${cats.map((c) => c.name).join('、')}）`);
 }
 const queue = selected.map((c) => ({ posIds: c.ids.join(','), workExp: '', label: c.name }));
 while (queue.length && listReqs < maxPages) {
@@ -292,7 +297,7 @@ const appendHistory = (rec, status) => {
   if (dryRun) return;
   const url = jobUrl(rec.id);
   if (hist.has(url)) return;
-  fs.appendFileSync(HISTORY, `${url}\t${today()}\twaiqi\t${(rec.name || '').replace(/\t/g, ' ')}\t${(rec.companyName || '').replace(/\t/g, ' ')}\t${status}\n`, 'utf8');
+  fs.appendFileSync(HISTORY, `${url}\t${today()}\twaiqi\t${(rec.name || '').replace(/[\t\r\n]/g, ' ')}\t${(rec.companyName || '').replace(/[\t\r\n]/g, ' ')}\t${status}\n`, 'utf8');
   hist.add(url);
 };
 const added = [], shortJd = [], detailFail = [];

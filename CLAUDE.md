@@ -23,7 +23,7 @@ AI-powered job search automation built on Claude Code: pipeline tracking, offer 
 | `data/scan-history.tsv` | Scanner dedup history |
 | `portals.yml` | Query and company config |
 | `tools/cv-md-to-pdf.mjs` | Tailored CV markdown → PDF (`npm run cv -- file.md`); the .md in `output/` is the editable source |
-| `tools/waiqi-scan.mjs` | 神仙外企岗位抓取 → inbox（`npm run waiqi`，可选 `--max-pages N`（列表请求上限）/ `--since YYYY-MM-DD` / `--dry-run`） |
+| `tools/waiqi-scan.mjs` | 神仙外企岗位抓取 → inbox（`npm run waiqi`，可选 `--max-pages N`（列表请求上限）/ `--since YYYY-MM-DD` / `--categories 名,名` / `--dry-run`） |
 | `templates/cv-template.html` + `tools/generate-pdf.mjs` | Legacy HTML → PDF path, kept for old files only |
 | `article-digest.md` | Compact proof points from portfolio (optional) |
 | `interview-prep/story-bank.md` | Accumulated STAR+R stories across evaluations |

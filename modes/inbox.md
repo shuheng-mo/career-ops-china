@@ -58,7 +58,7 @@
   "url": "https://...",
   "page_title": "...",
   "captured_at": "2026-04-14T08:30:00.000Z",
-  "platform": "boss-zhipin | liepin | lagou | mokahr | dachang-spa | universal | linkedin | tencent-careers",
+  "platform": "boss-zhipin | liepin | lagou | mokahr | dachang-spa | universal | linkedin | tencent-careers | waiqi",
   "extracted": {
     "job_title": "高级数据工程师",
     "company": "字节跳动",

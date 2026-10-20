@@ -613,3 +613,106 @@ git commit -m "chore: 接线 npm run waiqi + CLAUDE.md 登记 waiqi-scan"
 - **Placeholder scan**：无 TBD/TODO；所有代码完整给出
 - **Type consistency**：`loadTitleFilter()` 返回 `{source, globalNeg, tracks}`，T1 测试与 T2 主工具消费一致；`judgeTitle` 返回 `{keep, tracks, why}`，两处用法一致；`trackStat` 用 `verdict.tracks`（数组）正确
 - **spec 偏差说明**：spec 说 scan-history「备注命中词」——现有 TSV 只有 6 列无 notes 列，命中词改为打印到终端摘要，不破坏文件格式
+
+---
+
+### Task 4: 限流友好改进 + Task 2 评审 findings 修复（2026-10-20 用户批准后增补）
+
+**背景**：Task 2 实跑发现 waiqi API 有限流（列表 ~1700 请求/小时、详情 ~150/小时，触发 HTTP 429）。
+Task 2 评审的两个 Important finding 与本任务合并处理。以下行号基于 as-built `tools/waiqi-scan.mjs`（commit 03d3d5c，314 行）。
+
+**Files:**
+- Modify: `tools/waiqi-scan.mjs`
+
+**Interfaces:**
+- Consumes: as-built `tools/waiqi-scan.mjs`、`tools/title-filter.mjs`（不改）
+- Produces: 新增 CLI 参数 `--categories <名,名>`；行为变更见下
+
+- [ ] **Step 1: 429 感知退避（改 withRetry，当前 47-52 行）**
+
+错误消息含 `429` 时退避 30s/60s/120s；其他错误保持 1s/2s：
+
+```js
+async function withRetry(fn, tries = 3) {
+  for (let i = 1; ; i++) {
+    try { return await fn(); }
+    catch (e) {
+      if (i >= tries) throw e;
+      const waits = String(e.message).includes('429') ? [30000, 60000, 120000] : [1000, 2000];
+      await sleep(waits[i - 1] || 2000);
+    }
+  }
+}
+```
+
+- [ ] **Step 2: 详情失败不再写 scan-history（修复 Important #1）+ history 增量写入**
+
+- 删掉 292 行 `for (const { rec } of detailFail) push(rec, 'added');`——详情失败的岗位下次重跑会自然重试（capturedIds/history 都没有它）。
+- 把 `push` 提成可增量调用的 `appendHistory(rec, status)`（内部仍用 `hist` set 防重、仍遵守 dry-run 不写），详情循环里 `saveToInbox` 成功后**立即** `appendHistory(rec, 'added')`——中断时已落盘的 JD 不丢 history 记录。
+- 循环结束后再统一写 `droppedTitle` / `droppedDup` 的行（保持现状的最后批量写即可）。
+
+- [ ] **Step 3: 枚举细分信任 count（减少列表请求）**
+
+`listSlice` 返回从 `records` 改为 `{ records, count }`（`count = body.data?.count`）。细分条件由 `recs.length >= PAGE_SIZE`（231 行）改为：
+
+```js
+if (recs.length >= PAGE_SIZE && (typeof count !== 'number' || count > recs.length)) { …细分… }
+```
+
+- [ ] **Step 4: applications.md URL 正则修复（修复 Important #2，139 行）**
+
+```js
+const url = (cols[7] || '').match(/https?:\/\/[^\s|)\]]+/)?.[0];
+```
+
+- [ ] **Step 5: 节流 500ms → 1000ms（41 行）+ `--categories` 参数**
+
+```js
+const DELAY_MS = 1000;
+```
+
+新增参数解析（202 行附近）：
+
+```js
+const categories = opt('categories')?.split(/[,，]/).map((s) => s.trim()).filter(Boolean) || null;
+```
+
+`cats` 计算后（215-216 行间）过滤：
+
+```js
+const cats = await withRetry(posCategories).catch((e) => {
+  console.error(`❌ 职位类别列表拉取失败：${e.message}（可能在限流中，稍后重试）`);
+  process.exit(1);
+});
+const selected = categories ? cats.filter((c) => categories.includes(c.name)) : cats;
+if (categories && selected.length === 0) {
+  console.error(`❌ --categories 无匹配。可用类别：${cats.map((c) => c.name).join('、')}`);
+  process.exit(1);
+}
+const queue = selected.map((c) => ({ posIds: c.ids.join(','), workExp: '', label: c.name }));
+```
+
+（Step 6 的 posCategories 友好报错已并入上面的 `.catch`。）
+
+- [ ] **Step 6: Minor 修复**
+
+- 305 行截断警告 `仍满 20 条` → `仍满 ${PAGE_SIZE} 条`
+- 202 行 `--max-pages` 防护：`const maxPages = opt('max-pages') ? Number(opt('max-pages')) : Infinity;` 若 `Number.isNaN(maxPages) || maxPages < 1` → 报错退出 1
+- 181 行 location 防御兼容：`det.cityNamelist || det.cityNameList || rec.cityNameList || ''`
+
+- [ ] **Step 7: 更新头部注释**（--categories 用法、DELAY 1000ms、详情配额低导致中断时重跑即续）
+
+- [ ] **Step 8: 有界验证（不要在限流期间长时间轮询等待！）**
+
+1. `node tools/test-title-filter.mjs` 全绿（未动它，便宜确认）
+2. `node tools/waiqi-scan.mjs --categories IT技术 --max-pages 10 --dry-run` —— 若 429 已解除：枚举正常、count 生效（请求数应明显少于满细分）；若仍 429：确认友好报错 + exit 1 即算通过，报告注明降级
+3. 逻辑验证（不依赖网络）：`node --input-type=module -e` 内联 import 验证 `--max-pages abc` 报错退出、`--categories 不存在类别` 的报错路径（可用 env 桩或直接在报告里给出人工推演 + 代码走读证据）
+4. `git status` 确认 dry-run 无写入
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add tools/waiqi-scan.mjs
+git commit -m "fix: waiqi-scan 限流友好（429 退避/详情失败可重试/count 细分优化/--categories）"
+```
+

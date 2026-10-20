@@ -26,7 +26,8 @@
     "tracker:reconcile": "node tools/setup-bitable-tracker.mjs --reconcile",
     "cv": "node tools/cv-md-to-pdf.mjs",
     "linkedin": "node tools/linkedin-jobs.mjs",
-    "tencent": "node tools/tencent-careers.mjs"
+    "tencent": "node tools/tencent-careers.mjs",
+    "waiqi": "node tools/waiqi-scan.mjs"
   },
   "keywords": [
     "ai",

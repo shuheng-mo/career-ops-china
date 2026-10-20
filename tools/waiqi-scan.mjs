@@ -9,6 +9,7 @@
  *   node tools/waiqi-scan.mjs                     # 全量：列表→过滤→去重→拉JD→写 inbox/
  *   node tools/waiqi-scan.mjs --max-pages 30      # 列表请求上限 30 次（见下）
  *   node tools/waiqi-scan.mjs --since 2026-10-18  # 只看 updateTime >= 该日期的岗位
+ *   node tools/waiqi-scan.mjs --categories IT技术,供应链  # 只扫指定职位类别（名，逗号分隔）
  *   node tools/waiqi-scan.mjs --dry-run           # 只统计，不写 inbox / scan-history
  *
  * 注意：foreign/page-list 的 page 参数已失效（page>=2 恒返回空），全量枚举改为
@@ -18,7 +19,10 @@
  *
  * 过滤：tools/title-filter.mjs（portals.yml 的 track-scoped 规则，与 scan 模式同一套）。
  * 去重：scan-history.tsv URL + inbox/processed 已抓 id + applications.md 公司·岗位 + pipeline.md URL。
- * 节流：请求间隔 500ms，失败重试 2 次。手动低频运行，只读公开数据。
+ * 节流：请求间隔 1000ms；失败重试 2 次，HTTP 429（限流）时退避 30s/60s/120s。
+ * 详情接口配额低（~150 次/小时），大跑容易中途 429：中断后重跑即可续跑——已落盘的 JD
+ * 有 history 记录不会重复拉；详情失败的岗位不入 scan-history，下次重跑自然重试。
+ * 手动低频运行，只读公开数据。
  */
 
 import fs from 'node:fs';
@@ -38,7 +42,7 @@ const HEADERS = {
   Origin: 'https://www.waiqi.com',
   Referer: 'https://www.waiqi.com/position',
 };
-const DELAY_MS = 500;
+const DELAY_MS = 1000;
 const PAGE_SIZE = 50; // 实测 size<=50 正常返回，>=60 报 code 1010
 const WORK_EXP_VALUES = ['1', '2', '3', '4', '5']; // 实测 6+ 恒返回空
 
@@ -47,7 +51,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function withRetry(fn, tries = 3) {
   for (let i = 1; ; i++) {
     try { return await fn(); }
-    catch (e) { if (i >= tries) throw e; await sleep(1000 * i); }
+    catch (e) {
+      if (i >= tries) throw e;
+      const waits = String(e.message).includes('429') ? [30000, 60000, 120000] : [1000, 2000];
+      await sleep(waits[i - 1] || 2000);
+    }
   }
 }
 
@@ -65,7 +73,7 @@ async function listSlice({ posIds, workExp }) {
   if (!res.ok) throw new Error(`HTTP ${res.status} page-list slice`);
   const body = await res.json();
   if (body.code !== 1000) throw new Error(`page-list slice: code ${body.code} ${body.message || ''}`);
-  return body.data?.positionVO?.records || [];
+  return { records: body.data?.positionVO?.records || [], count: body.data?.count };
 }
 
 /** 职位类别 → 该类别的全部 posIds（来自 /position/pos-all-list）。 */
@@ -136,7 +144,7 @@ function trackerKeys() {
       const cols = line.split('|').map((c) => c.trim()).filter(Boolean);
       if (cols.length < 4 || !/^\d+$/.test(cols[0])) continue;
       keys.add(`${norm(cols[2])}|${norm(cols[3])}`); // Company | Role
-      const url = (cols[7] || '').match(/https?:\/\/[^\s)]+/)?.[0];
+      const url = (cols[7] || '').match(/https?:\/\/[^\s|)\]]+/)?.[0];
       if (url) urls.add(url);
     }
   }
@@ -178,7 +186,7 @@ function saveToInbox(rec, det) {
       job_title: rec.name,
       company: rec.companyName,
       salary: fmtSalary(rec, det),
-      location: det.cityNamelist || rec.cityNameList || '',
+      location: det.cityNamelist || det.cityNameList || rec.cityNameList || '',
       seniority_experience: [det.workExpName || rec.workExpName, det.educationName || rec.educationName].filter(Boolean).join(' · '),
       description: (det.description || '').trim(),
       requirements: [rec.posCategoryName, rec.posInfoName, ...(rec.tagNameList || [])].filter(Boolean).join('；'),
@@ -199,9 +207,14 @@ const opt = (name) => {
   const i = argv.indexOf(`--${name}`);
   return i > -1 ? argv[i + 1] : undefined;
 };
-const maxPages = Number(opt('max-pages') || Infinity);
+const maxPages = opt('max-pages') ? Number(opt('max-pages')) : Infinity;
+if (Number.isNaN(maxPages) || maxPages < 1) {
+  console.error(`❌ --max-pages 需为 >=1 的数字，收到：${opt('max-pages')}`);
+  process.exit(1);
+}
 const dryRun = argv.includes('--dry-run');
 const since = opt('since') || null;
+const categories = opt('categories')?.split(/[,，]/).map((s) => s.trim()).filter(Boolean) || null;
 
 const filter = loadTitleFilter();
 if (!filter) { console.error('❌ 找不到 portals.yml 或模板，无法加载 title_filter'); process.exit(1); }
@@ -212,23 +225,32 @@ if (filter.tracks.length === 0) { console.error('❌ title_filter.track_filters 
 const byId = new Map();
 const truncated = [];
 let listReqs = 0, failedSlices = 0;
-const cats = await withRetry(posCategories);
-const queue = cats.map((c) => ({ posIds: c.ids.join(','), workExp: '', label: c.name }));
+const cats = await withRetry(posCategories).catch((e) => {
+  console.error(`❌ 职位类别列表拉取失败：${e.message}（可能在限流中，稍后重试）`);
+  process.exit(1);
+});
+const selected = categories ? cats.filter((c) => categories.includes(c.name)) : cats;
+if (categories && selected.length === 0) {
+  console.error(`❌ --categories 无匹配。可用类别：${cats.map((c) => c.name).join('、')}`);
+  process.exit(1);
+}
+const queue = selected.map((c) => ({ posIds: c.ids.join(','), workExp: '', label: c.name }));
 while (queue.length && listReqs < maxPages) {
   const slice = queue.shift();
   if (listReqs > 0) await sleep(DELAY_MS);
   listReqs++;
   if (listReqs % 25 === 0) console.log(`… 列表进度：${listReqs} 次请求，已收 ${byId.size} 条，队列余 ${queue.length}`);
-  let recs;
+  let recs, count;
   try {
-    recs = await withRetry(() => listSlice(slice));
+    ({ records: recs, count } = await withRetry(() => listSlice(slice)));
   } catch (e) {
     failedSlices++;
     console.log(`⚠️ 切片拉取失败（${slice.label}：${e.message}），跳过`);
     continue;
   }
   for (const r of recs) if (r && r.id && r.name && r.companyName) byId.set(r.id, r);
-  if (recs.length >= PAGE_SIZE) {
+  // count 是该过滤条件下的总数：已知总数 <= 已收条数则枚举完整，无需再细分
+  if (recs.length >= PAGE_SIZE && (typeof count !== 'number' || count > recs.length)) {
     if (slice.posIds.includes(',')) {
       const ids = slice.posIds.split(',');
       const mid = Math.ceil(ids.length / 2);
@@ -264,7 +286,15 @@ for (const rec of dated) {
   kept.push({ rec, verdict });
 }
 
-// 5+6. 拉详情 + 落盘
+// 5+6. 拉详情 + 落盘；落盘成功立即写 scan-history（中断时已抓的 JD 不丢记录）。
+// 详情失败的岗位不写 history，下次重跑自然重试。
+const appendHistory = (rec, status) => {
+  if (dryRun) return;
+  const url = jobUrl(rec.id);
+  if (hist.has(url)) return;
+  fs.appendFileSync(HISTORY, `${url}\t${today()}\twaiqi\t${(rec.name || '').replace(/\t/g, ' ')}\t${(rec.companyName || '').replace(/\t/g, ' ')}\t${status}\n`, 'utf8');
+  hist.add(url);
+};
 const added = [], shortJd = [], detailFail = [];
 for (const { rec, verdict } of kept) {
   await sleep(DELAY_MS);
@@ -272,28 +302,19 @@ for (const { rec, verdict } of kept) {
     const det = await withRetry(() => detail(rec.id));
     const desc = (det.description || '').trim();
     if (desc.length < 100) shortJd.push(rec);
-    if (!dryRun) added.push({ file: saveToInbox(rec, det), rec, verdict });
-    else added.push({ file: '(dry-run)', rec, verdict });
+    if (!dryRun) {
+      const file = saveToInbox(rec, det);
+      appendHistory(rec, 'added');
+      added.push({ file, rec, verdict });
+    } else added.push({ file: '(dry-run)', rec, verdict });
   } catch (e) {
     detailFail.push({ rec, err: e.message });
   }
 }
 
-// 7. scan-history（已进历史的 URL 不重写）
-if (!dryRun) {
-  const rows = [];
-  const push = (rec, status) => {
-    const url = jobUrl(rec.id);
-    if (hist.has(url)) return;
-    rows.push(`${url}\t${today()}\twaiqi\t${(rec.name || '').replace(/\t/g, ' ')}\t${(rec.companyName || '').replace(/\t/g, ' ')}\t${status}`);
-    hist.add(url);
-  };
-  for (const { rec } of added) push(rec, 'added');
-  for (const { rec } of detailFail) push(rec, 'added'); // 已见过，避免下次重复拉详情失败
-  for (const { rec } of droppedTitle) push(rec, 'skipped_title_filter');
-  for (const rec of droppedDup) push(rec, 'skipped_dup');
-  if (rows.length) fs.appendFileSync(HISTORY, rows.join('\n') + '\n', 'utf8');
-}
+// 7. scan-history：added 已在详情循环里即时写入，这里只补 drop 两类
+for (const { rec } of droppedTitle) appendHistory(rec, 'skipped_title_filter');
+for (const rec of droppedDup) appendHistory(rec, 'skipped_dup');
 
 // 8. 摘要
 const trackStat = {};
@@ -302,7 +323,7 @@ console.log(`
 神仙外企 waiqi-scan — ${today()}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 拉取列表：${unique.length} 条（列表请求 ${listReqs} 次${maxPages !== Infinity ? `，--max-pages ${maxPages}` : ''}${failedSlices ? `，切片失败 ${failedSlices}` : ''}）
-${capped ? '⚠️ 列表请求达上限，枚举未完整（增大 --max-pages 或不带该参数重跑）\n' : ''}${truncated.length ? `⚠️ ${truncated.length} 个最小切片仍满 20 条，可能截断：${truncated.map((s) => s.label).join('、')}\n` : ''}${since ? `--since ${since} 后：${dated.length} 条\n` : ''}标题过滤 keep：${kept.length}（${Object.entries(trackStat).map(([t, n]) => `${t}: ${n}`).join(' · ') || '—'}）
+${capped ? '⚠️ 列表请求达上限，枚举未完整（增大 --max-pages 或不带该参数重跑）\n' : ''}${truncated.length ? `⚠️ ${truncated.length} 个最小切片仍满 ${PAGE_SIZE} 条，可能截断：${truncated.map((s) => s.label).join('、')}\n` : ''}${since ? `--since ${since} 后：${dated.length} 条\n` : ''}标题过滤 keep：${kept.length}（${Object.entries(trackStat).map(([t, n]) => `${t}: ${n}`).join(' · ') || '—'}）
 标题过滤 drop：${droppedTitle.length}
 去重跳过：${droppedDup.length}
 拉详情失败：${detailFail.length}${shortJd.length ? `\n⚠️ JD 过短(<100字)：${shortJd.length}（已照常落盘，inbox triage 时留意）` : ''}

@@ -23,7 +23,8 @@ AI-powered job search automation built on Claude Code: pipeline tracking, offer 
 | `data/scan-history.tsv` | Scanner dedup history |
 | `portals.yml` | Query and company config |
 | `tools/cv-md-to-pdf.mjs` | Tailored CV markdown → PDF (`npm run cv -- file.md`); the .md in `output/` is the editable source |
-| `tools/waiqi-scan.mjs` | 神仙外企岗位抓取 → inbox（`npm run waiqi`，可选 `--max-pages N`（列表请求上限）/ `--since YYYY-MM-DD` / `--categories 名,名` / `--dry-run`） |
+| `tools/waiqi-scan.mjs` | 神仙外企岗位抓取 → inbox（神仙外企只当线索源：JSON 的 `url` 是校验过的官网投递链接，官网已下线的不落盘）（`npm run waiqi`，可选 `--max-pages N`（列表请求上限）/ `--since YYYY-MM-DD` / `--categories 名,名` / `--dry-run`） |
+| `tools/apply-link.mjs` | 校验官网投递链接是否还在招（`npm run apply-link -- <url\|inbox JSON>`）：Workday / SmartRecruiters 走公开接口确认，其他站点能判下线就判，判不了标 unverified |
 | `templates/cv-template.html` + `tools/generate-pdf.mjs` | Legacy HTML → PDF path, kept for old files only |
 | `article-digest.md` | Compact proof points from portfolio (optional) |
 | `interview-prep/story-bank.md` | Accumulated STAR+R stories across evaluations |
@@ -277,7 +278,7 @@ Status 只存当前态，答不了「多久回复」「挂在哪一轮」。Bita
 
 | 时机 | `updateMany` 要带的字段 |
 |------|------------------------|
-| 投出去（改 Applied，或打招呼已发） | `appliedAt: 'YYYY-MM-DD'`、`channel`（`官网 / Boss / 猎聘 / 猎头 / 内推 / LinkedIn / 其他`） |
+| 投出去（改 Applied，或打招呼已发） | `appliedAt: 'YYYY-MM-DD'`、`channel`（`官网 / Boss / 猎聘 / 猎头 / 内推 / LinkedIn / 其他`）。`appliedAt` 是飞书跟进提醒的锚点（+3 天跟进、+14 天结案，`npm run followup`，launchd `com.career-ops.followup` 每天 9:00 对账）—— 不填就没有提醒 |
 | 第一次收到任何回复（拒信也算） | `firstResponseAt`、`firstResponse`（`拒信 / HR沟通 / 约面`） |
 | 流程结束 | `exitStage`（`简历关 / 一面挂 / 二面挂 / … / Offer被撤 / 候选人放弃 / 无回复 / 岗位关闭 / 录用`） |
 

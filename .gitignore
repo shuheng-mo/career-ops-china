@@ -88,3 +88,6 @@ pids/
 # Everything here is personal (stories, mock transcripts, prep plans, backups).
 interview-prep/*
 config/track-backfill.json
+
+# follow-up task state (company names)
+data/followup-tasks.json

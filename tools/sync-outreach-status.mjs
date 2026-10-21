@@ -28,7 +28,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { listApplications, updateMany, getBackend } from "./tracker-backend.mjs";
-import { createFollowUpTask } from "./feishu/schedule.mjs";
+import { reconcileFollowUps } from "./feishu/followup.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUTREACH = join(ROOT, "outreach");
@@ -109,7 +109,7 @@ for (const file of files) {
     ? row.notes
     : `${noteRef}；${row.notes || ""}`;
 
-  pending.push({ num, status: "Applied", notes });
+  pending.push({ num, status: "Applied", appliedAt: parsed.sentDate, notes });
   console.log(`${dryRun ? "🔍" : "✅"} #${num}: Evaluated → Applied (outreach/${file})`);
 }
 
@@ -123,20 +123,13 @@ if (pending.length > 0 && !dryRun) {
 
   // Schedule the follow-up nudges. Deliberately after the tracker write and
   // non-fatal: a reminder that fails to schedule must not undo a status change
-  // that already succeeded. The idempotency key makes a re-run safe.
-  const missingSet = new Set(missing.map(Number));
-  let scheduled = 0, degraded = 0, failed = 0;
-  for (const p of pending) {
-    if (missingSet.has(p.num)) continue;
-    const row = byNum.get(p.num);
-    const res = createFollowUpTask({ num: p.num, company: row?.company, role: row?.role });
-    if (res.skipped) degraded++;
-    else if (res.ok) scheduled++;
-    else { failed++; console.log(`⚠️  #${p.num} 跟进提醒没建上: ${res.error.split("\n")[0]}`); }
+  // that already succeeded. Same reconcile the daily launchd job runs, so the
+  // two paths can't create duplicate tasks.
+  const res = await reconcileFollowUps();
+  if (!res.skipped) {
+    if (res.created.length) console.log(`⏰ 已建 ${res.created.length} 个跟进/结案提醒（飞书任务）`);
+    if (res.failed.length) console.log(`⚠️  ${res.failed.length} 个提醒建失败 —— tracker 状态已改，提醒要自己补`);
   }
-  if (scheduled) console.log(`⏰ 已建 ${scheduled} 个 +3 天跟进提醒（飞书任务）`);
-  if (degraded) console.log(`⏰ ${degraded} 个提醒落到 data/reminders.md（飞书 task 能力未开）`);
-  if (failed) console.log(`⚠️  ${failed} 个提醒建失败 —— tracker 状态已改，提醒要自己补`);
 }
 
 console.log(`\n📊 升级: ${pending.length}${dryRun ? "（dry-run，未写入）" : ""}, 无变化: ${noop}, 跳过: ${skipped}`);

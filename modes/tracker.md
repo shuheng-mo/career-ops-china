@@ -66,9 +66,9 @@ node -e 'import("./tools/tracker-backend.mjs").then(async m => {
 
 | 变更 | 副作用 |
 |---|---|
-| → `Applied` | +3 天跟进任务（`npm run sync-outreach` 自动做） |
+| → `Applied` | 投递 +3 天跟进任务 + 投递 +14 天「无回复结案？」任务（`npm run followup` 对账；launchd 每天 9:00 自动跑，任何途径改的 Applied 都会被扫到；有回复/结案后自动勾掉） |
 | → `Interview` | 日历日程（JD 摘要进描述）+ 面试前 24h 过简历一致性的任务 |
 
 ⚠️ **Bitable 没有记录变更的事件流** —— `base` 不在 `event` 的 8 个域里。所以这些副作用只能在
 改状态的那段代码里主动触发，不存在「在 Bitable UI 里拖一下卡片就自动建日程」的方案。
-在 UI 里手改了状态，提醒要自己补（或者改完跑一次 `npm run feishu:digest` 至少能看到超期清单）。
+Applied 的跟进提醒不依赖改状态的路径：`tools/feishu/followup.mjs` 按 tracker 现状对账（状态存 `data/followup-tasks.json`），所以**改成 Applied 时一定要带 `appliedAt`**，否则排不了提醒。Interview 的日程仍需在改状态时主动触发。

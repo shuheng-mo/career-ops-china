@@ -16,6 +16,20 @@
    - **C. SKIP（Deal-breaker）**：真派遣 / 真命中 deal-breaker 公司系 / 明确命中候选人 deal-breaker
    - **D. Title-skip**：title 过滤不过关（AI 产品经理 / 数据分析师 / 应届实习 等）
 
+### Phase 0.5 — 官网投递链接复核（仅桶 A）
+
+线索平台（神仙外企等）转载的官网链接**时效没有保证**：平台上还挂着，官网可能已经下线（实际遇到过：评估完才发现 Workday 已 403）。所以桶 A 进完整评估**之前**先跑：
+
+```
+node tools/apply-link.mjs inbox/jd-*.json   # 只传桶 A 那几个
+```
+
+- 🔴 `closed` → 不评估，改记桶 B：`Discarded`，notes 写 `岗位关闭（官网链接已下线）`
+- 🟡 `unverified`（Moka/微信招聘等 SPA，非浏览器打不开）→ 照常评估，report 验证状态写「官网链接未确认，投递前用浏览器打开核实」
+- 🟢 `live` → 照常评估，验证状态写「官网链接在招（{via} 接口确认 {日期}）」
+
+投递前（用户说「要投」时）对该条再跑一次 —— 评估到投递之间可能隔了好几天。
+
 ### Phase 1 — 交互式确认（Token 控制）
 
 如果桶 A 候选数 ≥ 5，向用户列清单让选：
@@ -79,6 +93,8 @@
 |------|------|------|
 | 1 | `extracted.description` | 主 JD 内容（如果 bookmarklet 抽到了结构化字段）|
 | 2 | `extracted.raw_text` | 兜底，整页文本，从中识别 JD |
+| — | `lead_url` | 仅 waiqi：神仙外企详情页，只是线索出处，**不要**写进 report 的 URL |
+| — | `apply_url_status` | 仅 waiqi：抓取时的官网链接状态（`live` / `unverified` / `none`），triage 时参考，Phase 0.5 会再复核 |
 | — | `url` | **report 头 `**URL：**` 字段必须填 `json.url` 的真实网页 URL**。不要写 "bookmarklet 文件 xxx.json"、不要写 "Boss 直聘详情页"、不要写本地文件路径 |
 | — | `company`, `job_title` | 用于 report 头、PDF 命名、tracker 字段 |
 | — | `platform` | 标记来源，写进 report 验证状态段（和 URL 分开，不要混） |

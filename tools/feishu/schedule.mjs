@@ -35,7 +35,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import {
   runLarkCli, parseJsonOut, isEnabled, skipped, resolveProfile,
-  grantedScopes, missingScopes,
+  grantedScopes, missingScopes, feishuConfig,
 } from './capabilities.mjs';
 
 const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -215,26 +215,48 @@ export function createPreInterviewCheck({ num, company, role, interviewStart, dr
  * ISO 8601 or a Unix timestamp. Caught by a --dry-run; the help text is wrong.
  * So the date is computed here.
  */
-export function createFollowUpTask({ num, company, role, days = 3, note = '', dryRun = false }) {
-  const summary = `跟进｜${company}｜${role}${num ? `（#${num}）` : ''}`;
-  const due = new Date(Date.now() + days * 86400000).toISOString();
-  const description =
-    `投出去 ${days} 天还没回音就发一条 follow-up（≤60 字，给 HR 台阶，顺手筛掉僵尸岗）。\n`
-    + `话术框架见 modes/contact.md 的「消息 3」。\n`
-    + (num ? `对应 outreach/ 里编号 ${num} 的那份文件，回复后把发送记录表填上。\n` : '')
-    + (note ? `\n备注：${note}\n` : '');
+export function createFollowUpTask({ num, company, role, days = 3, dueAt = null, kind = 'follow-up', note = '', dryRun = false }) {
+  const tag = `${company}｜${role}${num ? `（#${num}）` : ''}`;
+  const due = dueAt || new Date(Date.now() + days * 86400000).toISOString();
+  const [summary, description] = kind === 'close'
+    ? [`结案？投递 14 天无回复｜${tag}`,
+      `投出去 14 天没有任何回复（历史上 80% 的回复在 6 天内到）。\n`
+      + `还没回 → 告诉 Claude「#${num} 无回复结案」，会标 Discarded + exitStage=无回复。\n`
+      + `其实回复了 → 告诉 Claude 记首次回复，这条任务会被自动勾掉。\n`]
+    : [`跟进｜${tag}`,
+      `投出去 ${days} 天还没回音就发一条 follow-up（≤60 字，给 HR 台阶，顺手筛掉僵尸岗）。\n`
+      + `话术框架见 modes/contact.md 的「消息 3」。\n`
+      + `收到回复后告诉 Claude 记首次回复，后续提醒会自动勾掉。\n`];
+  const fullDescription = description + (note ? `\n备注：${note}\n` : '');
 
   if (!isEnabled('task')) {
-    return skippedButRecorded('task', { kind: '跟进', num, company, summary, due: due.slice(0, 10) });
+    return skippedButRecorded('task', { kind: kind === 'close' ? '结案' : '跟进', num, company, summary, due: due.slice(0, 10) });
   }
 
-  return call([
+  const args = [
     'task', '+create',
     '--summary', summary,
-    '--description', safeDescription(description),
+    '--description', safeDescription(fullDescription),
     '--due', due,
-    '--idempotency-key', idemKey('follow-up', num),
-  ], 'task', dryRun);
+    '--idempotency-key', idemKey(kind, num),
+  ];
+  // Without an assignee the task is merely "created by me", and Feishu raises
+  // no due-date notification for it — the reminder would never be seen.
+  const self = feishuConfig().config?.self_open_id;
+  if (self) args.push('--assignee', self);
+  const res = call(args, 'task', dryRun);
+  const guid = res.data?.guid || res.data?.task?.guid;
+  if (res.ok && guid && !dryRun) {
+    const rem = call(['task', '+reminder', '--task-id', guid, '--set', '0m'], 'task');
+    if (!rem.ok) console.warn(`⚠️  #${num} 任务已建，但到期提醒没设上: ${rem.error.split('\n')[0]}`);
+  }
+  return { ...res, guid };
+}
+
+/** Tick off a reminder that is no longer needed (a reply came in, or the process ended). */
+export function completeTask(guid, dryRun = false) {
+  if (!isEnabled('task')) return skipped('task');
+  return call(['task', '+complete', '--task-id', guid], 'task', dryRun);
 }
 
 /**

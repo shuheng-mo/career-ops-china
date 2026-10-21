@@ -22,6 +22,10 @@
  * 节流：请求间隔 1000ms；失败重试 2 次，HTTP 429（限流）时退避 30s/60s（重试 2 次）。
  * 详情接口配额低（~150 次/小时），大跑容易中途 429：中断后重跑即可续跑——已落盘的 JD
  * 有 history 记录不会重复拉；详情失败的岗位不入 scan-history，下次重跑自然重试。
+ * 投递链接：神仙外企只当线索源。详情里的 outsideUrl（企业官网 / ATS 链接）经
+ * tools/apply-link.mjs 校验后写进 JSON 的 url —— 报告头和 tracker 都用它，点回去是真实投递页。
+ * 官网已下线的岗位不进 inbox（scan-history 记 skipped_apply_closed）；无法确认的照常落盘并标
+ * apply_url_status=unverified。神仙外企详情链接留在 lead_url，仅作线索出处和去重键。
  * 手动低频运行，只读公开数据。
  */
 
@@ -29,6 +33,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadTitleFilter, judgeTitle } from './title-filter.mjs';
+import { checkApplyLink } from './apply-link.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const INBOX = path.join(ROOT, 'inbox');
@@ -112,8 +117,8 @@ function capturedIds() {
     for (const f of fs.readdirSync(dir)) {
       if (!f.endsWith('.json')) continue;
       try {
-        const { url = '' } = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-        const id = url.match(/waiqi\.com\/position\/detail\?id=(\d+)/)?.[1];
+        const { url = '', lead_url = '' } = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+        const id = `${lead_url} ${url}`.match(/waiqi\.com\/position\/detail\?id=(\d+)/)?.[1];
         if (id) ids.add(id);
       } catch {}
     }
@@ -176,9 +181,13 @@ function fmtSalary(rec, det) {
   return '';
 }
 
-function saveToInbox(rec, det) {
+function saveToInbox(rec, det, link) {
+  const official = link.url && link.status !== 'none' && link.status !== 'error';
   const payload = {
-    url: jobUrl(rec.id),
+    url: official ? link.url : jobUrl(rec.id),
+    lead_url: jobUrl(rec.id),
+    apply_url_status: official ? link.status : 'none',
+    apply_url_checked_at: new Date().toISOString(),
     page_title: `${rec.name}_${rec.companyName}_神仙外企`,
     captured_at: new Date().toISOString(),
     platform: 'waiqi',
@@ -300,15 +309,23 @@ const appendHistory = (rec, status) => {
   fs.appendFileSync(HISTORY, `${url}\t${today()}\twaiqi\t${(rec.name || '').replace(/[\t\r\n]/g, ' ')}\t${(rec.companyName || '').replace(/[\t\r\n]/g, ' ')}\t${status}\n`, 'utf8');
   hist.add(url);
 };
-const added = [], shortJd = [], detailFail = [];
+const added = [], shortJd = [], detailFail = [], applyClosed = [];
+const linkStat = {};
 for (const { rec, verdict } of kept) {
   await sleep(DELAY_MS);
   try {
     const det = await withRetry(() => detail(rec.id));
+    const link = await checkApplyLink(det.outsideUrl);
+    linkStat[link.status] = (linkStat[link.status] || 0) + 1;
+    if (link.status === 'closed') {
+      applyClosed.push({ rec, link });
+      appendHistory(rec, 'skipped_apply_closed');
+      continue;
+    }
     const desc = (det.description || '').trim();
     if (desc.length < 100) shortJd.push(rec);
     if (!dryRun) {
-      const file = saveToInbox(rec, det);
+      const file = saveToInbox(rec, det, link);
       appendHistory(rec, 'added');
       added.push({ file, rec, verdict });
     } else added.push({ file: '(dry-run)', rec, verdict });
@@ -331,10 +348,14 @@ console.log(`
 ${capped ? '⚠️ 列表请求达上限，枚举未完整（增大 --max-pages 或不带该参数重跑）\n' : ''}${truncated.length ? `⚠️ ${truncated.length} 个最小切片仍满 ${PAGE_SIZE} 条，可能截断：${truncated.map((s) => s.label).join('、')}\n` : ''}${since ? `--since ${since} 后：${dated.length} 条\n` : ''}标题过滤 keep：${kept.length}（${Object.entries(trackStat).map(([t, n]) => `${t}: ${n}`).join(' · ') || '—'}）
 标题过滤 drop：${droppedTitle.length}
 去重跳过：${droppedDup.length}
-拉详情失败：${detailFail.length}${shortJd.length ? `\n⚠️ JD 过短(<100字)：${shortJd.length}（已照常落盘，inbox triage 时留意）` : ''}
+拉详情失败：${detailFail.length}
+官网投递链接：🟢 在招 ${linkStat.live || 0} · 🟡 待确认 ${linkStat.unverified || 0} · ⚪ 无链接 ${(linkStat.none || 0) + (linkStat.error || 0)} · 🔴 已下线跳过 ${applyClosed.length}${shortJd.length ? `\n⚠️ JD 过短(<100字)：${shortJd.length}（已照常落盘，inbox triage 时留意）` : ''}
 ${dryRun ? '\n(dry-run，未写任何文件)' : `新写入 inbox/：${added.filter((a) => a.file !== '(dry-run)').length} 个 JSON
 → 回 Claude 跑 /career-ops inbox`}`);
 if (dryRun || process.env.WAIQI_VERBOSE) {
   for (const { rec, verdict } of kept.slice(0, 50)) console.log(`  KEEP [${verdict.tracks.join('+')}] ${rec.companyName} | ${rec.name} | ${rec.cityNameList || ''}`);
+}
+if (applyClosed.length && (dryRun || process.env.WAIQI_VERBOSE)) {
+  for (const { rec, link } of applyClosed) console.log(`  🔴 官网已下线 ${rec.companyName} | ${rec.name} | ${link.url}`);
 }
 if (detailFail.length) for (const { rec, err } of detailFail) console.log(`  ❌ ${rec.name}: ${err}`);

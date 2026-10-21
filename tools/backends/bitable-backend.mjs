@@ -157,7 +157,9 @@ function normalizedToFields(rec) {
   if (rec.report !== undefined) f.Report = rec.report;
   if (rec.notes !== undefined) f.Notes = rec.notes;
   if (rec.url !== undefined) f.URL = rec.url;
-  if (rec.closedAt !== undefined && rec.closedAt !== '') {
+  // null clears Closed At — needed when a row is reopened (e.g. Discarded → Evaluated).
+  if (rec.closedAt === null) f['Closed At'] = null;
+  else if (rec.closedAt !== undefined && rec.closedAt !== '') {
     const s = dateToUpsertString(rec.closedAt);
     if (s) f['Closed At'] = s;
   }

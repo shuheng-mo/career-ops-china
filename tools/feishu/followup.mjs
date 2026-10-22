@@ -13,7 +13,7 @@
  * For each row that is Applied, has no first response and no exit stage:
  *   follow-up task  due appliedAt + 3d   (skipped once 14d have passed)
  *   close task      due appliedAt + 14d  → decide 「无回复」
- * A due date already in the past becomes today 10:00, so a backlog still rings.
+ * A due date already in the past becomes now + 5 min, so a backlog still rings.
  *
  * Once a row gets a response, an exit stage or leaves Applied, its open tasks
  * are completed — the reminder disappears by itself.
@@ -44,7 +44,17 @@ function loadState() {
   return JSON.parse(readFileSync(STATE, 'utf8'));
 }
 
-const isPending = (r) => r.status === 'Applied' && !r.firstResponseAt && !r.exitStage;
+// Feishu fires a reminder only at its due instant, so a due already in the past
+// never rings. The job runs at 9:00 *machine* time, which is 21:00 Beijing on a
+// US clock — "today 10:00" was already past and a whole backlog went silent.
+// A past due becomes "a few minutes from now" instead.
+const RING_DELAY_MS = 5 * 60000;
+export function ringableDue(dueAt, now = Date.now()) {
+  if (new Date(dueAt).getTime() > now + RING_DELAY_MS) return dueAt;
+  return new Date(now + RING_DELAY_MS).toISOString();
+}
+
+const isPending =(r) => r.status === 'Applied' && !r.firstResponseAt && !r.exitStage;
 
 export async function reconcileFollowUps({ dryRun = false } = {}) {
   if (!isEnabled('task')) {
@@ -65,13 +75,12 @@ export async function reconcileFollowUps({ dryRun = false } = {}) {
     for (const { kind, days } of STEPS) {
       if (done[kind]) continue;
       if (kind === 'follow-up' && age >= 14) continue;   // the close task covers it
-      const dueDay = addDays(applied, days) < today ? today : addDays(applied, days);
+      const dueAt = ringableDue(`${addDays(applied, days)}T${DUE_HOUR}`);
       const res = createFollowUpTask({
-        num: r.num, company: r.company, role: r.role, days, kind,
-        dueAt: `${dueDay}T${DUE_HOUR}`, dryRun,
+        num: r.num, company: r.company, role: r.role, days, kind, dueAt, dryRun,
       });
       if (!res.ok) { out.failed.push(`#${r.num} ${kind}: ${String(res.error).split('\n')[0]}`); continue; }
-      out.created.push(`#${r.num} ${r.company} ${kind === 'close' ? '结案' : '跟进'} ${dueDay}`);
+      out.created.push(`#${r.num} ${r.company} ${kind === 'close' ? '结案' : '跟进'} ${dueAt.slice(0, 16).replace('T', ' ')}`);
       if (!dryRun) (state[r.num] ||= {})[kind] = res.guid || 'created';
     }
   }

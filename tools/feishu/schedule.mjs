@@ -215,19 +215,47 @@ export function createPreInterviewCheck({ num, company, role, interviewStart, dr
  * ISO 8601 or a Unix timestamp. Caught by a --dry-run; the help text is wrong.
  * So the date is computed here.
  */
-export function createFollowUpTask({ num, company, role, days = 3, dueAt = null, kind = 'follow-up', note = '', dryRun = false }) {
+// A company careers site has no one to message — the +3d step there means
+// "go look at the application status page", not "send a follow-up".
+const isPortal = (channel) => channel === '官网';
+
+export function followUpSummary({ num, company, role, kind = 'follow-up', channel = '' }) {
   const tag = `${company}｜${role}${num ? `（#${num}）` : ''}`;
-  const due = dueAt || new Date(Date.now() + days * 86400000).toISOString();
-  const [summary, description] = kind === 'close'
-    ? [`结案？投递 14 天无回复｜${tag}`,
-      `投出去 14 天没有任何回复（历史上 80% 的回复在 6 天内到）。\n`
+  if (kind === 'close') return `结案？投递 14 天无回复｜${tag}`;
+  return `${isPortal(channel) ? '查进度' : '跟进'}｜${tag}`;
+}
+
+export function followUpDescription({ num, days = 3, kind = 'follow-up', url = '', channel = '', note = '' }) {
+  // Where to act goes first: the card preview shows only the opening lines, and
+  // the whole point of a follow-up card is to tap through to the posting.
+  const where = (url ? `投递位置：${url}\n` : '')
+    + (channel ? `渠道：${channel}${url ? '' : '（无公开链接，到对应 App 的对话里找）'}\n` : '');
+  const body = kind === 'close'
+    ? `投出去 14 天没有任何回复（历史上 80% 的回复在 6 天内到）。\n`
       + `还没回 → 告诉 Claude「#${num} 无回复结案」，会标 Discarded + exitStage=无回复。\n`
-      + `其实回复了 → 告诉 Claude 记首次回复，这条任务会被自动勾掉。\n`]
-    : [`跟进｜${tag}`,
-      `投出去 ${days} 天还没回音就发一条 follow-up（≤60 字，给 HR 台阶，顺手筛掉僵尸岗）。\n`
+      + `其实回复了 → 告诉 Claude 记首次回复，这条任务会被自动勾掉。\n`
+    : isPortal(channel)
+    ? `投出去 ${days} 天，去官网的投递记录页看一眼进度。\n`
+      + `状态变了 → 告诉 Claude 记首次回复，后续提醒会自动勾掉。\n`
+      + `这个官网没有进度页 → 告诉 Claude，以后同一招聘系统的岗位不再排这条。\n`
+    : `投出去 ${days} 天还没回音就发一条 follow-up（≤60 字，给 HR 台阶，顺手筛掉僵尸岗）。\n`
       + `话术框架见 modes/contact.md 的「消息 3」。\n`
-      + `收到回复后告诉 Claude 记首次回复，后续提醒会自动勾掉。\n`];
-  const fullDescription = description + (note ? `\n备注：${note}\n` : '');
+      + `收到回复后告诉 Claude 记首次回复，后续提醒会自动勾掉。\n`;
+  return (where ? `${where}\n` : '') + body + (note ? `\n备注：${note}\n` : '');
+}
+
+/** Rewrite an existing follow-up task's title and description (e.g. after the wording changed). */
+export function updateFollowUpDescription(guid, opts, dryRun = false) {
+  if (!isEnabled('task')) return skipped('task');
+  return call(['task', '+update', '--task-id', guid,
+    '--summary', followUpSummary(opts),
+    '--description', safeDescription(followUpDescription(opts))], 'task', dryRun);
+}
+
+export function createFollowUpTask({ num, company, role, days = 3, dueAt = null, kind = 'follow-up', url = '', channel = '', note = '', dryRun = false }) {
+  const due = dueAt || new Date(Date.now() + days * 86400000).toISOString();
+  const summary = followUpSummary({ num, company, role, kind, channel });
+  const fullDescription = followUpDescription({ num, days, kind, url, channel, note });
 
   if (!isEnabled('task')) {
     return skippedButRecorded('task', { kind: kind === 'close' ? '结案' : '跟进', num, company, summary, due: due.slice(0, 10) });

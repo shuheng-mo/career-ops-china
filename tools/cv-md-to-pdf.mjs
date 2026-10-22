@@ -18,6 +18,8 @@
 // Hard rules (candidate's explicit requirement, 2026-10-11):
 //   - every glyph is black (#000) — the stylesheet below has no other color
 //   - no arrow chains in the text: the build FAILS if the text contains → ⇒ ➜ or ->
+//   - the contact block must carry the phone number from cv.md: the build FAILS
+//     without it (2026-10-22 — 57 CVs had gone out with no phone at all)
 
 import { chromium } from 'playwright';
 import { marked } from 'marked';
@@ -76,6 +78,21 @@ function buildHtml(md) {
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>${CSS}</style></head><body>${body}</body></html>`;
 }
 
+// The phone number comes from cv.md (gitignored), never from this file — the repo is public.
+async function canonicalPhone() {
+  try {
+    const m = (await readFile(join(ROOT, 'cv.md'), 'utf8')).match(/(?:手机|电话|Phone)[^\d\n]*([\d\s+-]{7,})/i);
+    return m ? m[1].replace(/\D/g, '') : null;
+  } catch {
+    return null;
+  }
+}
+
+function contactHasPhone(html, phone) {
+  const contact = html.match(/<div class="contact">([\s\S]*?)<\/div>/)?.[1] ?? '';
+  return contact.replace(/\D/g, '').includes(phone);
+}
+
 function arrowViolations(html) {
   const text = html.split('<body>')[1].replace(/<[^>]+>/g, '');
   return text.split(/[。；\n]/).map(s => s.trim()).filter(s => /[→⇒➜]|->/.test(s));
@@ -91,6 +108,7 @@ async function main() {
     process.exit(1);
   }
 
+  const phone = await canonicalPhone();
   const browser = await chromium.launch({ headless: true });
   let failed = 0;
   try {
@@ -103,6 +121,11 @@ async function main() {
       if (bad.length) {
         console.error(`❌ ${input}: 正文里有箭头，改成通顺的中文句子再生成：`);
         bad.forEach(s => console.error(`   · ${s.slice(0, 100)}`));
+        failed++;
+        continue;
+      }
+      if (phone && !contactHasPhone(html, phone)) {
+        console.error(`❌ ${input}: 页眉联系方式里没有手机号（以 cv.md 为准），HR 联系不到人。加到页眉第一项再生成`);
         failed++;
         continue;
       }

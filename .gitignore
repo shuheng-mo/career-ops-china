@@ -9,6 +9,8 @@ data/scan-history.tsv
 data/radar-leads-*.md
 # degraded reminder ledger — carries live company / role / application numbers
 data/reminders.md
+# interview rounds on the md backend — company names + interviewer feedback
+data/interviews.jsonl
 scratchpad-manifest.json
 reports/*.md
 !reports/.gitkeep

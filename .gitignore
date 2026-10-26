@@ -96,3 +96,9 @@ data/followup-tasks.json
 
 # 猎头微信渠道拿到的 JD / 公司介绍（含第三方材料与水印，不进公开仓库）
 liepin-temp/
+
+# === CV evolution (fact ledger, cv.md snapshots, dig answers) — same PII tier as cv.md ===
+cv-evolve/
+
+# 第三方候选人的简历项目（含他人 PII），只作方法论参考，不进公开仓库
+resume-evolver/

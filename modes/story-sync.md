@@ -152,6 +152,10 @@ Agent(
 - **theme_tags：** 所有出现过的 tags 去重并集
 - **sources：** 分两列：`Reports:` 列出所有 report #NNN；`Mock Interviews:` 列出所有 mock 文件（tracker # + round）
 - **best_for：** 所有出现过的并集（mock 版本贡献的通常更精准，因为含真实 Q&A）
+- **事实以 cv.md 当前版本为准（2026-10-26 起）：** report 和 mock 是**历史快照**，里面的数字可能已被 `evolve` 修正过。合并后逐条核对 S/T/A/R 里的数字和关键说法：
+  - 与 `cv.md` 不一致的，按 `cv.md` 改写
+  - 命中 `cv-evolve/ledger.yml` 里 `存疑` 或 `无此经历` 的 claim（看 `claim` / `note` / `source` 字段），**不得写回**；Reflection 里引用到时改成中性表述（如「早期小样本跑分」）
+  - 没有 ledger 时跳过这一步
 
 ### Step 5 — 按主题分组
 
@@ -377,6 +381,7 @@ Mock-only contributions（不对应任何 master story 的独立素材）:
 1. 覆盖用户手动加的段（用 `<!-- MANUAL START -->` / `<!-- MANUAL END -->` 识别）
 2. 重复录入同一个 canonical_key 的故事（去重失败会产生 5 个同名条目）
 3. 编造不存在于 source 中的 STAR 字段（如果原 report/mock 的 A 段写得短，就保留短的，不要脑补）
-4. 删除 narrative / red-lines 等非 STAR 段 — 这些是从 profile.yml 来的，不受 source 变化影响
-5. **把 mock-interview 的内容回流到 `reports/*.md`** — reports 已 commit 到 git，不要把候选人专属细节（薪资底牌、对家 offer、实时面试官原话）写回 reports；这类信息只保留在 story-bank.md（gitignored）和 mock-interviews/（gitignored）
-6. **扫 mock-interviews 时不要 `Read` 进主 session 的 context** — 用 subagent 扫完后只回传结构化的 candidate records；mock 文件可能很长（100-200 行）且含大量代码，直接进主 session 会炸 context
+4. 把 report / mock 里已被 `evolve` 修正掉的旧说法写回 story-bank（见 Step 4「事实以 cv.md 当前版本为准」）
+5. 删除 narrative / red-lines 等非 STAR 段 — 这些是从 profile.yml 来的，不受 source 变化影响
+6. **把 mock-interview 的内容回流到 `reports/*.md`** — reports 已 commit 到 git，不要把候选人专属细节（薪资底牌、对家 offer、实时面试官原话）写回 reports；这类信息只保留在 story-bank.md（gitignored）和 mock-interviews/（gitignored）
+7. **扫 mock-interviews 时不要 `Read` 进主 session 的 context** — 用 subagent 扫完后只回传结构化的 candidate records；mock 文件可能很长（100-200 行）且含大量代码，直接进主 session 会炸 context

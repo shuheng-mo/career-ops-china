@@ -9,6 +9,7 @@
     "merge": "node tools/merge-tracker.mjs",
     "pdf": "node tools/generate-pdf.mjs",
     "sync-check": "node tools/cv-sync-check.mjs",
+    "cv:version": "node tools/cv-version.mjs",
     "inbox-server": "node tools/jd-inbox-server.mjs",
     "build-bookmarklets": "node tools/build-bookmarklets.mjs",
     "sync-outreach": "node tools/sync-outreach-status.mjs",

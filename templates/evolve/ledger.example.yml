@@ -1,0 +1,56 @@
+# 事实账本 — cv-evolve/ledger.yml 的格式样例（真实账本在 gitignored 的 cv-evolve/ 下）
+#
+# cv.md 仍是唯一的 canonical 事实层；账本是它的「出处注释」：每个数字和关键事实一条，
+# 记录它从哪来、证据有多硬、有没有被面试官追问过。由 /career-ops evolve init 自动建，
+# 之后由 evolve ingest 维护，一般不需要手改。
+#
+# 格式约束（tools/ 里的脚本用一个很小的解析器读它，只认这个子集）：
+#   - 顶层是列表，每条以 "- id:" 开头
+#   - 值是单行标量（可加引号）或单行数组 [a, b]
+#   - 不用多行字符串、不嵌套
+#
+# 字段：
+#   id          段落.事实，小写 + 下划线，稳定不改（changelog 和问卷用它引用）
+#   claim       cv.md 里的原话或最短可识别片段（sync-check 用它找数字）
+#   section     出现在 cv.md 哪个段落（标题文字）
+#   grade       A 直接事实（有具体场景、动作、结果）
+#               B 间接证据（有成果或第三方材料体现）
+#               C 自我陈述（只有自评，无事件）
+#               D 推断（来自行业 / 职级常识，不能当候选人经历）
+#   status      已确认 | 待确认 | 存疑 | 无此经历
+#               「存疑」= 已知口径有问题，生成定制简历时 sync-check 会提醒
+#               「无此经历」= 候选人确认没做过，dig 不再问，评估直接按缺口处理
+#   source      出处：测试集 / 报表 / 系统截图 / 本人回忆 / 第几轮问卷
+#   probed_in   被面试官追问过的场合，例如 "#42 二面 2026-01-15"
+#   updated     最后一次变更日期
+#   note        备注
+
+- id: project_a.success_rate
+  claim: "执行成功率 【X】%"
+  section: "项目经历 / 项目 A"
+  grade: B
+  status: 存疑
+  source: "【N】条 mock 测试，非真实模型调用"
+  probed_in: []
+  updated: 2026-01-01
+  note: "真实模型重测后更新数字和口径"
+
+- id: job_b.team_size
+  claim: "带领【N】人团队"
+  section: "工作经历 / 公司 B"
+  grade: A
+  status: 已确认
+  source: "本人回忆 + 组织架构截图"
+  probed_in: ["#12 一面 2026-01-01"]
+  updated: 2026-01-01
+  note: ""
+
+- id: gap.report_generation
+  claim: ""
+  section: ""
+  grade: D
+  status: 无此经历
+  source: "dig round 2"
+  probed_in: []
+  updated: 2026-01-01
+  note: "高频 JD 缺口；候选人确认没做过报告生成类项目"

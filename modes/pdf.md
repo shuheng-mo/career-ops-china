@@ -9,6 +9,7 @@
 1. 读上一步选中的 CV 文件作为**事实层真理之源**
    - ⚠️ `cv.md` 是 canonical；变体只允许改写措辞/取舍重排，**不能有 `cv.md` 里不存在的雇主、日期、学历或数字**
    - 生成前跑一次 `npm run sync-check`。它**会以非零退出**拦住事实注入 —— 国内背调查得到，两份自相矛盾的简历是最糟的失败方式
+   - sync-check 如果告警「ledger … 存疑」：照常生成，但在交付说明里写明哪个数字口径存疑，并问候选人要不要先跑 `/career-ops evolve` 修掉（否则这个数字会继续扩散到更多份简历）
 2. 如果上下文里没有 JD，向用户索取（文本或 URL）
 3. 从 JD 提取 15-20 个关键词
 4. 检测 JD 语言 → 决定 CV 语言
@@ -26,6 +27,7 @@
 11. 把关键词自然注入到现有成就描述中（**永远不要编造新技能**）
 12. 按下方「Markdown 格式」写定制简历，存为 `output/cv-candidate-{company}-{track}-{YYYY-MM-DD}.md`
     - **文件名带 track 后缀**（如 `-ai-app` / `-auto-data`）。同一家车企可能两个方向都投，没有后缀就会互相覆盖，而且事后分不清「这家投的是哪版简历」
+    - **文件最后一行**写 `<!-- base: cv.md@<版本> -->`，版本取 `npm run cv:version -- status` 第一行的 current version（还没 `evolve init` 就写 `<!-- base: cv.md@unversioned -->`）。HTML 注释不会进 PDF；它让「这份简历是基于哪版 cv.md 改的」可查，面试准备时按 HR 手里那一版讲
 13. 执行：`npm run cv -- output/cv-candidate-{company}-{track}-{YYYY-MM-DD}.md [--format=letter]`，PDF 生成在 md 旁边、同名
     - 脚本会在正文出现箭头时**直接失败**，按报错改成中文句子再跑
 14. 报告：md 与 PDF 路径、页数、关键词覆盖率、**用的哪个 CV 源**（回落了就明说）

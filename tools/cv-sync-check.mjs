@@ -9,6 +9,7 @@
  * 3. No hardcoded metrics in _shared.md or batch/batch-prompt.md
  * 4. article-digest.md freshness (if exists)
  * 5. Per-track CV variants (cv-*.md) state no fact that cv.md does not
+ * 6. Fact ledger: 存疑 claims still in use, cv.md claims with no ledger entry
  *
  * Check 5 is the background-check guard. Since 2026-10-10 the system runs two
  * job-search directions and keeps a reworded CV per direction (cv-auto.md for the
@@ -21,6 +22,10 @@
  *   fact(variant) ⊆ fact(cv.md)   → OK   (trimming and rewording are the point)
  *   fact(variant) ⊄ fact(cv.md)   → ERROR (a fact was invented)
  *
+ * Check 6 reads the fact ledger (cv-evolve/ledger.yml, see modes/evolve.md) and only
+ * ever warns: claims still in a CV while the ledger marks them 存疑, and claims in
+ * cv.md the ledger has no entry for. The ledger annotates cv.md; it never blocks it.
+ *
  * The converse is deliberately not an error: cv.md having facts a variant omits is
  * exactly what tailoring means.
  */
@@ -28,6 +33,7 @@
 import { readFileSync, existsSync, statSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { extractNumbers, extractClaims, textContainsClaim, readLedger } from './cv-facts.mjs';
 
 // Script lives in tools/; project root is one level up.
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -102,7 +108,7 @@ if (existsSync(digestPath)) {
 // Two fact families are compared, both chosen because they are mechanically
 // extractable from this CV format rather than guessed at:
 //
-//   numbers — every digit run. Covers dates (2024.08), durations, headcounts,
+//   numbers — every digit run (extractNumbers, tools/cv-facts.mjs). Covers dates (2024.08), durations, headcounts,
 //             percentages, test counts. Normalized so "90 %" == "90%" and
 //             "1,200" == "1200", and split on separators so "173/173" yields 173.
 //   heading segments — work/education/project headings are written as
@@ -113,17 +119,6 @@ if (existsSync(digestPath)) {
 //             a plain heading like `## 专业摘要` is section structure, and a
 //             variant is free to add, drop or rename sections. Those are reported
 //             as info, not errors — flagging them was a false positive in practice.
-function extractNumbers(text) {
-  // Strip fenced code and inline code: a snippet's literals are not CV claims.
-  const prose = text.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`\n]*`/g, ' ');
-  const out = new Set();
-  for (const m of prose.matchAll(/\d[\d,]*(?:\.\d+)?/g)) {
-    const n = m[0].replace(/,/g, '').replace(/\.$/, '');
-    if (n) out.add(n);
-  }
-  return out;
-}
-
 // H1 is deliberately excluded: it is the document title (name + target role), and
 // retargeting the role is precisely what a per-track variant is for.
 //
@@ -191,6 +186,30 @@ if (existsSync(canonicalCvPath)) {
         console.log(`  (new section heading(s), fine: ${newSections.join(', ')})`);
       }
     }
+  }
+}
+
+// 6. Fact ledger (only once the candidate has run /career-ops evolve init)
+const ledger = readLedger();
+if (ledger && existsSync(canonicalCvPath)) {
+  const cvFiles = ['cv.md', ...readdirSync(projectRoot).filter(f => /^cv-.+\.md$/.test(f)).sort()];
+  const texts = Object.fromEntries(cvFiles.map(f => [f, readFileSync(join(projectRoot, f), 'utf-8')]));
+
+  for (const e of ledger.filter(e => e.status === '存疑' && e.claim)) {
+    for (const claim of extractClaims(e.claim)) {
+      const using = cvFiles.filter(f => textContainsClaim(texts[f], claim));
+      if (using.length) {
+        warnings.push(`ledger ${e.id}: "${claim}" is marked 存疑 (${e.source || 'no source'}) but still appears in ${using.join(', ')}. `
+          + `Fix the number or its wording before generating more tailored CVs — run /career-ops evolve.`);
+      }
+    }
+  }
+
+  const covered = new Set(ledger.flatMap(e => [...extractClaims(e.claim || '')]));
+  const uncovered = [...extractClaims(texts['cv.md'])].filter(c => !covered.has(c));
+  if (uncovered.length) {
+    warnings.push(`cv.md has ${uncovered.length} claim(s) with no ledger entry: ${uncovered.slice(0, 8).join(', ')}`
+      + `${uncovered.length > 8 ? ', …' : ''}. Their provenance is unrecorded — /career-ops evolve init can backfill them.`);
   }
 }
 

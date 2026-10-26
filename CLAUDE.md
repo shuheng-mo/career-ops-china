@@ -28,6 +28,8 @@ AI-powered job search automation built on Claude Code: pipeline tracking, offer 
 | `templates/cv-template.html` + `tools/generate-pdf.mjs` | Legacy HTML → PDF path, kept for old files only |
 | `article-digest.md` | Compact proof points from portfolio (optional) |
 | `interview-prep/story-bank.md` | Accumulated STAR+R stories across evaluations |
+| `tools/radar-seen.mjs` | 雷达去重清单（`node tools/radar-seen.mjs --direction ai\|auto`）：从 tracker 生成「已处理过的公司 + 岗位」，贴进对应雷达 routine 的 prompt。每批 inbox / batch 之后刷新，见 `modes/radar.md` |
+| `cv-evolve/` + `tools/cv-version.mjs` | CV 进化：事实账本 `ledger.yml`（每个数字的出处/证据等级）、cv.md 版本快照与 CHANGELOG（`npm run cv:version -- status\|commit\|log\|diff\|affected`）。gitignored。流程见 `modes/evolve.md` |
 | `reports/` | Evaluation reports (format: `{###}-{company-slug}-{YYYY-MM-DD}.md`) |
 
 ### First Run — Onboarding（重要）
@@ -163,12 +165,14 @@ This system is designed to be customized by YOU (Claude). 用户让你改 archet
 | 主动搜新岗位 | `scan` |
 | 处理 pipeline.md 里的待办 URL | `pipeline` |
 | 批量处理岗位 | `batch` |
+| 想改 cv.md / 补经历细节 / 某个数字口径有问题 / 面试被追问答不上 | `evolve` |
 
 ### CV Source of Truth
 
 - `cv.md` in project root is the **canonical fact layer**: employers, dates, degrees, numbers
 - Per-track variants `cv-<track>.md` (currently `cv-auto.md` for the automotive tracks) are **rewordings** of it. A variant may rephrase, retitle, reorder, drop and re-weight freely; it may NOT state an employer, date, degree or number that `cv.md` does not contain
 - Which source a given evaluation uses is decided by its Track -- see the CV source table in `modes/_profile.md`. Missing variant → fall back to `cv.md` and say so in the report
+- **cv.md changes go through `evolve`** (`modes/evolve.md`): every change is snapshotted and logged by `npm run cv:version -- commit`, and `affected` lists which tailored CVs still carry the old claim (regenerate the unsent ones, never the ones already sent). Hand-editing cv.md without a version commit recreates the "no trace of why the CV changed" problem this exists to fix
 - `npm run sync-check` enforces the subset rule and **exits non-zero on fact injection**. Run it before generating a PDF; Chinese employers do run background checks, and two CVs from the same candidate that disagree is the worst way to fail one
 - `article-digest.md` has detailed proof points (optional)
 - **NEVER hardcode metrics** -- read them from these files at evaluation time

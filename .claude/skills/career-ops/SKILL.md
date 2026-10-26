@@ -2,7 +2,7 @@
 name: career-ops
 description: 中国大陆 AI 求职指挥中心 — 评估岗位、生成定制简历、扫描门户、追踪申请
 user_invocable: true
-argument-hint: "[JD截图/文本/URL] | scan | radar | inbox | tracker | offer | offers | pdf | contact | deep | apply | pipeline | batch | training | project | story-sync"
+argument-hint: "[JD截图/文本/URL] | scan | radar | inbox | tracker | offer | offers | pdf | contact | deep | apply | pipeline | batch | training | project | story-sync | evolve"
 arguments: mode
 ---
 
@@ -32,6 +32,7 @@ arguments: mode
 | `radar` | `radar`（管理远程"求职线索雷达"定期 routine — 创建/查看/立即跑/改节奏）|
 | `inbox` | `inbox`（处理 bookmarklet 捕获的 JD 文件，自动评估）|
 | `story-sync` | `story-sync`（扫 reports/* 抽取 Block F，累积到 story-bank.md）|
+| `evolve` / `evolve init` / `evolve dig` / `evolve status` | `evolve`（简历进化：深挖问卷 → 事实账本 → cv.md 版本 + 传导）|
 | `batch` | `batch`（批量处理） |
 
 **Auto-pipeline 检测：** 如果 `{{mode}}` 不是已知子命令但包含：
@@ -62,7 +63,7 @@ career-ops — 中国大陆求职指挥中心
 ⚡ 子命令（/career-ops <name>）：
   线索 & 批处理   scan       radar      inbox       pipeline    batch
   单岗位          offer      offers     pdf         contact     deep        apply
-  追踪 & 沉淀     tracker    story-sync
+  追踪 & 沉淀     tracker    story-sync  evolve
   ROI 评估        training   project
 
 🛰️ radar：每 2 天云端自动扫上海/杭州 AI应用·Agent 新岗，出线索清单（/career-ops radar 管理）
@@ -89,7 +90,7 @@ Applies to: `auto-pipeline`, `offer`, `offers`, `pdf`, `contact`, `apply`, `pipe
 ### Standalone modes (only their mode file):
 Read `modes/{mode}.md`
 
-Applies to: `tracker`, `deep`, `training`, `project`, `story-sync`, `radar`
+Applies to: `tracker`, `deep`, `training`, `project`, `story-sync`, `radar`, `evolve`
 
 ### Modes delegated to subagent:
 For `scan`, `apply` (with Playwright), and `pipeline` (3+ URLs): launch as Agent with the content of `_shared.md` + `modes/{mode}.md` injected into the subagent prompt.

@@ -289,7 +289,8 @@ export function normalizeCompany(name) {
  * company. Distinct posting URLs are a much stronger signal than title similarity.
  *
  * Compares host + path, plus the id-carrying query params some sites use
- * (careers.tencent.com/jobdesc.html?postId=...); tracking params are ignored.
+ * (careers.tencent.com/jobdesc.html?postId=..., zhaopin.meituan.com/web/position/detail?jobUnionId=...);
+ * tracking params are ignored.
  */
 export function sameJobUrl(a, b) {
   const key = (u) => {
@@ -298,7 +299,7 @@ export function sameJobUrl(a, b) {
     if (!u || !/^https?:\/\//.test(u)) return null;
     try {
       const x = new URL(u);
-      const id = ['postId', 'jobId', 'positionId', 'id'].map(k => x.searchParams.get(k)).find(Boolean) || '';
+      const id = ['postId', 'jobId', 'positionId', 'jobUnionId', 'id'].map(k => x.searchParams.get(k)).find(Boolean) || '';
       return `${x.hostname.replace(/^(www|cn|m)\./, '')}${x.pathname.replace(/\/+$/, '')}${id ? `?${id}` : ''}`.toLowerCase();
     } catch { return null; }
   };

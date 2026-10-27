@@ -182,7 +182,7 @@ console.log(`   城市分布：${Object.entries(byCity).map(([c, n]) => `${c} ${
 const seen = capturedIds();
 for (const p of posts) {
   const mark = seen.has(String(p.PostId)) ? '（已抓）' : '';
-  console.log(`${p.LastUpdateTime} | ${p.LocationName} | ${p.BGName} | ${p.RecruitPostName}${mark}`);
+  console.log(`${p.LastUpdateTime} | ${p.LocationName} | ${p.BGName} | ${p.RecruitPostName}${mark} | ${jobUrl(p.PostId)}`);
 }
 
 if (!argv.includes('--fetch')) {

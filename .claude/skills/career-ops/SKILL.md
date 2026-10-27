@@ -70,6 +70,7 @@ career-ops — 中国大陆求职指挥中心
 
 ⚠️ 国内 URL（Boss/拉勾/猎聘/Mokahr/飞书）90% 抓不到 JD → 截图最快
 🐧 腾讯招聘搜索页整页拉：npm run tencent -- "<search.html 链接>" --days 30 --fetch
+🦘 美团招聘按关键词拉：npm run meituan -- agent --city 上海,深圳 --days 21 --fetch
 🔗 LinkedIn 链接 / 搜岗：npm run linkedin -- <链接>  ·  npm run linkedin -- search "关键词" --city 上海 --days 7
 🔖 bookmarklet：tools/README.md（一次安装，之后任意 JD 页一键 → inbox）
 

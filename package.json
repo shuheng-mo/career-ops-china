@@ -29,6 +29,7 @@
     "cv": "node tools/cv-md-to-pdf.mjs",
     "linkedin": "node tools/linkedin-jobs.mjs",
     "tencent": "node tools/tencent-careers.mjs",
+    "meituan": "node tools/meituan-careers.mjs",
     "waiqi": "node tools/waiqi-scan.mjs",
     "apply-link": "node tools/apply-link.mjs"
   },

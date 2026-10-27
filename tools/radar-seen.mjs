@@ -60,3 +60,33 @@ for (const [company, roles] of byCompany) {
   const more = roles.length > MAX_ROLES ? `、另 ${roles.length - MAX_ROLES} 个（该公司已整页看过）` : '';
   console.log(`${company}：${roles.slice(0, MAX_ROLES).join('、')}${more}`);
 }
+
+// Role names alone let repeats through: the list strips parenthesised qualifiers to stay
+// short, and the radar then judged 「X 工程师（某方向）」 a maybe-new role although it was the
+// very posting the tracker already had. A posting id from the
+// detail URL is unambiguous, so every row's id is listed too — grouped by site, no cap.
+const POSTING_ID = [
+  ['liepin', /liepin\.com\/(?:job|a)\/(\d+)/],
+  ['zhipin', /zhipin\.com\/job_detail\/([\w-]+?)\.html/],
+  ['zhaopin', /zhaopin\.com\/jobdetail\/([\w]+)\.htm/],
+  ['51job', /51job\.com\/.*?\/(\d+)\.html/],
+  ['tencent', /careers\.tencent\.com\/.*postId=(\d+)/],
+  ['meituan', /jobUnionId=(\d+)/],
+  ['taotian', /positionId=(\d+)/],
+  ['smartrecruiters', /smartrecruiters\.com\/[^/]+\/(\d+)/],
+  ['linkedin', /linkedin\.com\/jobs\/view\/(\d+)/],
+];
+const ids = new Map();
+for (const a of apps) {
+  for (const [site, re] of POSTING_ID) {
+    const id = String(a.url || '').match(re)?.[1];
+    if (!id) continue;
+    if (!ids.has(site)) ids.set(site, new Set());
+    ids.get(site).add(id);
+    break;
+  }
+}
+if (ids.size) {
+  console.log('\n已见详情页 ID（来源链接里的岗位 ID 命中下面任何一个 = 同一个岗，绝对不列）：');
+  for (const [site, set] of ids) console.log(`${site}: ${[...set].join(' ')}`);
+}

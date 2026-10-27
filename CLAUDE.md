@@ -28,6 +28,7 @@ AI-powered job search automation built on Claude Code: pipeline tracking, offer 
 | `templates/cv-template.html` + `tools/generate-pdf.mjs` | Legacy HTML → PDF path, kept for old files only |
 | `article-digest.md` | Compact proof points from portfolio (optional) |
 | `interview-prep/story-bank.md` | Accumulated STAR+R stories across evaluations |
+| `tools/meituan-careers.mjs` | 美团官网社招岗位（`npm run meituan -- agent --city 上海,深圳 --days 21 [--fetch]`）：走官网公开接口，每行带更新日期和详情页链接，`--fetch` 存进 inbox/。和 `tools/tencent-careers.mjs`（`npm run tencent`）同一套用法，云端雷达也用这两个脚本拿在招岗 |
 | `tools/radar-seen.mjs` | 雷达去重清单（`node tools/radar-seen.mjs --direction ai\|auto`）：从 tracker 生成「已处理过的公司 + 岗位」，贴进对应雷达 routine 的 prompt。每批 inbox / batch 之后刷新，见 `modes/radar.md` |
 | `cv-evolve/` + `tools/cv-version.mjs` | CV 进化：事实账本 `ledger.yml`（每个数字的出处/证据等级）、cv.md 版本快照与 CHANGELOG（`npm run cv:version -- status\|commit\|log\|diff\|affected`）。gitignored。流程见 `modes/evolve.md` |
 | `reports/` | Evaluation reports (format: `{###}-{company-slug}-{YYYY-MM-DD}.md`) |

@@ -18,6 +18,7 @@
     "tracker:export": "node tools/sync-md-from-bitable.mjs",
     "tracker:backfill": "node tools/backfill-tracker-fields.mjs",
     "test:filter": "node tools/test-title-filter.mjs",
+    "test:addmany": "node tools/test-merge-addmany.mjs",
     "feishu:check": "node tools/feishu/check.mjs",
     "feishu:digest": "node tools/feishu/notify.mjs",
     "followup": "node tools/feishu/followup.mjs",

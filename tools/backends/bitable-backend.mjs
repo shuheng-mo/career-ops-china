@@ -48,7 +48,7 @@ import { runLarkCli as larkCli, parseJsonOut } from '../feishu/capabilities.mjs'
 // ---- low-level lark-cli bridge ----
 // Thin shim over tools/feishu/capabilities.mjs. `write: true` makes it add
 // `--as user`, which writes require (the bot identity is read-only → 91403).
-function runLarkCli(args, { timeoutMs = 30000, write = false } = {}) {
+function runLarkCliDefault(args, { timeoutMs = 30000, write = false } = {}) {
   return larkCli(args, { timeoutMs, write });
 }
 
@@ -184,9 +184,22 @@ function normalizedToFields(rec) {
   return f;
 }
 
+// The one dedup rule, shared by findByCompanyRole (single add) and addMany (bulk),
+// so the two paths can never disagree about what counts as "already tracked".
+function findMatch(apps, company, role, url) {
+  const normC = normalizeCompany(company);
+  return apps.find(a => {
+    if (normalizeCompany(a.company) !== normC) return false;
+    if (sameJobUrl(url, a.url) === false) return false;   // different posting, however similar the title
+    return roleFuzzyMatch(role, a.role);
+  }) || null;
+}
+
 // ---- Public factory ----
 
-export function create(cfg) {
+// deps.run replaces the lark-cli bridge — tests pass a fake so no real table is touched.
+export function create(cfg, deps = {}) {
+  const runLarkCli = deps.run || runLarkCliDefault;
   const bitable = cfg.bitable || {};
   const appToken = bitable.app_token;
   const tableId = bitable.table_id_applications;
@@ -374,14 +387,71 @@ export function create(cfg) {
       return { updated: count, missing };
     },
 
+    /**
+     * Insert many records with ONE table listing.
+     *
+     * addApplication() re-lists the whole table on every call to dedup, and
+     * writes one row per request. A 301-row inbox merge took ~40 minutes that
+     * way. Here: list once, dedup in memory (also against rows accepted earlier
+     * in this same call, so a batch cannot insert the same job twice), then
+     * +record-batch-create at 200 rows/request.
+     *
+     * @param recs  normalized records, same shape addApplication takes
+     * @returns {inserted:[{index,num}], dups:[{index,num}], failed:[{index,error}]}
+     *          `index` points back into `recs`. A failed request fails only its
+     *          own slice; the caller decides what to retry.
+     */
+    async addMany(recs) {
+      const out = { inserted: [], dups: [], failed: [] };
+      if (!recs || recs.length === 0) return out;
+
+      const apps = (await listRaw()).map(recordToNormalized);
+      let maxNum = apps.reduce((m, a) => Math.max(m, a.num || 0), 0);
+      const today = new Date().toISOString().slice(0, 10);
+      const pending = [];
+
+      recs.forEach((rec, index) => {
+        const existing = findMatch(apps, rec.company, rec.role, rec.url);
+        if (existing) { out.dups.push({ index, num: existing.num }); return; }
+
+        const num = rec.num > 0 ? Number(rec.num) : maxNum + 1;
+        maxNum = Math.max(maxNum, num);
+        const withClosed = { ...rec, num };
+        if (!withClosed.closedAt && isTerminal(withClosed.status)) withClosed.closedAt = today;
+
+        let cells;
+        try {
+          cells = toBatchCells(normalizedToFields(withClosed));
+        } catch (e) {
+          out.failed.push({ index, error: e.message });   // bad status/track: never reaches the API
+          return;
+        }
+        pending.push({ index, num, cells });
+        apps.push(withClosed);
+      });
+
+      const BATCH = 200;   // +record-batch-create limit
+      for (let i = 0; i < pending.length; i += BATCH) {
+        const slice = pending.slice(i, i + BATCH);
+        try {
+          runLarkCli([
+            'base', '+record-batch-create',
+            '--base-token', appToken,
+            '--table-id', tableId,
+            '--json', JSON.stringify({ create_records: slice.map(p => p.cells) }),
+          ], { write: true, timeoutMs: 120000 });
+          for (const p of slice) out.inserted.push({ index: p.index, num: p.num });
+        } catch (e) {
+          const msg = String(e.message || e).slice(0, 200);
+          for (const p of slice) out.failed.push({ index: p.index, error: msg });
+        }
+        if (i + BATCH < pending.length) await sleep(1000);
+      }
+      return out;
+    },
+
     async findByCompanyRole(company, role, url) {
-      const apps = await this.listApplications();
-      const normC = normalizeCompany(company);
-      return apps.find(a => {
-        if (normalizeCompany(a.company) !== normC) return false;
-        if (sameJobUrl(url, a.url) === false) return false;   // different posting, however similar the title
-        return roleFuzzyMatch(role, a.role);
-      }) || null;
+      return findMatch(await this.listApplications(), company, role, url);
     },
 
     async getMaxNum() {

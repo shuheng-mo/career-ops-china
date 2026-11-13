@@ -258,46 +258,59 @@ async function mergeBitable() {
     return;
   }
 
-  tsvFiles.sort((a, b) => (parseInt(a.replace(/\D/g, '')) || 0) - (parseInt(b.replace(/\D/g, '')) || 0));
+  // Sort by the leading num only: stripping every non-digit glued hex ids in
+  // names like `910-kimi-08fb9b0a.tsv` onto the num and scrambled the order.
+  tsvFiles.sort((a, b) => (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0));
   console.log(`📥 Found ${tsvFiles.length} pending TSVs`);
 
   const mod = await import('./backends/bitable-backend.mjs');
   const backend = mod.create(TRACKER_CFG);
 
   let added = 0, skipped = 0, errors = 0;
+  const failedFiles = new Set();   // left in place so the next run retries them
+  const parsed = [];               // [{file, addition}]
 
   for (const file of tsvFiles) {
     const content = readFileSync(join(ADDITIONS_DIR, file), 'utf-8').trim();
     const addition = parseTsvContent(content, file);
     if (!addition) { skipped++; continue; }
-
     if (DRY_RUN) {
       console.log(`  [dry] would add #${addition.num} ${addition.company} — ${addition.role}`);
       continue;
     }
+    parsed.push({ file, addition });
+  }
 
-    try {
-      const result = await backend.addApplication(addition);
-      if (result.inserted) {
-        console.log(`➕ Added #${result.num}: ${addition.company} — ${addition.role} (${addition.score})`);
-        added++;
-      } else {
-        console.log(`⏭  Dup (#${result.num}): ${addition.company} — ${addition.role}`);
-        skipped++;
-      }
-    } catch (e) {
-      console.error(`❌ ${file}: ${e.message.slice(0, 150)}`);
+  // One table listing + 200-row batch creates. The old per-row path re-listed
+  // the whole table for every TSV (301 rows ≈ 40 min).
+  if (parsed.length > 0) {
+    const res = await backend.addMany(parsed.map(p => p.addition));
+    for (const { index, num } of res.inserted) {
+      const a = parsed[index].addition;
+      console.log(`➕ Added #${num}: ${a.company} — ${a.role} (${a.score})`);
+      added++;
+    }
+    for (const { index, num } of res.dups) {
+      const a = parsed[index].addition;
+      console.log(`⏭  Dup (#${num}): ${a.company} — ${a.role}`);
+      skipped++;
+    }
+    for (const { index, error } of res.failed) {
+      console.error(`❌ ${parsed[index].file}: ${error.slice(0, 150)}`);
+      failedFiles.add(parsed[index].file);
       errors++;
     }
   }
 
-  // Move processed TSVs
+  // Move processed TSVs — but never a failed one: moving it would drop the row.
   if (!DRY_RUN && (added + skipped) > 0) {
     if (!existsSync(MERGED_DIR)) mkdirSync(MERGED_DIR, { recursive: true });
-    for (const file of tsvFiles) {
+    const done = tsvFiles.filter(f => !failedFiles.has(f));
+    for (const file of done) {
       renameSync(join(ADDITIONS_DIR, file), join(MERGED_DIR, file));
     }
-    console.log(`\n✅ Moved ${tsvFiles.length} TSVs to merged/`);
+    console.log(`\n✅ Moved ${done.length} TSVs to merged/`);
+    if (failedFiles.size) console.log(`⚠️  ${failedFiles.size} failed TSV(s) left in tracker-additions/ — rerun merge to retry`);
   }
 
   console.log(`\n📊 Summary: +${added} added, ⏭  ${skipped} skipped, ❌ ${errors} errors`);
@@ -352,8 +365,8 @@ if (tsvFiles.length === 0) {
 
 // Sort files numerically for deterministic processing
 tsvFiles.sort((a, b) => {
-  const numA = parseInt(a.replace(/\D/g, '')) || 0;
-  const numB = parseInt(b.replace(/\D/g, '')) || 0;
+  const numA = parseInt(a, 10) || 0;   // leading num only (see mergeBitable)
+  const numB = parseInt(b, 10) || 0;
   return numA - numB;
 });
 

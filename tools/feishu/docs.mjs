@@ -38,15 +38,31 @@ function bitable() {
   return { appToken, tableId };
 }
 
-/** Resolve business num → record_id with ONE table read. */
-async function recordIdFor(num) {
+/**
+ * Business num → record_id for the whole table, from ONE listing.
+ *
+ * The listing is the slow part (the table is >1000 rows, ~12 paged lark-cli
+ * calls); the upload itself is quick. Attaching 13 CVs one invocation at a time
+ * re-listed the table 13 times (~45 s each). attachMany() builds this once.
+ */
+export async function buildRecordIndex() {
   const mod = await import('../backends/bitable-backend.mjs');
   const backend = mod.create(readProfileTracker());
-  const apps = await backend.listApplications();
-  const hit = apps.find(a => Number(a.num) === Number(num));
-  if (!hit) throw new Error(`tracker 里没有 #${num}`);
-  if (!hit._recordId) throw new Error(`#${num} 没有 record_id（后端返回异常）`);
-  return hit._recordId;
+  const index = new Map();
+  for (const a of await backend.listApplications()) {
+    if (a.num && a._recordId) index.set(Number(a.num), a._recordId);
+  }
+  return index;
+}
+
+function lookup(index, num) {
+  const id = index.get(Number(num));
+  if (!id) throw new Error(`tracker 里没有 #${num}（或该行没有 record_id）`);
+  return id;
+}
+
+async function recordIdFor(num) {
+  return lookup(await buildRecordIndex(), num);
 }
 
 /**
@@ -56,20 +72,20 @@ async function recordIdFor(num) {
  * directory for some commands, so this resolves and reports clearly rather than
  * letting a confusing CLI error surface.
  */
-export async function attachCv({ num, pdfPath, dryRun = false }) {
+export async function attachCv({ num, pdfPath, dryRun = false, recordIndex = null }) {
   if (!isEnabled('docs')) return skipped('docs', `would have attached ${pdfPath}`);
 
   const abs = resolve(pdfPath);
-  if (!existsSync(abs)) return { ok: false, error: `找不到文件：${abs}` };
+  if (!existsSync(abs)) return { ok: false, num, error: `找不到文件：${abs}` };
   const size = statSync(abs).size;
-  if (size === 0) return { ok: false, error: `文件是空的：${abs}` };
+  if (size === 0) return { ok: false, num, error: `文件是空的：${abs}` };
 
   const { appToken, tableId } = bitable();
   let recordId;
   try {
-    recordId = await recordIdFor(num);
+    recordId = recordIndex ? lookup(recordIndex, num) : await recordIdFor(num);
   } catch (e) {
-    return { ok: false, error: e.message };
+    return { ok: false, num, error: e.message };
   }
 
   // Pass a cwd-relative path when possible: several lark-cli upload paths reject
@@ -97,8 +113,31 @@ export async function attachCv({ num, pdfPath, dryRun = false }) {
       raw: dryRun ? out : undefined,
     };
   } catch (e) {
-    return { ok: false, error: e.message };
+    return { ok: false, num, error: e.message };
   }
+}
+
+/**
+ * Attach several CVs with one table listing.
+ *
+ * Every file is checked before the listing, so a typo'd path fails in a second
+ * instead of after the slow read. One failed upload does not stop the rest.
+ *
+ * @param pairs  [{num, pdfPath}]
+ * @returns      one attachCv() result per pair, in order
+ */
+export async function attachMany(pairs, { dryRun = false } = {}) {
+  if (!isEnabled('docs')) return pairs.map(p => skipped('docs', `would have attached ${p.pdfPath}`));
+  const missing = pairs.filter(p => !existsSync(resolve(p.pdfPath)));
+  if (missing.length) {
+    return pairs.map(p => missing.includes(p)
+      ? { ok: false, num: p.num, error: `找不到文件：${resolve(p.pdfPath)}` }
+      : { ok: false, num: p.num, error: '未上传：同批有文件路径错误，先修正再重跑' });
+  }
+  const recordIndex = await buildRecordIndex();
+  const results = [];
+  for (const p of pairs) results.push(await attachCv({ ...p, dryRun, recordIndex }));
+  return results;
 }
 
 /**
@@ -129,15 +168,22 @@ export async function shareRecord({ num, dryRun = false }) {
   }
 }
 
-// CLI entry: node tools/feishu/docs.mjs <num> <pdf> [--dry-run]
+// CLI entry: node tools/feishu/docs.mjs <num> <pdf> [<num> <pdf> ...] [--dry-run]
+// Pass every pair in one call — the table is listed once for all of them.
 if (process.argv[1] && process.argv[1].endsWith('docs.mjs')) {
-  const [num, pdf] = process.argv.slice(2).filter(a => !a.startsWith('--'));
-  if (!num || !pdf) {
-    console.error('用法: node tools/feishu/docs.mjs <tracker #> <pdf 路径> [--dry-run]');
+  const pos = process.argv.slice(2).filter(a => !a.startsWith('--'));
+  if (pos.length === 0 || pos.length % 2 !== 0 || pos.some((a, i) => i % 2 === 0 && !/^\d+$/.test(a))) {
+    console.error('用法: node tools/feishu/docs.mjs <tracker #> <pdf 路径> [<tracker #> <pdf 路径> ...] [--dry-run]');
     process.exit(1);
   }
-  const res = await attachCv({ num, pdfPath: pdf, dryRun: process.argv.includes('--dry-run') });
-  if (res.skipped) console.log(`⏭  ${res.reason}`);
-  else if (!res.ok) { console.error(`❌ ${res.error}`); process.exit(1); }
-  else console.log(`✅ #${res.num} ← ${res.file} (${(res.bytes / 1024).toFixed(0)} KB)${res.dryRun ? ' [dry-run]' : ''}`);
+  const pairs = [];
+  for (let i = 0; i < pos.length; i += 2) pairs.push({ num: pos[i], pdfPath: pos[i + 1] });
+  const results = await attachMany(pairs, { dryRun: process.argv.includes('--dry-run') });
+  let failed = 0;
+  for (const res of results) {
+    if (res.skipped) console.log(`⏭  ${res.reason}`);
+    else if (!res.ok) { console.error(`❌ #${res.num}: ${res.error}`); failed++; }
+    else console.log(`✅ #${res.num} ← ${res.file} (${(res.bytes / 1024).toFixed(0)} KB)${res.dryRun ? ' [dry-run]' : ''}`);
+  }
+  if (failed) process.exit(1);
 }

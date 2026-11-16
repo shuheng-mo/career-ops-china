@@ -81,6 +81,7 @@
 **Archetype：** {检测到的}
 **Track：** {ai-app | ai-app-auto | auto-data | auto-algo | ai-data-bridge | ai-gov-bridge}
 **Tier：** {A1/A2/A3/B1/B2/B3/C1/C2/D/未明确}
+**可达性：** {高 | 中 | 低}（判据见 `modes/_profile.md` 的「可达性标签」；不进 Score）
 **Score：** {X.X/5}
 **URL：** {岗位 URL}
 **PDF：** career-ops/output/cv-candidate-{slug}-{{DATE}}.pdf

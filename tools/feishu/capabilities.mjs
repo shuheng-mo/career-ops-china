@@ -30,7 +30,7 @@ import { fileURLToPath } from 'url';
 
 const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-export const KNOWN_CAPABILITIES = ['bitable', 'calendar', 'task', 'im_card', 'dashboard', 'docs'];
+export const KNOWN_CAPABILITIES = ['bitable', 'calendar', 'task', 'im_card', 'dashboard', 'docs', 'retro_alert'];
 
 function unquote(s) {
   if (!s) return '';

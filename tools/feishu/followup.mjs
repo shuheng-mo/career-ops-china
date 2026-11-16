@@ -132,6 +132,18 @@ export async function reconcileFollowUps({ dryRun = false, refresh = false } = {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const dryRun = process.argv.includes('--dry-run');
+  // The retro line rides on this 9:00 launchd job so its alert never depends on
+  // someone running the digest by hand. It goes FIRST: reconcileFollowUps returns
+  // early when the task capability is off, and a retro outranks every follow-up.
+  // Isolated: a failure here must not stop the reconciliation, and vice versa.
+  try {
+    const { runRetroCheck, describeCheck } = await import('./retro-alert.mjs');
+    const r = await runRetroCheck({ dryRun });
+    console.log(`[${new Date().toISOString()}] 复盘线检查${dryRun ? '（dry-run）' : ''}\n${describeCheck(r)}`);
+    if (r.body) console.log(`（dry-run，未发送）\n${r.body}\n加急：lark-cli ${r.urgentArgs.join(' ')}\n`);
+  } catch (e) {
+    console.log(`[${new Date().toISOString()}] ⚠️ 复盘线检查失败：${e.message}`);
+  }
   const res = await reconcileFollowUps({ dryRun, refresh: process.argv.includes('--refresh') });
   if (res.skipped) process.exit(0);
   const tag = dryRun ? '（dry-run，未写入）' : '';

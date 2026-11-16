@@ -36,6 +36,7 @@ import { fileURLToPath } from 'url';
 import { runLarkCli, parseJsonOut, isEnabled, skipped, feishuConfig } from './capabilities.mjs';
 import { listApplications, readProfileTracker, trackDirection, TRACK_FIT } from '../tracker-backend.mjs';
 import { buildPulse } from './pulse.mjs';
+import { retroStatus, readRetroConfig } from '../retro-core.mjs';
 
 const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -108,8 +109,12 @@ export async function buildDigest() {
   let pulse = null;
   try { const P = await buildPulse(); pulse = { signal: P.signal, reason: P.reason, missing: P.missingAppliedAt.length }; } catch { /* best-effort */ }
 
+  let retro = null;
+  try { retro = retroStatus(apps, readRetroConfig()); } catch { /* best-effort */ }
+
   return {
     total: apps.length,
+    retro,
     pulse,
     stale,
     ready,
@@ -127,6 +132,17 @@ export function renderDigest(d) {
   const L = [`## career-ops 日报 · ${today}`, ''];
 
   const dirLine = Object.entries(d.byDirection).map(([k, v]) => `${k} ${v}`).join(' · ');
+  // An open retro round outranks everything else in the digest, the pulse
+  // signal included: it means "stop sending until the retro is done".
+  if (d.retro?.active) {
+    const { line: rl, label } = d.retro;
+    const r = (pos, n) => `${pos}/${n} (${n ? Math.round((pos / n) * 100) : 0}%)`;
+    L.push(`### 复盘线 ${label}`);
+    const vs = rl.base?.n ? `${rl.status === 'below' ? '低于' : '对比'}基准 ${rl.base.month} **${r(rl.base.pos, rl.base.n)}**` : '（基准月未配置）';
+    L.push(`- 近两周（${rl.window.from} ~ ${rl.window.to}）正面回复 **${r(rl.window.pos, rl.window.n)}**，${vs}`);
+    L.push('- 先停止加量投递；`npm run retro` 生成草稿，和 Claude 一起填完三节才算完成');
+    L.push('');
+  }
   if (d.pulse) {
     L.push(`### 投递脉搏：${d.pulse.signal}`);
     L.push(`- ${d.pulse.reason}`);

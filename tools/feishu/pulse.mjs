@@ -43,6 +43,7 @@ import {
   listApplications, readProfileTracker, INTERVIEW_STAGES, EXIT_STAGES,
 } from '../tracker-backend.mjs';
 import { runLarkCli, parseJsonOut, isEnabled } from './capabilities.mjs';
+import { retroStatus, readRetroConfig } from '../retro-core.mjs';
 
 export const RESTART_DATE = '2026-10-08';
 const CHECKPOINTS = [3, 7, 14, 21];
@@ -255,8 +256,14 @@ export async function buildPulse({ windowDays = 21 } = {}) {
     signal = '🟨 观察';
     reason += `；但比 ${healthy.month} 健康期差很多（P=${(healthy.p * 100).toFixed(1)}%），不要加量`;
   }
+  // The retro line (positive replies vs the baseline month) is a separate
+  // question from the Poisson signal above; a failure there must not sink pulse.
+  let retro;
+  try { retro = retroStatus(apps, { today: todayStr(), ...readRetroConfig() }); }
+  catch (e) { retro = { error: e.message }; }
   return {
     today: todayStr(),
+    retro,
     rows, base, signal, reason,
     window,
     cohorts: cohorts(rows),
@@ -277,6 +284,17 @@ export function renderPulse(P) {
   L.push(`      窗口：近 ${w.windowDays} 天投出 ${w.live.length} 个；回复中位 ${w.ttfrMed ?? '—'} 天（历史 ${base.ttfrMedian ?? '—'} 天，80% 在 ${base.ttfrP80 ?? '—'} 天内）`);
   if (P.best) L.push(`      对照最好的月份 ${P.best.month}（${P.best.n} 个投递，7 天回复 ${pct(P.best.r7)}）：同样的投递那时应收到 ${P.best.E.toFixed(1)} 个回复（官网按历史曲线算）`);
   if (P.missingAppliedAt.length) L.push(`      ⚠️ ${P.missingAppliedAt.length} 个在途岗位缺 Applied At，没进模型：#${P.missingAppliedAt.join(' #')}`);
+  L.push('');
+
+  L.push('── 复盘线（近两周满 14 天的正面回复率 vs 基准月；拒信不算）──');
+  if (P.retro?.error) L.push(`⚠️ 复盘线计算失败：${P.retro.error}`);
+  else if (P.retro) {
+    const { line: rl, label } = P.retro;
+    const r = (pos, n) => (n ? `${pos}/${n} (${Math.round((pos / n) * 100)}%)` : '—');
+    L.push(`状态：${label}`);
+    L.push(`窗口 ${rl.window.from} ~ ${rl.window.to}：正面回复 ${r(rl.window.pos, rl.window.n)}`);
+    if (rl.base) L.push(`基准 ${rl.base.month}：正面回复 ${r(rl.base.pos, rl.base.n)}`);
+  }
   L.push('');
 
   L.push(`── 历史基线（重启前 ${base.n} 个已投）──`);

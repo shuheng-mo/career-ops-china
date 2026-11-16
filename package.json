@@ -32,7 +32,9 @@
     "tencent": "node tools/tencent-careers.mjs",
     "meituan": "node tools/meituan-careers.mjs",
     "waiqi": "node tools/waiqi-scan.mjs",
-    "apply-link": "node tools/apply-link.mjs"
+    "apply-link": "node tools/apply-link.mjs",
+    "test:retro": "node tools/test-retro.mjs",
+    "retro": "node tools/retro.mjs"
   },
   "keywords": [
     "ai",

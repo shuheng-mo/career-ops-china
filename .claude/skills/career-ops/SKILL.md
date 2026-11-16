@@ -8,6 +8,10 @@ arguments: mode
 
 # career-ops — Router（中国大陆版）
 
+## 复盘线检查（每次调用先做）
+
+先读 `data/retro/.alert-state.json`。`active: true` **且** `data/retro/` 里没有日期 ≥ `firstTriggered`、且不含「待 Claude 与用户填写」标记的 `*-retro.md`（有的话说明今天已经复盘完，状态文件要到明早 9:00 才刷新）时，**无论用户调用的是哪个子命令，先用一句话把复盘提出来**：「复盘线已触发第 N 天（窗口正面回复 x/n，低于基准 y/m），建议先跑 `npm run retro` 生成草稿一起复盘」，然后再做用户要的事。文件不存在或 `active` 不为 true → 跳过。复盘草稿带「待 Claude 与用户填写」标记；和用户一起填完解读 / 调整 / 下次问题三节、删掉标记后才算完成。报告写法见 `data/retro/` 里已有的报告：全部基于 tracker 数据，比率写成 `x/n (%)`，关键结论附编号，猜测标「未验证」。
+
 ## Mode Routing
 
 根据 `{{mode}}` 决定模式：

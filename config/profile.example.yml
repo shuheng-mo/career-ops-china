@@ -96,11 +96,19 @@ feishu:
     calendar: false              # interview events                     — scope domain: calendar
     task: false                  # follow-up + pre-interview reminders  — scope domain: task
     im_card: false               # daily digest to your own DM          — scope domain: im
+    retro_alert: false           # retro-line alert: own DM + urgent buzz, independent of im_card — scope domain: im
     dashboard: false             # Bitable dashboards (reuses base scopes)
     docs: false                  # push CVs/reports to the cloud        — scope domains: drive, docx
 
   config:
     self_open_id: ""             # digest recipient = you. Get it from `lark-cli whoami --profile <p>`
+
+# Retro line: if the positive-reply rate (HR contact + interview; rejections do not count)
+# of the last two weeks of applications (at least 14 days old) falls below this month's,
+# the daily 9:00 check raises a retro alert. Computed from the tracker each time.
+# See tools/retro-core.mjs. Leave empty to disable the line.
+retro:
+  baseline_month: ""             # e.g. "2026-04" — the month your strategy worked best
 
 tracker:
   backend: md  # md | bitable

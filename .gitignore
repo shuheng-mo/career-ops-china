@@ -11,6 +11,8 @@ data/radar-leads-*.md
 data/reminders.md
 # interview rounds on the md backend — company names + interviewer feedback
 data/interviews.jsonl
+# strategy retros — cohort stats with company names and application numbers
+data/retro/
 scratchpad-manifest.json
 reports/*.md
 !reports/.gitkeep

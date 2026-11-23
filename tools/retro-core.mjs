@@ -56,7 +56,14 @@ export function responseKind(app) {
   return reachedInterview(app) ? '约面' : '无';
 }
 
-const ageOf = (app, today) => { const a = day(app.appliedAt); return a ? daysBetween(a, today) : null; };
+// The clock the retro line runs on: when this row's recruitment contact started.
+// Legacy rows have no contactedAt — under the pre-2026-11-18 workflow appliedAt
+// WAS the first outbound contact event (Boss greeting / outreach message), so it
+// is the documented proxy anchor. With contactedAt empty everywhere today this
+// is an identity change; new rows record the real Contacted At.
+const anchor = (app) => day(app.contactedAt || app.appliedAt);
+
+const ageOf = (app, today) => { const a = anchor(app); return a ? daysBetween(a, today) : null; };
 
 /** Applications that went out and have had at least 14 days. */
 export function matured(apps, today) {
@@ -79,7 +86,7 @@ export function retroWindow(apps, today) {
 
 /** Positive-reply rate of the baseline month (matured rows only). */
 export function baseline(apps, month, today) {
-  const rows = matured(apps, today).filter(a => day(a.appliedAt).startsWith(month));
+  const rows = matured(apps, today).filter(a => anchor(a).startsWith(month));
   const s = summarise(rows);
   return { month, ...s, rate: s.n ? s.pos / s.n : null };
 }

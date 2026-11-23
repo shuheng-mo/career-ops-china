@@ -13,6 +13,16 @@ states:
     description: Offer evaluated with report, pending decision (已评估，待决定)
     dashboard_group: evaluated
 
+  - id: contacted
+    label: Contacted
+    aliases: [已打招呼, 已联系, 已接触]
+    description: >
+      已发起招聘接触（Boss 打招呼 / 猎头初次接触 / 内推请求 / 意向消息），但简历
+      尚未确认提交。2026-11-18 口径整改新增：消息发出 ≠ 正式投递。记 Contacted At +
+      Contact Type（+ Channel）；简历确认发出时才进 Applied + Submitted At。
+      非终态 —— 漏斗里算活跃，可产生招聘互动（HR 回复记 firstResponse）但不算正式投递。
+    dashboard_group: evaluated
+
   - id: applied
     label: Applied
     aliases: [sent, 已申请, 已投递, 已投, 投递]

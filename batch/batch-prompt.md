@@ -102,7 +102,7 @@ Body 是完整 A-F + 末尾 15-20 个 JD 关键词（供 ATS）。
 7. 选 top 3-4 项目，按 JD 相关性重排 bullets
 8. 构建 competency grid（6-8 个关键词）
 9. 关键词**只能**注入到候选人真实经历里 — 永远不要编造技能
-10. 按 `modes/pdf.md` 的「Markdown 格式」写 `output/cv-candidate-{slug}-{{DATE}}.md`（全部纯黑由脚本保证；正文禁止用箭头串流程，页眉不放项目链接）
+10. 按 `modes/pdf.md` 的「Markdown 格式」写 `output/cv-candidate-{slug}-{{DATE}}.md`（全部纯黑由脚本保证；正文禁止用箭头串流程，页眉不放项目链接）。**slug 必须含岗位区分词（公司+岗位线，如 `bytedance-coze`），并行批次禁止只用公司名**——同公司多岗并行时同名 md/PDF 会互相覆盖（2026-11-20 字节 11 岗批次实测）
 11. 执行：
     ```bash
     npm run cv -- output/cv-candidate-{slug}-{{DATE}}.md [--format=letter]
@@ -115,7 +115,7 @@ Body 是完整 A-F + 末尾 15-20 个 JD 关键词（供 ATS）。
 
 写一行 TSV 到 `batch/tracker-additions/{{ID}}.tsv`。**列顺序、canonical 状态、合并规则**见 `CLAUDE.md` 的 "TSV Format for Tracker Additions" 段。
 
-简记：10 列 tab 分隔，顺序 `num date company role status score/5 pdf_emoji [num](reports/...) notes track`。status 取值必须是 canonical（`Evaluated` / `Applied` / `Responded` / `Interview` / `Offer` / `Rejected` / `Discarded` / `SKIP` / `Blocked`）；track 取 Step 0 判定的那个 track_id（6 个合法值见 `modes/_shared.md`），**写错会直接报错**，不确定就留空（留空 == `ai-app`）。
+简记：10 列 tab 分隔，顺序 `num date company role status score/5 pdf_emoji [num](reports/...) notes track`。status 取值必须是 canonical（`Evaluated` / `Contacted` / `Applied` / `Responded` / `Interview` / `Offer` / `Rejected` / `Discarded` / `SKIP` / `Blocked`）；track 取 Step 0 判定的那个 track_id（6 个合法值见 `modes/_shared.md`），**写错会直接报错**，不确定就留空（留空 == `ai-app`）。评估阶段只写 `Evaluated`/`SKIP`/`Discarded`/`Blocked`；`Contacted`（打招呼/猎头接触但简历未发）与 `Applied`（简历已确认发出）由投递动作触发，batch 评估不要直接写。
 
 `{next_num}` 通过读 `data/applications.md` 最后一行计算。
 

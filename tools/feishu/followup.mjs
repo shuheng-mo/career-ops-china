@@ -65,7 +65,10 @@ const postingUrl = (r) => (String(r.url || '').match(/https?:\/\/[^\s)\]]+/) || 
 const NO_PROGRESS_PAGE = [/smartrecruiters\.com/];
 const skipCheck = (r) => r.channel === '官网' && NO_PROGRESS_PAGE.some((re) => re.test(postingUrl(r)));
 
-const isPending =(r) => r.status === 'Applied' && !r.firstResponseAt && !r.exitStage;
+// 2026-11-18 起 Contacted（打招呼/猎头接触，简历未确认发出）和 Applied 一样需要
+// 跟进对账；锚点用 Contacted At（无则回退 appliedAt —— Contacted 行本就没有它）。
+const isPending = (r) => ['Contacted', 'Applied'].includes(r.status) && !r.firstResponseAt && !r.exitStage;
+const anchorDate = (r) => String(r.contactedAt || r.appliedAt || '').slice(0, 10);
 
 export async function reconcileFollowUps({ dryRun = false, refresh = false } = {}) {
   if (!isEnabled('task')) {
@@ -79,7 +82,7 @@ export async function reconcileFollowUps({ dryRun = false, refresh = false } = {
   const out = { created: [], completed: [], refreshed: [], failed: [], noDate: [] };
 
   for (const r of rows.filter(isPending)) {
-    const applied = String(r.appliedAt || '').slice(0, 10);
+    const applied = anchorDate(r);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(applied)) { out.noDate.push(r.num); continue; }
     const age = Math.round((new Date(today) - new Date(applied)) / 86400000);
     const done = state[r.num] || {};
@@ -151,6 +154,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log(`⏰ 新建 ${res.created.length}`); res.created.forEach((s) => console.log(`   ${s}`));
   console.log(`✔️  勾掉 ${res.completed.length}`); res.completed.forEach((s) => console.log(`   ${s}`));
   if (res.refreshed.length) console.log(`🔗 刷新描述 ${res.refreshed.length}`);
-  if (res.noDate.length) console.log(`⚠️  Applied 但没填投递日期，没法排提醒: #${res.noDate.join(' #')}`);
+  if (res.noDate.length) console.log(`⚠️  Contacted/Applied 但没填接触/投递日期，没法排提醒: #${res.noDate.join(' #')}`);
   if (res.failed.length) { console.log(`❌ 失败 ${res.failed.length}`); res.failed.forEach((s) => console.log(`   ${s}`)); process.exit(1); }
 }

@@ -37,7 +37,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execSync, spawnSync } from 'child_process';
 import { runLarkCli as larkCli, parseJsonOut } from './feishu/capabilities.mjs';
-import { CANONICAL_STATES, TRACKS, CHANNELS, RESPONSE_TYPES, INTERVIEW_STAGES, EXIT_STAGES } from './tracker-backend.mjs';
+import { CANONICAL_STATES, TRACKS, CHANNELS, RESPONSE_TYPES, INTERVIEW_STAGES, EXIT_STAGES, CONTACT_TYPES, SUBMISSION_EVIDENCE, REJECTION_TYPES } from './tracker-backend.mjs';
 import readline from 'readline';
 
 const CAREER_OPS = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -46,6 +46,7 @@ const PROFILE_PATH = join(CAREER_OPS, 'config', 'profile.yml');
 // Color hints (Feishu single-select hues) — roughly funnel stages green→red
 const STATUS_HUES = {
   Evaluated: 'Gray',
+  Contacted: 'Wathet',  // 打招呼/猎头接触，简历尚未确认发出（2026-11-18 口径整改）
   Applied:   'Blue',
   Responded: 'Turquoise',
   Interview: 'Yellow',
@@ -159,6 +160,14 @@ function buildFieldsJson() {
     select('First Response', RESPONSE_TYPES, { 拒信: 'Red', HR沟通: 'Turquoise', 约面: 'Green' }),
     select('Furthest Stage', INTERVIEW_STAGES, 'Yellow'),
     select('Exit Stage', EXIT_STAGES, s => (s === '录用' ? 'Green' : s.endsWith('挂') || s === 'Offer被撤' ? 'Red' : 'Gray')),
+    // ── 招聘阶段整改 (2026-11-18) ──
+    // Applied At 历史上混用了打招呼/猎头接触/简历提交。这五个字段把「接触」和
+    // 「确认提交」拆开；事件历史在 Events 子表（tools/feishu/events.mjs）。
+    { type: 'datetime', name: 'Contacted At', style: { format: 'yyyy-MM-dd' } },
+    select('Contact Type', CONTACT_TYPES, { Boss打招呼: 'Blue', 猎头接触: 'Purple', 内推请求: 'Turquoise', 官网留言: 'Wathet', 邮件: 'Gray', 其他: 'Gray' }),
+    { type: 'datetime', name: 'Submitted At', style: { format: 'yyyy-MM-dd' } },
+    select('Submission Evidence', SUBMISSION_EVIDENCE, e => (e === '证据待补' ? 'Gray' : e === '猎头称已推荐' ? 'Orange' : 'Green')),
+    select('Rejection Type', REJECTION_TYPES, { 系统拒信: 'Gray', 人工拒绝: 'Red' }),
   ];
 }
 

@@ -3,14 +3,18 @@
 //
 // Convention: in `outreach/{NN}-{slug}-{channel}-{date}.md`, when the
 // 发送记录 table's "消息 1" row gets a YYYY-MM-DD in the 时间 column,
-// upgrade tracker row #NN from Evaluated → Applied.
+// upgrade tracker row #NN from Evaluated → Contacted.
+//
+// 2026-11-18 口径整改：消息 1 = 打招呼/初次接触，不是简历提交。它升级到
+// Contacted（记 Contacted At + Contact Type + Channel），并写一条 Events 行。
+// 简历确认发出时才进 Applied + Submitted At（由 events.mjs add 发送简历 滚回）。
 //
 // Rules:
 //   - Never downgrade. If the row already moved past Evaluated, do nothing.
 //   - Idempotent. Running twice produces no extra changes.
 //   - HR 回复 column is NOT auto-parsed — too fragile. Prints a hint
 //     so the user can upgrade Responded/Interview manually.
-//   - Every Evaluated → Applied also schedules a +3d follow-up reminder. This is
+//   - Every Evaluated → Contacted also schedules a +3d follow-up reminder. This is
 //     the exact point where the 2026-07 stall happened: 18 messages went out and
 //     nothing ever chased them, because "follow up in 3 days" lived only in the
 //     candidate's head. With feishu.capabilities.task off it lands in
@@ -36,10 +40,21 @@ const OUTREACH = join(ROOT, "outreach");
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const FILE_RE = /^(\d{1,3})-([a-z0-9-]+)-(boss|maimai|linkedin|wechat|portal|email)-(\d{4}-\d{2}-\d{2})\.md$/;
 
-// Anything at or past "we reached out" — never walk these back to Applied.
+// Anything at or past "we reached out" — never walk these back.
 const PAST_EVALUATED = new Set([
-  "Applied", "Responded", "Interview", "Offer", "Rejected", "Discarded", "SKIP", "Blocked",
+  "Contacted", "Applied", "Responded", "Interview", "Offer", "Rejected", "Discarded", "SKIP", "Blocked",
 ]);
+
+// Filename channel → [tracker Channel, Contact Type]. 消息 1 is a first touch,
+// not a resume submission, so Contact Type is what it establishes.
+const CHANNEL_MAP = {
+  boss: ["Boss", "Boss打招呼"],
+  maimai: ["其他", "其他"],
+  linkedin: ["LinkedIn", "其他"],
+  wechat: ["其他", "其他"],
+  portal: ["官网", "官网留言"],
+  email: ["其他", "邮件"],
+};
 
 function parseOutreach(path) {
   for (const line of readFileSync(path, "utf8").split("\n")) {
@@ -109,14 +124,33 @@ for (const file of files) {
     ? row.notes
     : `${noteRef}；${row.notes || ""}`;
 
-  pending.push({ num, status: "Applied", appliedAt: parsed.sentDate, notes });
-  console.log(`${dryRun ? "🔍" : "✅"} #${num}: Evaluated → Applied (outreach/${file})`);
+  const [trackerChannel, contactType] = CHANNEL_MAP[channel] || ["其他", "其他"];
+  pending.push({
+    num, status: "Contacted", contactedAt: parsed.sentDate, contactType,
+    channel: trackerChannel, notes,
+  });
+  console.log(`${dryRun ? "🔍" : "✅"} #${num}: Evaluated → Contacted（${contactType}，${parsed.sentDate}）`);
 }
 
 if (pending.length > 0 && !dryRun) {
   const { updated, missing } = await updateMany(pending);
   if (missing.length) console.log(`⚠️  写入时未找到: ${missing.join(", ")}`);
   console.log(`\n📝 已写入 ${backend.backendName} 后端：${updated} 条`);
+
+  // Events 留痕（rollup:false —— 字段上面已直接写，这里只记历史行）。
+  // addEvent 每次全量拉一次表，但 outreach 批次通常只有几条，可接受。
+  try {
+    const { addEvent } = await import("./feishu/events.mjs");
+    for (const p of pending) {
+      await addEvent({
+        num: p.num, event: p.contactType === "Boss打招呼" ? "打招呼" : "其他",
+        date: p.contactedAt, channel: p.channel, confidence: "高",
+        evidence: `outreach 消息 1（见 notes）`,
+      }, { rollup: false });
+    }
+  } catch (e) {
+    console.log(`⚠️  Events 留痕失败（不影响主表写入）：${String(e.message).split("\n")[0]}`);
+  }
   if (backend.backendName === "bitable") {
     console.log("   运行 `npm run tracker:export` 刷新 data/applications.md 快照");
   }

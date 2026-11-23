@@ -110,7 +110,7 @@ export function buildRetroReport(apps, { today = todayBJ(), baselineMonth, trigg
   const line = retroLine(apps, { today, baselineMonth });
   const base = baselineMonth ? baseline(apps, baselineMonth, today) : { rows: [] };
   const win = retroWindow(apps, today);
-  const post = matured(apps, today).filter(a => day(a.appliedAt) >= RESTART_DATE);
+  const post = matured(apps, today).filter(a => day(a.contactedAt || a.appliedAt) >= RESTART_DATE);
   const cohorts = [
     { label: `基准 ${baselineMonth || '（未配置）'}`, rows: base.rows },
     { label: `窗口 ${win.from}~${win.to}`, rows: win.rows },
@@ -130,7 +130,7 @@ export function buildRetroReport(apps, { today = todayBJ(), baselineMonth, trigg
   }
   L.push('', '## 口径', '');
   L.push(`- 数据源：\`listApplications()\`，${today} 拉取，${apps.length} 条`);
-  L.push('- 样本：有 `appliedAt` 且投递满 14 天的条目（未满 14 天的不算「没回」）');
+  L.push('- 样本：接触锚（`contactedAt`，历史行用 `appliedAt` 代理）满 14 天的条目（未满 14 天的不算「没回」）');
   L.push('- **正面回复** = `firstResponse` 为 HR沟通 / 约面，或 `furthestStage` 越过「未面」。**拒信不算**');
   L.push(`- 批次：基准月 = ${baselineMonth || '未配置'}；窗口 = 复盘线窗口（最近两周、满 14 天，样本 < 10 时按周往前扩，最多 6 周）；重启后全部 = ${RESTART_DATE} 起`);
   L.push(`- 方向：notes 带 \`数据Agent\` 标记的按标记；${TAG_SINCE} 之前没有标记的按岗位名 + notes 关键词粗分（标「粗分」）`);
@@ -155,11 +155,12 @@ export function buildRetroReport(apps, { today = todayBJ(), baselineMonth, trigg
   L.push('### 回复类型', '', `| 回复类型 | ${cohorts.map(c => c.label).join(' | ')} |`, `|---|${cohorts.map(() => '---').join('|')}|`);
   for (const k of kinds) L.push(`| ${k} | ${cohorts.map(c => (c.rows.length ? `${c.rows.filter(a => responseKind(a) === k).length}/${c.rows.length}` : '—')).join(' | ')} |`);
 
-  L.push('', '## 3. 清单', '', '### 结案候选（Applied、无回复、投递 > 14 天 —— 只列，不改）', '');
-  const stale = apps.filter(a => a.status === 'Applied' && !a.firstResponseAt && !a.firstResponse && day(a.appliedAt) && daysBetween(day(a.appliedAt), today) > 14)
-    .sort((x, y) => day(x.appliedAt).localeCompare(day(y.appliedAt)));
+  L.push('', '## 3. 清单', '', '### 结案候选（Contacted/Applied、无回复、接触/投递 > 14 天 —— 只列，不改）', '');
+  const anchorOf = a => day(a.contactedAt || a.appliedAt);
+  const stale = apps.filter(a => ['Contacted', 'Applied'].includes(a.status) && !a.firstResponseAt && !a.firstResponse && anchorOf(a) && daysBetween(anchorOf(a), today) > 14)
+    .sort((x, y) => anchorOf(x).localeCompare(anchorOf(y)));
   if (!stale.length) L.push('无。');
-  for (const a of stale) L.push(`- #${a.num} ${a.company} — ${a.role}（${a.channel || '渠道未记录'}，${daysBetween(day(a.appliedAt), today)} 天）`);
+  for (const a of stale) L.push(`- #${a.num} ${a.company} — ${a.role}（${a.channel || '渠道未记录'}，${daysBetween(anchorOf(a), today)} 天）`);
 
   L.push('', '### 待投队列（Evaluated 且过 fit × Tier 闸门；可达性 高>中>低>未标注，再按 Score）', '');
   const rank = { 高: 0, 中: 1, 低: 2, [UNSET]: 3 };

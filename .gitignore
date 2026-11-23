@@ -13,6 +13,9 @@ data/reminders.md
 data/interviews.jsonl
 # strategy retros — cohort stats with company names and application numbers
 data/retro/
+
+# kimi job-hunter 日报副本（cp 到根目录喂 kimi-daily-import 的临时输入，materialize 后自动删）
+/20[0-9][0-9]-[0-9][0-9]-[0-9][0-9].md
 scratchpad-manifest.json
 reports/*.md
 !reports/.gitkeep

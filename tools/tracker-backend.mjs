@@ -14,7 +14,11 @@
  *
  * Normalized Record shape:
  *   { num, date, company, role, score, status, pdf, report, notes, track,
- *     url (optional, bitable-only), linked (optional) }
+ *     url (optional, bitable-only), linked (optional),
+ *     funnel detail (bitable-only): channel, appliedAt, firstResponseAt,
+ *     firstResponse, furthestStage, exitStage,
+ *     recruitment stages (2026-11-18, bitable-only): contactedAt, contactType,
+ *     submittedAt, submissionEvidence, rejectionType }
  *
  * Callers must not assume backend-specific details. If a field doesn't exist
  * in the md backend, it returns "" (empty string) rather than undefined.
@@ -164,7 +168,7 @@ export async function aggregateByStatus() {
 // This is the single definition; merge-tracker and setup-bitable-tracker import
 // it rather than keeping their own copies (they used to, and drifted).
 export const CANONICAL_STATES = [
-  'Evaluated', 'Applied', 'Responded', 'Interview',
+  'Evaluated', 'Contacted', 'Applied', 'Responded', 'Interview',
   'Offer', 'Rejected', 'Discarded', 'SKIP', 'Blocked',
 ];
 
@@ -263,6 +267,60 @@ export const EXIT_STAGES = [
 export const ROUND_RESULTS = ['通过', '挂', '待定', '取消'];
 export const ROUND_FORMATS = ['电话', '视频', '现场', '笔试'];
 
+// ---- Recruitment stages (2026-11-18 overhaul) ----
+// `Applied`/`appliedAt` historically conflated Boss 打招呼, 猎头接触 and actual
+// resume submission. These fields split contact from confirmed submission.
+// Each is a Bitable single-select/date; the option lists here ARE the schema
+// (same contract as CHANNELS above). Bitable-only — the md backend never sees
+// them, exactly like the 2026-10-15 funnel fields.
+
+// How the FIRST recruitment contact was made (candidate-initiated).
+export const CONTACT_TYPES = ['Boss打招呼', '猎头接触', '内推请求', '官网留言', '邮件', '其他'];
+
+// Evidence tier for "resume/formal application was actually submitted".
+// 高置信: 简历已发对方 / 系统提交确认 / 客户确认收到 / 流程已推进佐证
+// 低置信: 猎头称已推荐 — counted in the submitted funnel but tagged, filterable.
+// 证据待补: submission claimed but unverified — NOT in the submitted funnel.
+export const SUBMISSION_EVIDENCE = [
+  '简历已发对方', '系统提交确认', '客户确认收到', '猎头称已推荐', '流程已推进佐证', '证据待补',
+];
+export const HIGH_CONFIDENCE_EVIDENCE = new Set([
+  '简历已发对方', '系统提交确认', '客户确认收到', '流程已推进佐证',
+]);
+
+// 拒信细分 — historical 拒信 rows have neither (未分类 in stats).
+export const REJECTION_TYPES = ['系统拒信', '人工拒绝'];
+
+// Event types for the Events table (one row per contact/submission event).
+// The 接触类: 打招呼 / 猎头接触 / 内推请求; the 提交类: 发送简历 / 系统提交 /
+// 猎头推荐 / 客户确认收到; the rest record responses without claiming submission.
+export const EVENT_TYPES = [
+  '打招呼', '猎头接触', '内推请求', '发送简历', '系统提交', '猎头推荐', '客户确认收到',
+  '回复-拒信', '回复-HR沟通', '回复-约面', '其他',
+];
+export const CONTACT_EVENT_TYPES = new Set(['打招呼', '猎头接触', '内推请求']);
+export const SUBMISSION_EVENT_TYPES = new Set(['发送简历', '系统提交', '猎头推荐', '客户确认收到']);
+export const CONFIDENCE_LEVELS = ['高', '中', '低'];
+
+/**
+ * The clock the contact funnel runs on: when this row's recruitment contact
+* actually started. Legacy rows have no Contacted At — under the pre-2026-11-18
+ * workflow `appliedAt` WAS the first outbound contact event (Boss greeting,
+ * outreach message), so it serves as the documented proxy anchor. New rows
+ * record the real Contacted At and this returns it.
+ */
+export function contactAnchor(rec) {
+  return String(rec?.contactedAt || rec?.appliedAt || '');
+}
+
+/**
+ * Is this row's submission confirmed enough for the submitted funnel?
+ * Needs Submitted At + evidence that is not 证据待补.
+ */
+export function isConfirmedSubmission(rec) {
+  return !!(rec?.submittedAt && rec?.submissionEvidence && rec.submissionEvidence !== '证据待补');
+}
+
 export function isTerminal(status) {
   return TERMINAL_STATES.has(status);
 }
@@ -270,11 +328,18 @@ export function isTerminal(status) {
 // Keep CJK letters + numbers; drop only whitespace/punctuation/symbols.
 // The old `[^a-z0-9]` stripped ALL Chinese, collapsing every CN company
 // name to "" (so all CN companies compared equal — see dedup bug).
+// 中英文名不同的公司：归一化后仍不相等，去重会漏判（2026-11-23 实锤：
+// kimi 抓的 "patsnap" 没认出 tracker 里的「智慧芽」，已投岗位重复进桶 A）
+const COMPANY_ALIASES = {
+  patsnap: '智慧芽',
+};
+
 export function normalizeCompany(name) {
-  return (name || '')
+  const n = (name || '')
     .toLowerCase()
     .replace(/[\s　]+/g, '')          // whitespace incl. full-width space
     .replace(/[^\p{L}\p{N}]/gu, '');  // keep all Unicode letters (incl. CJK) + numbers
+  return COMPANY_ALIASES[n] || n;
 }
 
 /**

@@ -58,6 +58,7 @@ function validateStatus(status) {
     // Chinese aliases (matching templates/states.yml)
     '已评估': 'Evaluated', '评估完成': 'Evaluated', '待决定': 'Evaluated',
     '已申请': 'Applied', '已投递': 'Applied', '已投': 'Applied', '投递': 'Applied',
+    '已打招呼': 'Contacted', '已联系': 'Contacted', '已接触': 'Contacted',
     '已回复': 'Responded', '有回应': 'Responded', 'hr已联系': 'Responded',
     '面试中': 'Interview', '面试': 'Interview', '一面': 'Interview', '二面': 'Interview', '三面': 'Interview',
     '拿到offer': 'Offer', '已offer': 'Offer',
@@ -183,8 +184,8 @@ function parseTsvContent(content, filename) {
     const col5 = parts[5].trim();
     const col4LooksLikeScore = /^\d+\.?\d*\/5$/.test(col4) || col4 === 'N/A' || col4 === 'DUP';
     const col5LooksLikeScore = /^\d+\.?\d*\/5$/.test(col5) || col5 === 'N/A' || col5 === 'DUP';
-    const col4LooksLikeStatus = /^(evaluated|applied|responded|interview|offer|rejected|discarded|skip|dup|repost|condicional|hold|monitor)/i.test(col4);
-    const col5LooksLikeStatus = /^(evaluated|applied|responded|interview|offer|rejected|discarded|skip|dup|repost|condicional|hold|monitor)/i.test(col5);
+    const col4LooksLikeStatus = /^(evaluated|contacted|applied|responded|interview|offer|rejected|discarded|skip|dup|repost|condicional|hold|monitor)/i.test(col4);
+    const col5LooksLikeStatus = /^(evaluated|contacted|applied|responded|interview|offer|rejected|discarded|skip|dup|repost|condicional|hold|monitor)/i.test(col5);
 
     let statusCol, scoreCol;
     if (col4LooksLikeStatus && !col4LooksLikeScore) {

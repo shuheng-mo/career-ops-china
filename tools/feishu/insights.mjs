@@ -32,7 +32,7 @@ import { runLarkCli, parseJsonOut, isEnabled, skipped } from './capabilities.mjs
 
 // Funnel order. Blocked sits outside the progression on purpose: it is not a
 // stage on the way to an offer, it is a hold with a reason.
-const FUNNEL = ['Evaluated', 'Applied', 'Responded', 'Interview', 'Offer'];
+const FUNNEL = ['Evaluated', 'Contacted', 'Applied', 'Responded', 'Interview', 'Offer'];
 const OUTSIDE = ['Blocked', 'Rejected', 'Discarded', 'SKIP'];
 
 // The 2026-07-03 → 2026-10-08 stall means pre-stall rows are historical stock.
@@ -80,8 +80,9 @@ function avg(xs) {
  */
 function rates(b) {
   const n = s => b.byStatus[s] || 0;
-  // Everything that has at least been sent out.
-  const sent = n('Applied') + n('Responded') + n('Interview') + n('Offer') + n('Rejected');
+  // Everything that has at least been sent out (contacted counts — a greeting
+  // is an outbound event even before the resume goes).
+  const sent = n('Contacted') + n('Applied') + n('Responded') + n('Interview') + n('Offer') + n('Rejected');
   const responded = n('Responded') + n('Interview') + n('Offer');
   const interviewed = n('Interview') + n('Offer');
   return {

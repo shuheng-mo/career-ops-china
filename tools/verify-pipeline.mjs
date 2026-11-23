@@ -37,7 +37,7 @@ const STATES_FILE = existsSync(join(CAREER_OPS, 'templates/states.yml'))
 
 // English canonical (matches templates/states.yml)
 const CANONICAL_STATUSES = [
-  'evaluated', 'applied', 'responded', 'interview',
+  'evaluated', 'contacted', 'applied', 'responded', 'interview',
   'offer', 'rejected', 'discarded', 'skip', 'blocked',
 ];
 
@@ -46,6 +46,7 @@ const ALIASES = {
   'monitor': 'skip',
   // Chinese (matches templates/states.yml)
   '已评估': 'evaluated', '已申请': 'applied', '已投递': 'applied', '投递': 'applied',
+  '已打招呼': 'contacted', '已联系': 'contacted', '已接触': 'contacted',
   '已回复': 'responded', '面试中': 'interview', '面试': 'interview',
   '拿到offer': 'offer', '已offer': 'offer',
   '被拒': 'rejected', '已拒': 'rejected', '拒了': 'rejected',

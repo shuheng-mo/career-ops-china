@@ -85,6 +85,7 @@ function normalizeStatus(raw) {
     // Chinese aliases
     '已评估': 'Evaluated', '评估完成': 'Evaluated', '待决定': 'Evaluated',
     '已申请': 'Applied', '已投递': 'Applied', '已投': 'Applied', '投递': 'Applied',
+    '已打招呼': 'Contacted', '已联系': 'Contacted', '已接触': 'Contacted',
     '已回复': 'Responded',
     '面试中': 'Interview', '面试': 'Interview', '一面': 'Interview', '二面': 'Interview', '三面': 'Interview',
     '拿到offer': 'Offer', '已offer': 'Offer',

@@ -23,21 +23,46 @@ node -e 'import("./tools/tracker-backend.mjs").then(async m => {
 
 ## 状态机
 
-`Evaluated`（已评估）→ `Applied`（已申请）→ `Responded`（已回复）→ `Interview`（面试中）→ `Offer` / `Rejected` / `Discarded` / `SKIP`，外加 `Blocked`。
+`Evaluated`（已评估）→ `Contacted`（已接触，简历未确认发出）→ `Applied`（简历已确认提交）→ `Responded`（已回复）→ `Interview`（面试中）→ `Offer` / `Rejected` / `Discarded` / `SKIP`，外加 `Blocked`。
 
 | 状态 | 含义 | 终态？ |
 |---|---|---|
 | `Evaluated` | 已生成 report，未决定是否投 | — |
 | `Blocked` | 命中证据缺口闸门（如智驾感知岗缺 CV 项目证据），**等补齐证据后可解锁** | 否（活态） |
-| `Applied` | 候选人已投递 | — |
+| `Contacted` | 已发起招聘接触（Boss 打招呼 / 猎头初次接触 / 内推请求），简历**尚未确认提交**。2026-11-18 起 Applied 不再自动等同正式投递 | — |
+| `Applied` | 简历/正式申请**已确认提交**（submittedAt + submissionEvidence） | — |
 | `Responded` | 公司有回应（HR 加微信、约电话），还没正式进面试 | — |
 | `Interview` | 已进面试流程 | — |
 | `Offer` | 已拿 offer | 是 |
-| `Rejected` | 公司拒了 | 是 |
+| `Rejected` | 公司拒了（拒信时顺手填 rejectionType：系统拒信/人工拒绝） | 是 |
 | `Discarded` | 候选人自己撤了或岗位关闭 | 是 |
 | `SKIP` | 不匹配，根本不投 | 是 |
 
 终态由 `tools/tracker-backend.mjs` 的 `TERMINAL_STATES` 定义，进入终态时后端会自动补 `Closed At`。
+
+### 什么时候算「投递」？（2026-11-18 口径整改）
+
+- **接触 ≠ 投递**。Boss 打招呼、猎头初次接触、内推请求 → `Contacted` + `contactedAt` + `contactType`（+ Channel）。HR 回复了但没要简历 → 记 `firstResponse`，状态停在 `Contacted`，**不算正式投递**。
+- **简历确认发出** → `Applied` + `submittedAt` + `submissionEvidence`，并双写 `appliedAt = submittedAt`。
+- 证据分级：`简历已发对方 / 系统提交确认 / 客户确认收到`（高置信）＞ `猎头称已推荐`（低置信，进正式漏斗但报表可过滤）＞ `证据待补`（不算正式投递）。高置信不被低置信覆盖；客户方确认后把 evidence 升级即可。
+- **历史行**（2026-11-18 前）：`appliedAt` 是混合口径，含义冻结，只用于 legacy 基线对照。历史回填走 `npm run audit:stages`（默认 dry-run；只填空字段、永不改已有值、进面试不倒推投递日期）。
+- **多次接触 / 多次投递**：不要覆盖字段 —— 用 Events 表留痕（一行一事件，自动滚回主表的最早日期/最高证据）：
+
+```bash
+node tools/feishu/events.mjs add <num> <事件> <YYYY-MM-DD> [--channel Boss] [--confidence 高] [--evidence "…"]
+# 事件：打招呼 / 猎头接触 / 内推请求 / 发送简历 / 系统提交 / 猎头推荐 / 客户确认收到 / 回复-拒信 / 回复-HR沟通 / 回复-约面 / 其他
+node tools/feishu/events.mjs list [<num>]
+```
+
+### 三套漏斗口径（名称不得混用）
+
+| 口径 | 分母 | 用途 |
+|---|---|---|
+| **接触漏斗** | `contactedAt`（历史行 appliedAt 代理锚） | 线索→评估→接触→回复→进面→Offer；与 2026-11-16 基线连续可比（`npm run pulse` / 复盘线走这套） |
+| **正式投递漏斗** | `submittedAt` 且 evidence≠证据待补 | 提交→有效回复→进面→Offer；「流程证实但日期未知」单列不计率 |
+| **legacy 投出口径** | `appliedAt`（冻结定义） | 仅对照 11-16 复盘基线，勿用于决策 |
+
+`npm run funnel` 一次性导出三套（`data/retro/{date}-funnel-export/`）。
 
 ## 更新状态
 
@@ -66,9 +91,10 @@ node -e 'import("./tools/tracker-backend.mjs").then(async m => {
 
 | 变更 | 副作用 |
 |---|---|
-| → `Applied` | 投递 +3 天跟进任务 + 投递 +14 天「无回复结案？」任务（`npm run followup` 对账；launchd 每天 9:00 自动跑，任何途径改的 Applied 都会被扫到；有回复/结案后自动勾掉） |
+| → `Contacted` | 接触 +3 天跟进任务 + +14 天「无回复结案？」任务（锚 `contactedAt`；`npm run followup` 对账，launchd 每天 9:00 自动跑） |
+| → `Applied` | 投递 +3 天跟进任务 + 投递 +14 天「无回复结案？」任务（锚 `appliedAt`=提交日；`npm run followup` 对账；launchd 每天 9:00 自动跑，任何途径改的 Applied 都会被扫到；有回复/结案后自动勾掉） |
 | → `Interview` | 日历日程（JD 摘要进描述）+ 面试前 24h 过简历一致性的任务 |
 
 ⚠️ **Bitable 没有记录变更的事件流** —— `base` 不在 `event` 的 8 个域里。所以这些副作用只能在
 改状态的那段代码里主动触发，不存在「在 Bitable UI 里拖一下卡片就自动建日程」的方案。
-Applied 的跟进提醒不依赖改状态的路径：`tools/feishu/followup.mjs` 按 tracker 现状对账（状态存 `data/followup-tasks.json`），所以**改成 Applied 时一定要带 `appliedAt`**，否则排不了提醒。Interview 的日程仍需在改状态时主动触发。
+Applied 的跟进提醒不依赖改状态的路径：`tools/feishu/followup.mjs` 按 tracker 现状对账（状态存 `data/followup-tasks.json`），所以**改成 Contacted 时一定要带 `contactedAt`、改成 Applied 时一定要带 `appliedAt`（=submittedAt）**，否则排不了提醒。Interview 的日程仍需在改状态时主动触发。

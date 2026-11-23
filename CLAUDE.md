@@ -30,6 +30,9 @@ AI-powered job search automation built on Claude Code: pipeline tracking, offer 
 | `interview-prep/story-bank.md` | Accumulated STAR+R stories across evaluations |
 | `tools/meituan-careers.mjs` | 美团官网社招岗位（`npm run meituan -- agent --city 上海,深圳 --days 21 [--fetch]`）：走官网公开接口，每行带更新日期和详情页链接，`--fetch` 存进 inbox/。和 `tools/tencent-careers.mjs`（`npm run tencent`）同一套用法，云端雷达也用这两个脚本拿在招岗 |
 | `tools/radar-seen.mjs` | 雷达去重清单（`node tools/radar-seen.mjs --direction ai\|auto`）：从 tracker 生成「已处理过的公司 + 岗位」，贴进对应雷达 routine 的 prompt。每批 inbox / batch 之后刷新，见 `modes/radar.md` |
+| `tools/feishu/events.mjs` | 接触/投递事件表：一行一事件（打招呼/发送简历/猎头推荐…）+ 自动滚回主表 Contacted/Submitted 字段（2026-11-18 口径整改） |
+| `tools/audit-recruitment-stages.mjs` | 历史阶段审计回填（`npm run audit:stages`）：默认 dry-run、只填空字段、不倒推日期；`--apply` 需逐行 confirm 并产出回滚文件 |
+| `tools/funnel-export.mjs` | 三口径漏斗导出（`npm run funnel`）：接触 / 正式投递 / legacy，写 `data/retro/{date}-funnel-export/` |
 | `cv-evolve/` + `tools/cv-version.mjs` | CV 进化：事实账本 `ledger.yml`（每个数字的出处/证据等级）、cv.md 版本快照与 CHANGELOG（`npm run cv:version -- status\|commit\|log\|diff\|affected`）。gitignored。流程见 `modes/evolve.md` |
 | `reports/` | Evaluation reports (format: `{###}-{company-slug}-{YYYY-MM-DD}.md`) |
 
@@ -279,13 +282,24 @@ Write one TSV file per evaluation to `batch/tracker-additions/{num}-{company-slu
 
 ### 漏斗明细与投递脉搏（2026-10-15 起）
 
-Status 只存当前态，答不了「多久回复」「挂在哪一轮」。Bitable 主表另有 6 个存储字段（仅 Bitable 后端），**每次改状态时顺手写上**，否则反馈速度模型看不到这条：
+Status 只存当前态，答不了「多久回复」「挂在哪一轮」。Bitable 主表另有 11 个漏斗/阶段存储字段（仅 Bitable 后端），**每次改状态时顺手写上**，否则反馈速度模型看不到这条：
 
 | 时机 | `updateMany` 要带的字段 |
 |------|------------------------|
-| 投出去（改 Applied，或打招呼已发） | `appliedAt: 'YYYY-MM-DD'`、`channel`（`官网 / Boss / 猎聘 / 猎头 / 内推 / LinkedIn / 其他`）。`appliedAt` 是飞书跟进提醒的锚点（+3 天跟进、+14 天结案，`npm run followup`，launchd `com.career-ops.followup` 每天 9:00 对账）—— 不填就没有提醒 |
-| 第一次收到任何回复（拒信也算） | `firstResponseAt`、`firstResponse`（`拒信 / HR沟通 / 约面`） |
+| 发起接触（Boss 打招呼 / 猎头初次接触 / 内推请求）—— 改 `Contacted` | `contactedAt: 'YYYY-MM-DD'`、`contactType`（`Boss打招呼 / 猎头接触 / 内推请求 / 官网留言 / 邮件 / 其他`）、`channel`（`官网 / Boss / 猎聘 / 猎头 / 内推 / LinkedIn / 其他`）。**不写 appliedAt**（打招呼 ≠ 投递）。跟进提醒锚点（+3 天跟进、+14 天结案，`npm run followup`，launchd 每天 9:00 对账）对 Contacted/Applied 都生效 |
+| 简历确认发出（改 `Applied`） | `submittedAt`、`submissionEvidence`（`简历已发对方 / 系统提交确认 / 客户确认收到 / 猎头称已推荐 / 流程已推进佐证 / 证据待补`），并**双写 `appliedAt = submittedAt`**（新行；2026-11-18 前历史行的 appliedAt 含义冻结）。猎头只「称已推荐」也算低置信提交，客户方确认后升级 evidence |
+| 第一次收到任何回复（拒信也算） | `firstResponseAt`、`firstResponse`（`拒信 / HR沟通 / 约面`）；拒信顺手 `rejectionType`（`系统拒信 / 人工拒绝`） |
 | 流程结束 | `exitStage`（`简历关 / 一面挂 / 二面挂 / … / Offer被撤 / 候选人放弃 / 无回复 / 岗位关闭 / 录用`） |
+
+**接触/投递事件历史（2026-11-18 起）**：多次联系、多次投递不要靠改字段覆盖——用 Events 表留痕并自动滚回主表：
+
+```bash
+npm run interview -- …                                        # 面试轮次（原有）
+node tools/feishu/events.mjs add <num> <事件> <YYYY-MM-DD> [--channel Boss] [--confidence 高] [--evidence "…"]
+# 事件：打招呼/猎头接触/内推请求/发送简历/系统提交/猎头推荐/客户确认收到/回复-*/其他
+```
+
+**三套漏斗口径（名称不得混用）**：接触漏斗（锚 `contactAnchor` = contactedAt‖appliedAt）、正式投递漏斗（`submittedAt` + evidence≠证据待补；流程证实但无日期的行单列不计率、不倒推日期）、legacy 投出口径（appliedAt，冻结，对照 2026-11-16 基线）。`npm run pulse` 三套都出；`npm run funnel` 导出完整三口径 JSON/CSV。历史行回填走 `npm run audit:stages`（默认 dry-run，只填空字段、不改已有值、不倒推日期；`--apply` 需逐行 confirm-file 并产出回滚文件）。
 
 每一轮面试用 `npm run interview -- add <num> <一面|二面|三面|HR面|终面|笔试> <YYYY-MM-DD> <通过|挂|待定|取消> --format 视频 --feedback "面试官原话"` 记到 Interviews 表；它会自动回写主表的 `furthestStage`、`exitStage` 和 Status，不要再手动改这三个。
 
@@ -339,11 +353,12 @@ Status 只存当前态，答不了「多久回复」「挂在哪一轮」。Bita
 | State | When to use |
 |-------|-------------|
 | `Evaluated` | Report completed, pending decision |
-| `Applied` | Application sent |
+| `Contacted` | **已发起招聘接触但简历未确认提交**（Boss 打招呼 / 猎头初次接触 / 内推请求）。2026-11-18 起 `Applied` 不再自动等同正式投递。记 `contactedAt` + `contactType`（+ Events 行）。非终态 |
+| `Applied` | **简历/正式申请已确认提交**。记 `submittedAt` + `submissionEvidence`，并双写 `appliedAt = submittedAt`（2026-11-18 前的历史行 `appliedAt` 是混合口径，含义冻结，只作 legacy 基线） |
 | `Responded` | Company responded |
 | `Interview` | In interview process |
 | `Offer` | Offer received |
-| `Rejected` | Rejected by company |
+| `Rejected` | Rejected by company（拒信时顺手填 `rejectionType`：系统拒信 / 人工拒绝） |
 | `Discarded` | Discarded by candidate or offer closed |
 | `SKIP` | Doesn't fit, don't apply |
 | `Blocked` | Evaluated, but held by the evidence gate (see `modes/_profile.md`). **Not terminal** -- no `Closed At`, still counted as live in the funnel; unblocks once the gap is closed |

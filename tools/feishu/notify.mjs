@@ -84,7 +84,7 @@ export async function buildDigest() {
   for (const a of apps) {
     const age = daysSince(a.date);
 
-    if ((a.status === 'Applied' || a.status === 'Responded') && age !== null && age > STALE_DAYS) {
+    if ((a.status === 'Contacted' || a.status === 'Applied' || a.status === 'Responded') && age !== null && age > STALE_DAYS) {
       stale.push({ ...a, age });
     }
     if (a.status === 'Evaluated' && scoreOf(a) >= gateFor(a.track)) {

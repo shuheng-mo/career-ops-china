@@ -34,6 +34,9 @@
     "waiqi": "node tools/waiqi-scan.mjs",
     "apply-link": "node tools/apply-link.mjs",
     "test:retro": "node tools/test-retro.mjs",
+    "test:stages": "node tools/test-recruitment-stages.mjs",
+    "audit:stages": "node tools/audit-recruitment-stages.mjs",
+    "funnel": "node tools/funnel-export.mjs",
     "retro": "node tools/retro.mjs"
   },
   "keywords": [

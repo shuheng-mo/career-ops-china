@@ -41,9 +41,10 @@
 
 import {
   listApplications, readProfileTracker, INTERVIEW_STAGES, EXIT_STAGES,
+  contactAnchor, isConfirmedSubmission,
 } from '../tracker-backend.mjs';
 import { runLarkCli, parseJsonOut, isEnabled } from './capabilities.mjs';
-import { retroStatus, readRetroConfig } from '../retro-core.mjs';
+import { retroStatus, readRetroConfig, isPositive } from '../retro-core.mjs';
 
 export const RESTART_DATE = '2026-10-08';
 const CHECKPOINTS = [3, 7, 14, 21];
@@ -63,15 +64,76 @@ function isoWeek(s) {
 }
 const weekMonday = s => { const d = new Date(`${s}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
 
-/** Applications that actually went out, with derived timing. */
+/**
+ * Applications that actually went out, with derived timing.
+ *
+ * Clock = contactAnchor: Contacted At when the row has one (2026-11-18 口径),
+ * else the legacy appliedAt — under the old workflow appliedAt WAS the first
+ * outbound contact, so curves stay comparable across the change.
+ */
 export function sentRows(apps, today = todayStr()) {
   return apps
-    .filter(a => a.appliedAt)
+    .filter(a => contactAnchor(a))
     .map(a => {
-      const age = daysBetween(a.appliedAt, today);
-      const ttfr = a.firstResponseAt ? Math.max(0, daysBetween(a.appliedAt, a.firstResponseAt)) : null;
-      return { ...a, age, ttfr, era: a.appliedAt >= RESTART_DATE ? 'post' : 'pre' };
+      const sentAt = contactAnchor(a);
+      const age = daysBetween(sentAt, today);
+      const ttfr = a.firstResponseAt ? Math.max(0, daysBetween(sentAt, a.firstResponseAt)) : null;
+      return { ...a, sentAt, age, ttfr, era: sentAt >= RESTART_DATE ? 'post' : 'pre' };
     });
+}
+
+// ---- 正式投递漏斗 (2026-11-18) ----
+// Only rows with a CONFIRMED submission (Submitted At + evidence ≠ 证据待补).
+// 猎头称已推荐 counts but is tagged low-confidence so reports can filter it.
+const MATURE_DAYS = 14;
+
+export function submittedFunnel(apps, today = todayStr()) {
+  const confirmed = apps.filter(isConfirmedSubmission);
+  const rows = confirmed.map(a => ({
+    ...a,
+    age: daysBetween(a.submittedAt, today),
+    matured: daysBetween(a.submittedAt, today) >= MATURE_DAYS,
+    lowConfidence: a.submissionEvidence === '猎头称已推荐',
+  }));
+  // Processes a company clearly engaged with (interview reached / positive reply)
+  // but whose submission date was never written down. Counted as STAGE reach,
+  // never in a rate denominator — same contract as `undated` below.
+  const undatedVerified = apps.filter(a =>
+    !isConfirmedSubmission(a) && (INTERVIEW_STAGES.indexOf(a.furthestStage) >= INTERVIEW_STAGES.indexOf('笔试') || (a.firstResponse && a.firstResponse !== '拒信'))
+  );
+  const matured = rows.filter(r => r.matured);
+  const cnt = f => matured.filter(f).length;
+  const stageIdx = s => INTERVIEW_STAGES.indexOf(s);
+  return {
+    n: rows.length,
+    matured: matured.length,
+    immature: rows.length - matured.length,
+    lowConfidence: rows.filter(r => r.lowConfidence).length,
+    maturedLowConfidence: cnt(r => r.lowConfidence),
+    positiveMatured: cnt(r => isPositive(r)),
+    interviewedMatured: cnt(r => stageIdx(r.furthestStage) >= stageIdx('一面')),
+    positiveRateMature: matured.length ? `${cnt(r => isPositive(r))}/${matured.length}` : 'n/a',
+    interviewedRateMature: matured.length ? `${cnt(r => stageIdx(r.furthestStage) >= stageIdx('一面'))}/${matured.length}` : 'n/a',
+    // Cumulative "reached at least this stage" over ALL confirmed rows (any
+    // maturity) — feeds the Funnel table's 正式投递 era.
+    positiveAll: rows.filter(r => isPositive(r)).length,
+    interviewedAll: rows.filter(r => stageIdx(r.furthestStage) >= stageIdx('一面')).length,
+    finalRoundAll: rows.filter(r => stageIdx(r.furthestStage) >= stageIdx('终面')).length,
+    offerAll: rows.filter(r => stageIdx(r.furthestStage) >= stageIdx('Offer') || r.status === 'Offer').length,
+    undatedVerifiedNums: undatedVerified.map(a => a.num),
+    undatedVerifiedInterviewed: undatedVerified.filter(a => stageIdx(a.furthestStage) >= stageIdx('一面')).length,
+  };
+}
+
+/** 拒信细分：firstResponse=拒信 的行按 Rejection Type 拆（历史空值=未分类）。 */
+export function rejectionSplit(apps) {
+  const rejections = apps.filter(a => a.firstResponse === '拒信');
+  return {
+    total: rejections.length,
+    系统拒信: rejections.filter(a => a.rejectionType === '系统拒信').length,
+    人工拒绝: rejections.filter(a => a.rejectionType === '人工拒绝').length,
+    未分类: rejections.filter(a => !a.rejectionType).length,
+  };
 }
 
 /**
@@ -174,11 +236,11 @@ function healthyCheck(rows, base, best, windowDays) {
   return { month: best.month, n: best.n, r7: best.curve.R[7], E, O, p: poissonCdf(O, E) };
 }
 
-/** Weekly cohorts by Applied At. */
+/** Weekly cohorts by contact-anchor week. */
 export function cohorts(rows) {
   const by = new Map();
   for (const r of rows) {
-    const k = weekMonday(r.appliedAt);
+    const k = weekMonday(r.sentAt);
     if (!by.has(k)) by.set(k, []);
     by.get(k).push(r);
   }
@@ -235,7 +297,7 @@ export async function buildPulse({ windowDays = 21 } = {}) {
   // clock — but the stage funnel must, or the one process that reached a final
   // round would vanish from the funnel.
   const undated = apps
-    .filter(a => !a.appliedAt && (a.channel || a.furthestStage || a.exitStage))
+    .filter(a => !contactAnchor(a) && (a.channel || a.furthestStage || a.exitStage))
     .map(a => ({ ...a, age: null, ttfr: null, era: (a.date || '') >= RESTART_DATE ? 'post' : 'pre' }));
   const funnelRows = [...rows, ...undated];
   // A stricter yardstick than the all-history average: the best calendar month
@@ -243,8 +305,8 @@ export async function buildPulse({ windowDays = 21 } = {}) {
   // same CV achieved when the targeting was right. Month, not week: a 6-send week
   // with 5 replies is luck, not a benchmark.
   const preRows = rows.filter(r => r.era === 'pre');
-  const months = [...new Set(preRows.map(r => r.appliedAt.slice(0, 7)))].map(m => {
-    const sub = preRows.filter(r => r.appliedAt.startsWith(m));
+  const months = [...new Set(preRows.map(r => r.sentAt.slice(0, 7)))].map(m => {
+    const sub = preRows.filter(r => r.sentAt.startsWith(m));
     return { month: m, n: sub.length, curve: responseCurve(sub) };
   }).filter(m => m.n >= 10 && m.curve.R[7] !== null).sort((a, b) => b.curve.R[7] - a.curve.R[7]);
   const best = months[0] || null;
@@ -270,8 +332,12 @@ export async function buildPulse({ windowDays = 21 } = {}) {
     funnel: { pre: stageFunnel(funnelRows.filter(r => r.era === 'pre')), post: stageFunnel(funnelRows.filter(r => r.era === 'post')) },
     best: healthy,
     evaluated: { pre: apps.filter(a => (a.date || '') < RESTART_DATE).length, post: apps.filter(a => (a.date || '') >= RESTART_DATE).length },
+    submitted: submittedFunnel(apps, todayStr()),
+    rejections: rejectionSplit(apps),
     undated: undated.map(a => a.num),
     missingAppliedAt: apps.filter(a => ['Applied', 'Responded', 'Interview', 'Offer'].includes(a.status) && !a.appliedAt).map(a => a.num),
+    // 口径整改 (2026-11-18)：Applied 但 Submitted At/证据 缺失 → 待审计回填
+    missingSubmitted: apps.filter(a => ['Applied', 'Responded', 'Interview', 'Offer'].includes(a.status) && !isConfirmedSubmission(a)).map(a => a.num),
   };
 }
 
@@ -284,6 +350,24 @@ export function renderPulse(P) {
   L.push(`      窗口：近 ${w.windowDays} 天投出 ${w.live.length} 个；回复中位 ${w.ttfrMed ?? '—'} 天（历史 ${base.ttfrMedian ?? '—'} 天，80% 在 ${base.ttfrP80 ?? '—'} 天内）`);
   if (P.best) L.push(`      对照最好的月份 ${P.best.month}（${P.best.n} 个投递，7 天回复 ${pct(P.best.r7)}）：同样的投递那时应收到 ${P.best.E.toFixed(1)} 个回复（官网按历史曲线算）`);
   if (P.missingAppliedAt.length) L.push(`      ⚠️ ${P.missingAppliedAt.length} 个在途岗位缺 Applied At，没进模型：#${P.missingAppliedAt.join(' #')}`);
+  L.push('');
+
+  L.push('── 正式投递漏斗（Submitted At 确认口径，2026-11-18 起）──');
+  if (P.submitted) {
+    const s = P.submitted;
+    if (s.n === 0) {
+      L.push('还没有确认提交的记录（历史 Applied 行待审计回填：node tools/audit-recruitment-stages.mjs）');
+    } else {
+      L.push(`确认提交 ${s.n}（其中猎头称已推荐 ${s.lowConfidence}）· 成熟 ${s.matured} · 未满 14 天 ${s.immature}（不判失败）`);
+      if (s.matured) L.push(`成熟样本：正面回复 ${s.positiveMatured}/${s.matured}（${pct(s.positiveMatured / s.matured)}）· 进面 ${s.interviewedMatured}/${s.matured}（其中猎头低置信 ${s.maturedLowConfidence}）`);
+      if (s.undatedVerifiedNums.length) L.push(`流程证实但投递日期未知（只计阶段不计率）：#${s.undatedVerifiedNums.join(' #')}（其中到面 ${s.undatedVerifiedInterviewed}）`);
+    }
+  }
+  if (P.rejections && P.rejections.total) {
+    const r = P.rejections;
+    L.push(`拒信细分：系统 ${r.系统拒信} · 人工 ${r.人工拒绝} · 未分类 ${r.未分类}（共 ${r.total}）`);
+  }
+  if (P.missingSubmitted?.length) L.push(`⚠️ ${P.missingSubmitted.length} 个在途 Applied+ 行缺提交确认（Submitted At/证据），跑审计回填：#${P.missingSubmitted.slice(0, 20).join(' #')}${P.missingSubmitted.length > 20 ? ' …' : ''}`);
   L.push('');
 
   L.push('── 复盘线（近两周满 14 天的正面回复率 vs 基准月；拒信不算）──');
@@ -410,6 +494,20 @@ export function funnelRows(P) {
     };
     const sent = get('投递');
     FUNNEL_STAGES.forEach((st, i) => out.push({ Key: `${era}|${st}`, Era: era, Stage: st, Order: i + 1, Count: get(st), '% of Sent': sent ? Math.round(get(st) / sent * 1000) / 10 : 0 }));
+  }
+  // 正式投递 era（2026-11-18 口径）：confirmed-submission cumulative reach.
+  // Stage labels are namespaced (提交/有效回复) so they can't collide with the
+  // contact-era keys in the Key column.
+  if (P.submitted) {
+    const s = P.submitted;
+    const stages = [
+      ['提交', s.n], ['有效回复', s.positiveAll], ['一面', s.interviewedAll],
+      ['终面', s.finalRoundAll], ['Offer', s.offerAll],
+    ];
+    stages.forEach(([st, n], i) => out.push({
+      Key: `正式投递|${st}`, Era: '正式投递', Stage: st, Order: i + 1, Count: n,
+      '% of Sent': s.n ? Math.round(n / s.n * 1000) / 10 : 0,
+    }));
   }
   return out;
 }

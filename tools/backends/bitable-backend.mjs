@@ -23,6 +23,11 @@
  *   First Response (select)     ↔ firstResponse    (RESPONSE_TYPES)
  *   Furthest Stage (select)     ↔ furthestStage    (INTERVIEW_STAGES — how far it ever got)
  *   Exit Stage (select)         ↔ exitStage        (EXIT_STAGES — where it ended)
+ *   Contacted At (date)         ↔ contactedAt      (first candidate-initiated contact, 2026-11-18)
+ *   Contact Type (select)       ↔ contactType      (CONTACT_TYPES)
+ *   Submitted At (date)         ↔ submittedAt      (confirmed resume submission)
+ *   Submission Evidence (select)↔ submissionEvidence (SUBMISSION_EVIDENCE)
+ *   Rejection Type (select)     ↔ rejectionType    (REJECTION_TYPES — 系统拒信/人工拒绝)
  *
  * Read-only formula fields — never written (see normalizedToFields):
  *   Days Since Added, Lifecycle Flag, Score Value, Direction
@@ -39,6 +44,7 @@
 import {
   normalizeCompany, roleFuzzyMatch, sameJobUrl, CANONICAL_STATES, isTerminal, normalizeTrack,
   CHANNELS, RESPONSE_TYPES, INTERVIEW_STAGES, EXIT_STAGES,
+  CONTACT_TYPES, SUBMISSION_EVIDENCE, REJECTION_TYPES,
 } from '../tracker-backend.mjs';
 // All lark-cli invocation goes through this one module: it guarantees --profile
 // (the CLI default is global state and may point at another tenant), --format
@@ -81,7 +87,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // tolerates a bare string. normalizedToFields emits the bare string that upsert
 // has always used, so this adapts it for the batch path rather than changing a
 // write path that works.
-const SELECT_FIELDS = new Set(['Status', 'Track', 'Channel', 'First Response', 'Furthest Stage', 'Exit Stage']);
+const SELECT_FIELDS = new Set([
+  'Status', 'Track', 'Channel', 'First Response', 'Furthest Stage', 'Exit Stage',
+  'Contact Type', 'Submission Evidence', 'Rejection Type',
+]);
 
 // The funnel-detail selects: normalized key → [Bitable field, allowed options].
 // A value outside the option list is thrown on, not written — Bitable would
@@ -91,8 +100,14 @@ const DETAIL_SELECTS = {
   firstResponse: ['First Response', RESPONSE_TYPES],
   furthestStage: ['Furthest Stage', INTERVIEW_STAGES],
   exitStage: ['Exit Stage', EXIT_STAGES],
+  contactType: ['Contact Type', CONTACT_TYPES],
+  submissionEvidence: ['Submission Evidence', SUBMISSION_EVIDENCE],
+  rejectionType: ['Rejection Type', REJECTION_TYPES],
 };
-const DETAIL_DATES = { appliedAt: 'Applied At', firstResponseAt: 'First Response At' };
+const DETAIL_DATES = {
+  appliedAt: 'Applied At', firstResponseAt: 'First Response At',
+  contactedAt: 'Contacted At', submittedAt: 'Submitted At',
+};
 
 function toBatchCells(fields) {
   const out = {};
@@ -132,6 +147,11 @@ function recordToNormalized(record) {
     firstResponse: sel(f['First Response']),
     furthestStage: sel(f['Furthest Stage']),
     exitStage: sel(f['Exit Stage']),
+    contactedAt: toDateStr(f['Contacted At']),
+    contactType: sel(f['Contact Type']),
+    submittedAt: toDateStr(f['Submitted At']),
+    submissionEvidence: sel(f['Submission Evidence']),
+    rejectionType: sel(f['Rejection Type']),
     linked: {},
     _recordId: record.record_id || record.id,
   };

@@ -124,6 +124,8 @@ AI-powered job search automation built on Claude Code: pipeline tracking, offer 
 
 如果用户接受，用 `/loop` 或 `/schedule` skill（如果有）配置周期性 `/career-ops scan`。如果没有这些 skill，建议加 cron 或者提醒用户定期手动跑。
 
+（可选，可跳过）此时可以问一句要不要建面试知识库：`/career-ops interview-prep init` 从 CV 冷启动生成可练习的问题块，没有逐字稿也能用；用户不感兴趣就跳过，不影响任何旧流程。
+
 ### 中国大陆求职市场的特殊提醒
 
 候选人在 onboarding 或评估过程中如果出现以下情况，主动给提醒：

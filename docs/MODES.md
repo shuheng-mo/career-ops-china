@@ -22,6 +22,7 @@
 | `training` | `/career-ops training` | 评估某个课程 / 证书值不值得学 |
 | `project` | `/career-ops project` | 评估某个作品集项目的投入产出 |
 | `story-sync` | `/career-ops story-sync` | 从所有 report 抽 Block F，去重后累积到面试故事库 |
+| `interview-prep` | `/career-ops interview-prep` | 面试知识库：CV 冷启动 → 深挖问卷 → 草稿审批 → 练习题单（可跳过，详见 [INTERVIEW-STUDIO.md](INTERVIEW-STUDIO.md)） |
 
 `modes/feishu.md` 不是独立命令，而是飞书集成的配置、授权和体检说明，见 [FEISHU.md](FEISHU.md)。
 

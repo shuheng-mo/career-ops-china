@@ -15,7 +15,7 @@ function packDir(root, packId) {
   return join(paths.packsDir, packId);
 }
 
-function readPack(root, packId) {
+export function readPack(root, packId) {
   const f = join(packDir(root, packId), 'pack.json');
   if (!existsSync(f)) throw new ValidationError(`pack 不存在：${packId}`);
   return JSON.parse(readFileSync(f, 'utf8'));

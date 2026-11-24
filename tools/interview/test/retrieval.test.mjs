@@ -61,3 +61,14 @@ test('decide：精确同义问唯一 → hit；两块同问 → candidates', () 
   assert.equal(decide('什么是BM25', dupResults, {}), 'candidates');
   assert.equal(exactKey('什么是ＢＭ２５？'), exactKey('什么是bm25'));
 });
+
+test('autoThresholdFor 随语料规模缩放（单块语料正常命中不误判 unknown）', async () => {
+  const { autoThresholdFor } = await import('../retrieval/rank.mjs');
+  const { buildIndex } = await import('../retrieval/bm25.mjs');
+  const one = buildIndex([{ block_id: 'a', frontMatter: { questions: ['你如何限制查询权限？'], anchors: [] }, body: '' }]);
+  const th1 = autoThresholdFor(one);
+  assert.ok(th1 >= 0.5 && th1 < 1.4, `N=1 阈值 ${th1}`);
+  const r = search(one, '怎么限制查询权限', { topK: 5 });
+  assert.equal(decide('怎么限制查询权限', r, { autoThreshold: th1 }), 'candidates');
+  assert.equal(decide('今天天气怎么样', search(one, '今天天气怎么样', { topK: 5 }), { autoThreshold: th1 }), 'unknown');
+});

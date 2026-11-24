@@ -14,3 +14,9 @@ export function decide(query, results, { autoThreshold = 1.5 } = {}) {
   if ((results[0].score || 0) < autoThreshold) return 'unknown';
   return 'candidates';
 }
+
+// 语料规模感知阈值：BM25 idf 随 N 缩放，单块语料（N=1）的正常命中分约 1-1.5，
+// 常数阈值 1.5 会把它们误判 unknown。对数缩放 + 下限 0.5（标注集校准前的启发式）。
+export function autoThresholdFor(index) {
+  return Math.max(0.5, Math.log((index?.N || 1) + 1) * 1.2);
+}

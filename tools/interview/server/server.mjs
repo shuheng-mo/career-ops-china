@@ -14,10 +14,11 @@ function json(res, status, obj) {
   res.end(JSON.stringify(obj));
 }
 
-// API 路由表：由各 task 以 registerApi(server) 形式扩展；这里先建骨架
-const apiHandlers = [];
+// API 路由表：createStudioServer 时绑定 root 的 handlers + registerApi 扩展
+import { registerCoreApi } from './api.mjs';
+const apiExtensions = [];
 export function registerApi(handler) {
-  apiHandlers.push(handler);
+  apiExtensions.push(handler);
 }
 
 export function randomToken() {
@@ -25,6 +26,7 @@ export function randomToken() {
 }
 
 export function createStudioServer(root, { port = 8790, token = randomToken(), host = '127.0.0.1' } = {}) {
+  const apiHandlers = [...apiExtensions.map((f) => f(root)), registerCoreApi(root)];
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://127.0.0.1:${port}`);
     // Host 必须是 127.0.0.1(:port)

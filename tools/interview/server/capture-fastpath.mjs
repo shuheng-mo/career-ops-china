@@ -25,6 +25,8 @@ export class FastPath {
     this.currentGenerationToken = null;
     this.suppressed = [];
     this.timers = new Set();
+    this.seenFinals = new Set(); // streamId:segmentId:revision —— 同流只提交一次
+    this.recentFinalTexts = new Map(); // 归一文本 → {streamId, at}：跨流重放检测（5 秒窗口）
   }
 
   setLocked(locked) {
@@ -39,8 +41,20 @@ export class FastPath {
   // 返回 null（未触发）或 {generationToken, ...}（稳定期后异步提交，此处返回提交句柄）
   onAsrEvent(event) {
     if (event.type !== 'final') return null; // partial 永不定位
+    // 重连去重：同一 (streamId, segmentId, revision) 只提交一次
+    const dedupKey = `${event.streamId}:${event.segmentId}:${event.revision}`;
+    if (this.seenFinals.has(dedupKey)) return null;
+    this.seenFinals.add(dedupKey);
     const text = (event.text || '').trim();
     if (!text) return null;
+    // 跨流重放：重连后服务端可能重发旧段（新 streamId 同文本，5 秒窗口）——不重复提交
+    const textKey = text.replace(/\s+/g, '');
+    const seen = this.recentFinalTexts.get(textKey);
+    const nowMs = Date.now();
+    if (seen && seen.streamId !== event.streamId && nowMs - seen.at < 5000) {
+      return null;
+    }
+    this.recentFinalTexts.set(textKey, { streamId: event.streamId, at: nowMs });
     // 候选人回答不触发（mic=提问者通道；remote=候选人——单麦练习时提问来自 Studio 文本/脚本）
     if (event.channel === 'remote' || event.channel === 'candidate') return null;
     if (!QUESTION_RE.test(text)) return null;
@@ -56,7 +70,6 @@ export class FastPath {
 
     // 盲测：不回传 decision/块；服务端记下命中供 reveal
     if (this.mode === 'mock_blind') {
-      handle.serverBlockId = decision === 'hit' ? results[0].blockId : null;
       this.scheduleSubmission(token, decision, results, text);
       return handle;
     }

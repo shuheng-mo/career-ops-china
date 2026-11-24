@@ -165,7 +165,16 @@ async function pagePractice() {
     practice = await api('/api/practice/start', { method: 'POST', body: { mode } });
     renderPracticeInput(`已开始：${practice.mode}`);
   });
-  view.querySelector('#pr-voice').addEventListener('click', () => startVoicePractice());
+  view.querySelector('#pr-voice').addEventListener('click', () => {
+    // 云连接披露闸门（spec §9.1/§10）：音频将发往配置的 ASR 服务，按量计费
+    const confirmed = confirm(
+      '🎙 即将开始麦克风采集。\n\n' +
+      '数据去向：音频仅发送到本机 server（127.0.0.1），再由 server 转发到你配置的 ASR 服务（当前默认 mock，本地演练不外发）。\n' +
+      '费用：云端 ASR 按量计费（百炼 fun-asr-realtime 约 1.188 元/小时），本场默认预算 3 元。\n\n' +
+      '确认开始？'
+    );
+    if (confirmed) startVoicePractice();
+  });
 
   function renderPracticeInput(msg) {
     view.querySelector('#pr-area').innerHTML = `

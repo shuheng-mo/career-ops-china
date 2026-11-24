@@ -60,7 +60,6 @@ test('[P4.5] WS：无 token 拒绝；mock provider → final → fast path hint 
     { type: 'final', text: '你如何限制查询权限？', segmentId: 'seg1' },
   ]).then(() => null, (e) => e);
   if (pushErr) {
-    console.error('[DBG] pushScript 失败，客户端消息：', JSON.stringify(msgs));
     throw pushErr;
   }
   await wait(2300);

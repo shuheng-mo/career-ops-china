@@ -57,6 +57,11 @@ export class AliyunFunAsrProvider {
       ws.on('open', () => {
         clearTimeout(failTimer);
         this.ws = ws;
+        // task-started 单独计时（open ≠ started）：超时按启动失败处理
+        this.startedTimer = setTimeout(() => {
+          this.emit?.({ provider: this.id, streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'error', code: 'START_TIMEOUT', message: `task-started 超时（${this.startTimeoutMs}ms）` });
+          this.handleDisconnect();
+        }, this.startTimeoutMs);
         const runTask = {
           header: { message_id: randomUUID(), task_id: this.taskId, action: 'run-task', streaming: 'in' },
           message_type: 'run-task',
@@ -94,7 +99,8 @@ export class AliyunFunAsrProvider {
     let msg;
     try { msg = JSON.parse(raw.toString()); } catch { return; }
     if (msg.message_type === 'task-started') {
-      this.taskId = msg.task_id;
+      clearTimeout(this.startedTimer);
+      this.taskId = msg.task_id; // 每轮 run-task 重新生成，重连不复用旧 taskId
       this.started = true;
       // 放行缓冲中的音频
       for (const frame of this.pendingPcm) this.sendPcm(frame);
@@ -117,7 +123,7 @@ export class AliyunFunAsrProvider {
       const out = msg.payload?.output || {};
       const segmentId = String(out.sentence_id ?? '');
       const isFinal = out.sentence_end === true;
-      const rev = (this.revisions.get(segmentId) || 0) + (isFinal ? 1 : 1);
+      const rev = (this.revisions.get(segmentId) || 0) + 1;
       this.revisions.set(segmentId, rev);
       this.emit({
         provider: this.id,
@@ -130,12 +136,15 @@ export class AliyunFunAsrProvider {
         endMs: out.end_time ?? 0,
         text: out.text || '',
       });
-      void rev;
-      this.revisions.set(segmentId, this.revisions.get(segmentId));
     }
   }
 
   sendPcm(frame) {
+    // 发送缓冲上限 2 秒音频（16k s16le ≈ 64KB/s → 128KB）：超限丢帧 + gap（spec §9.3）
+    if ((this.ws.bufferedAmount || 0) > 128000) {
+      this.emit?.({ provider: this.id, streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'gap', code: 'SEND_BUFFER_FULL', message: '发送缓冲超限，丢帧' });
+      return;
+    }
     // 协议：binary 帧 = 4B header + PCM payload
     const header = pcmFrameHeader();
     const buf = Buffer.concat([header, frame]);
@@ -160,6 +169,7 @@ export class AliyunFunAsrProvider {
     if (this.reconnects < this.maxReconnects) {
       this.reconnects += 1;
       this.streamId = `fun-${Date.now()}-${randomUUID().slice(0, 6)}`; // 重连 = 新 streamId
+      this.taskId = randomUUID(); // 重连 = 新 taskId（不复用旧轮服务端 task_id）
       this.started = false;
       this.connect().catch(() => {
         this.emit?.({ provider: this.id, streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'error', code: 'RECONNECT_FAILED', message: '重连失败' });

@@ -95,6 +95,7 @@ export function createStudioServer(root, { port = 8790, token = randomToken(), h
 import { WebSocketServer } from 'ws';
 import { FastPath } from './capture-fastpath.mjs';
 import { CaptureSession, STATES as CAP_STATES } from './capture.mjs';
+import { createSession, appendEvent } from '../core/sessions.mjs';
 import { createMockAsrProvider } from '../providers/asr/mock.mjs';
 import { readBlockById } from '../core/blocks.mjs';
 import { AliyunFunAsrProvider } from '../providers/asr/aliyun-fun-asr.mjs';
@@ -145,6 +146,7 @@ export function attachWs(server, { token, root, asrConfig, createProvider: creat
     let fastPath = null;
     let capture = null;
     let provider = null;
+    let practiceSessionId = null;
 
     const send = (obj) => {
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
@@ -157,21 +159,33 @@ export function attachWs(server, { token, root, asrConfig, createProvider: creat
         if (msg.type === 'start') {
           const mode = ['mock_assisted', 'mock_anchor', 'mock_blind', 'real_record_only'].includes(msg.mode)
             ? msg.mode : 'mock_assisted';
-          capture = new CaptureSession({ sessionId: msg.sessionId });
+          // 练习 session 落盘（实时链路事件可回放，spec §9.2 append-only）
+          const ps = createSession(root, { mode, source: 'studio-voice' });
+          practiceSessionId = ps.session_id;
+          capture = new CaptureSession({ sessionId: ps.session_id });
           capture.transition(CAP_STATES.permission_pending);
           capture.transition(CAP_STATES.connecting);
           fastPath = new FastPath(root, { mode });
           provider = createProvider(mode);
-          await provider.start({ sessionId: msg.sessionId, channel: 'mic', sampleRate: 16000 }, (event) => {
+          await provider.start({ sessionId: ps.session_id, channel: 'mic', sampleRate: 16000 }, (event) => {
             send({ type: 'asr', event });
+            // gap 计入 capture（stop 后随 state 消息上报）
+            if (event.type === 'gap') capture?.noteGap();
             const handle = fastPath.onAsrEvent(event);
             if (handle) {
+              // 实时提交落盘（question.detected 带 realtime 标记）
+              try {
+                appendEvent(root, ps.session_id, {
+                  type: 'question.detected',
+                  payload: { realtime: true, question_text: handle.questionText, block: handle.blockId || handle.serverBlockId || null, blind: !!handle.blind },
+                });
+              } catch { /* 落盘失败不阻塞实时链路 */ }
               // 模式闸门已由 FastPath 处理；hint 直接下发
               const hint = { type: 'hint', generationToken: handle.generationToken, questionText: handle.questionText };
               if (handle.blind) {
                 hint.blind = true;
               } else {
-                hint.decision = handle.decision ?? handle.decision;
+                hint.decision = handle.decision;
                 if (handle.block) hint.block = handle.block;
                 if (handle.candidates) hint.candidates = handle.candidates;
                 if (handle.blockId) {
@@ -189,7 +203,16 @@ export function attachWs(server, { token, root, asrConfig, createProvider: creat
         }
         if (msg.type === 'pcm') {
           const buf = Buffer.from(msg.data || '', 'base64');
-          if (capture && capture.state === CAP_STATES.recording) await provider?.push(buf);
+          if (capture && capture.state === CAP_STATES.recording) {
+            await provider?.push(buf);
+            // 成本闸门（spec §9.3）：到限停云调用，降级文本模式
+            if (capture.noteAudioMs(Math.round((buf.length - 4) / 2 / 16000 * 1000)) && provider) {
+              send({ type: 'error', code: 'BUDGET_EXCEEDED', message: '已达本场预算上限（90 分钟 / 3 元）：停止云转写，降级文本模式' });
+              await provider.finish?.();
+              await provider.close();
+              provider = null;
+            }
+          }
           return;
         }
         if (msg.type === 'lock') {
@@ -198,6 +221,10 @@ export function attachWs(server, { token, root, asrConfig, createProvider: creat
           return;
         }
         if (msg.type === 'stop') {
+          if (capture && capture.state === 'finished') {
+            send({ type: 'state', state: 'finished', gaps: capture.gapCount || 0 });
+            return;
+          }
           capture?.transition(CAP_STATES.stopping);
           await provider?.finish();
           await provider?.close();

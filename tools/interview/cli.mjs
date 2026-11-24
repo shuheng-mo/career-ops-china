@@ -9,6 +9,7 @@ import { resolveRoot, safeJoin, PathEscapeError } from './core/storage.mjs';
 import { splitFrontMatter, loadYamlSafe, YamlSafeError } from './core/yaml.mjs';
 import { assertValid, ValidationError } from './core/validation.mjs';
 import { loadBootstrap, listSeeds, bootstrapFromCv } from './core/bootstrap.mjs';
+import { digPrepare, digIngest } from './core/dig.mjs';
 
 const REPO_ROOT = resolve(join(dirname(fileURLToPath(import.meta.url)), '..', '..'));
 
@@ -131,6 +132,39 @@ const commands = {
       const lines = seeds.map((s) => `  [${s.status}] ${s.intent_key} — ${s.question} (seed_id: ${s.seed_id})`);
       console.log(`共 ${seeds.length} 个种子：\n${lines.join('\n')}`);
     }
+  },
+
+  dig({ flags, jsonFlag, fail, output, positional }) {
+    const sub = positional[0];
+    const { root } = resolveRoot(flags.root);
+    if (sub === 'prepare') {
+      const questions = digPrepare(root, { limit: Number(flags.limit) || 5 });
+      if (jsonFlag) return output(jsonFlag, { questions });
+      const lines = questions.map((q, i) => `${i + 1}. ${q.question}\n   (${q.intent_key}, seed_id: ${q.seed_id})`);
+      console.log(`本轮深挖 ${questions.length} 题（候选人可答 / 可跳过 / 可说记不清 / 可明确说没做过）：\n${lines.join('\n')}`);
+      return;
+    }
+    if (sub === 'ingest') {
+      if (!flags.file || flags.file === true) return fail(EXIT.USAGE, '用法：dig ingest --file <result.json>');
+      if (!existsSync(flags.file)) return fail(EXIT.NOT_FOUND, `文件不存在：${flags.file}`);
+      let obj;
+      try {
+        obj = JSON.parse(readFileSync(flags.file, 'utf8'));
+      } catch (e) {
+        return fail(EXIT.VALIDATION, `结果文件不是合法 JSON：${e.message}`);
+      }
+      try {
+        const result = digIngest(root, obj);
+        return output(jsonFlag, {
+          message: `✓ dig ingest：处理 ${result.applied.length} 个种子`,
+          ...result,
+        });
+      } catch (e) {
+        if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+        throw e;
+      }
+    }
+    return fail(EXIT.USAGE, '用法：dig prepare | dig ingest --file <result.json>');
   },
 
   init({ flags, jsonFlag, fail, output }) {

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dig-result",
+  "title": "dig ingest result (spec §4.2.1 Dig)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["results"],
+  "properties": {
+    "results": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["seed_id", "status"],
+        "properties": {
+          "seed_id": { "type": "string", "pattern": "^[a-f0-9]{12}$" },
+          "status": { "enum": ["answered", "skipped", "unclear", "not_done"] },
+          "raw_answer": { "type": "string", "maxLength": 20000 }
+        }
+      }
+    }
+  }
+}

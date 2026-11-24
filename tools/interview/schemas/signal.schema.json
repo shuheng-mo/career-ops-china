@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signal",
+  "title": "interview signal (spec §4.2.1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["signal_id", "kind", "source_kind", "source_ref", "source_hash", "track", "round", "application_num", "session_id", "question_ref", "block_id", "intent_key", "created_at"],
+  "properties": {
+    "signal_id": { "type": "string", "pattern": "^[a-f0-9]{16}$" },
+    "kind": { "enum": ["predicted", "observed", "practice"] },
+    "source_kind": { "type": "string", "maxLength": 64 },
+    "source_ref": { "type": "string", "maxLength": 256 },
+    "source_hash": { "type": ["string", "null"], "maxLength": 64 },
+    "track": { "type": ["string", "null"], "maxLength": 64 },
+    "round": { "type": ["string", "null"], "maxLength": 64 },
+    "application_num": { "type": ["integer", "null"] },
+    "session_id": { "type": ["string", "null"], "maxLength": 64 },
+    "question_ref": { "type": ["string", "null"], "maxLength": 128 },
+    "block_id": { "type": ["string", "null"], "maxLength": 192 },
+    "intent_key": { "type": ["string", "null"], "maxLength": 200 },
+    "created_at": { "type": "string", "maxLength": 64 }
+  }
+}

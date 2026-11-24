@@ -12,25 +12,26 @@ import { loadBootstrap, listSeeds, bootstrapFromCv } from './core/bootstrap.mjs'
 import { digPrepare, digIngest } from './core/dig.mjs';
 import { draftsExport, approveDrafts } from './core/drafts.mjs';
 import { readBlocks } from './core/blocks.mjs';
+import { appendSignal, scanReports, checkCvFacts } from './core/signals.mjs';
 
 const REPO_ROOT = resolve(join(dirname(fileURLToPath(import.meta.url)), '..', '..'));
 
-function readInterviewConfig() {
-  const cfgPath = join(REPO_ROOT, 'config', 'profile.yml');
+function readInterviewConfig(configOverride) {
+  const cfgPath = configOverride && configOverride !== true ? configOverride : join(REPO_ROOT, 'config', 'profile.yml');
   if (!existsSync(cfgPath)) {
-    return { ok: true, detail: 'default (disabled)：config/profile.yml 不存在，interview 模块未启用' };
+    return { ok: true, enabled: false, detail: 'default (disabled)：config/profile.yml 不存在，interview 模块未启用' };
   }
   try {
     const cfg = loadYamlSafe(readFileSync(cfgPath, 'utf8'));
     const iv = cfg && cfg.interview;
     if (!iv || typeof iv !== 'object') {
-      return { ok: true, detail: 'default (disabled)：profile.yml 无 interview 段' };
+      return { ok: true, enabled: false, detail: 'default (disabled)：profile.yml 无 interview 段' };
     }
     return iv.enabled
-      ? { ok: true, detail: `enabled（storage: ${iv.storage || 'interview-prep'}）` }
-      : { ok: true, detail: 'default (disabled)：interview.enabled=false' };
+      ? { ok: true, enabled: true, detail: `enabled（storage: ${iv.storage || 'interview-prep'}）` }
+      : { ok: true, enabled: false, detail: 'default (disabled)：interview.enabled=false' };
   } catch (e) {
-    return { ok: false, detail: `config/profile.yml 解析失败：${e.message}` };
+    return { ok: false, enabled: false, detail: `config 解析失败（${cfgPath}）：${e.message}` };
   }
 }
 
@@ -134,6 +135,41 @@ const commands = {
       const lines = seeds.map((s) => `  [${s.status}] ${s.intent_key} — ${s.question} (seed_id: ${s.seed_id})`);
       console.log(`共 ${seeds.length} 个种子：\n${lines.join('\n')}`);
     }
+  },
+
+  signals({ flags, jsonFlag, fail, output, positional }) {
+    const sub = positional[0] || 'reconcile';
+    if (sub !== 'reconcile') return fail(EXIT.USAGE, `未知 signals 子命令「${sub}」，可用：reconcile`);
+    const { root } = resolveRoot(flags.root);
+    const cfg = readInterviewConfig(flags.config);
+    if (cfg.enabled !== true) {
+      return output(jsonFlag, {
+        message: `interview 模块未启用，signals no-op（${cfg.detail}）`,
+        registered: 0, deduped: 0, flagged: 0,
+      });
+    }
+    let result = { registered: 0, deduped: 0, flagged: 0 };
+    if (flags['scan-reports']) {
+      const reportsDir = flags['reports-dir'] && flags['reports-dir'] !== true
+        ? flags['reports-dir']
+        : join(REPO_ROOT, 'reports');
+      const r = scanReports(root, reportsDir);
+      result.registered = r.registered;
+      result.deduped = r.deduped;
+    }
+    if (flags['check-cv']) {
+      const ledgerPath = flags.ledger && flags.ledger !== true
+        ? flags.ledger
+        : join(REPO_ROOT, 'cv-evolve', 'ledger.yml');
+      const c = checkCvFacts(root, ledgerPath);
+      result.flagged = c.flagged;
+      result.checked = c.checked;
+      if (c.no_ledger) result.no_ledger = true;
+    }
+    output(jsonFlag, {
+      message: `✓ signals reconcile：新增 ${result.registered}，去重 ${result.deduped}，CV 核验标记 ${result.flagged}`,
+      ...result,
+    });
   },
 
   practice({ flags, jsonFlag, fail, output }) {

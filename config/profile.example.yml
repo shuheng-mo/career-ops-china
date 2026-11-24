@@ -135,3 +135,48 @@ tracker:
 # ─────────────────────────────────────────────────────────────────────
 evolve:
   function: tech                 # tech | finance
+
+# ─────────────────────────────────────────────────────────────────────
+# Interview Studio (/career-ops interview-prep — see docs/INTERVIEW-STUDIO.md)
+# Spec: docs/interview-studio/spec-v0.2.md §10. Actual API keys go in environment
+# variables (the *_key_env names below), never in this YAML. Everything defaults
+# to disabled/offline; enabling any provider is an explicit user decision.
+# ─────────────────────────────────────────────────────────────────────
+interview:
+  enabled: false
+  storage: interview-prep
+  bootstrap:
+    offer_on_setup: true # invitation only; respect dismissed / disabled
+    max_questions_per_round: 5
+    collect_report_signals: true # only when explicitly enabled
+  studio:
+    host: 127.0.0.1
+    port: 8790
+  privacy:
+    retain_audio: false
+    cloud_audio: false
+    cloud_text: false
+    feishu_sync: false
+  retrieval:
+    mode: lexical # lexical | hybrid
+    top_k: 5
+  asr:
+    provider: none # none | aliyun-fun-asr | sherpa-local | replay
+    model: fun-asr-realtime
+    endpoint: '' # use verified Mainland workspace WS endpoint
+    api_key_env: CAREER_OPS_ASR_API_KEY
+    local_model_dir: ''
+    vocabulary_id: ''
+    max_session_minutes: 90
+    max_estimated_cny: 3
+  embedding:
+    provider: none # none | openai-compatible
+    base_url: ''
+    model: text-embedding-v4
+    api_key_env: CAREER_OPS_EMBEDDING_API_KEY
+  judge:
+    provider: agent # agent | openai-compatible | none
+    base_url: ''
+    model: ''
+    api_key_env: CAREER_OPS_LLM_API_KEY
+    timeout_ms: 30000

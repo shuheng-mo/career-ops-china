@@ -34,6 +34,7 @@
     "waiqi": "node tools/waiqi-scan.mjs",
     "apply-link": "node tools/apply-link.mjs",
     "test:retro": "node tools/test-retro.mjs",
+    "test:interview": "node --test \"tools/interview/test/*.test.mjs\"",
     "test:stages": "node tools/test-recruitment-stages.mjs",
     "audit:stages": "node tools/audit-recruitment-stages.mjs",
     "funnel": "node tools/funnel-export.mjs",
@@ -54,7 +55,9 @@
   },
   "license": "MIT",
   "dependencies": {
+    "ajv": "^8.20.0",
     "marked": "12.0.2",
-    "playwright": "^1.58.1"
+    "playwright": "^1.58.1",
+    "yaml": "^2.9.1"
   }
 }

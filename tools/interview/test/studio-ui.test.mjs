@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,4 +46,13 @@ test('[S3.5] 动态内容一律走 escapeHtml（XSS）', () => {
 test('[S3.5] 无内联事件处理器（CSP script-src self）', () => {
   const html = readFileSync(join(APP, 'index.html'), 'utf8');
   assert.ok(!/on(click|load|change)=/.test(html), 'index.html 含内联事件');
+});
+
+test('[P4.6] worklet.js 就绪：16k 重采样 + 无外链', () => {
+  const p = join(APP, 'worklet.js');
+  assert.ok(existsSync(p), 'worklet.js 缺失');
+  const text = readFileSync(p, 'utf8');
+  assert.ok(text.includes('16000'), '重采样目标 16k');
+  assert.ok(text.includes('registerProcessor'), 'AudioWorklet 注册');
+  assert.ok(!/https?:\/\//.test(text.replace(/\/\/.*$/gm, '')), 'worklet 有外链');
 });

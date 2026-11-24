@@ -35,7 +35,7 @@ export class SherpaLocalProvider {
     this.closed = false;
   }
 
-  id() { return 'sherpa-local'; }
+  id = 'sherpa-local';
 
   capabilities() {
     return { streaming: true, hotwords: true, diarization: false, timestamps: false };

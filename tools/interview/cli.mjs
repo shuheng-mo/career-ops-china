@@ -40,11 +40,11 @@ function readInterviewConfig(configOverride) {
     const cfg = loadYamlSafe(readFileSync(cfgPath, 'utf8'));
     const iv = cfg && cfg.interview;
     if (!iv || typeof iv !== 'object') {
-      return { ok: true, enabled: false, detail: 'default (disabled)：profile.yml 无 interview 段' };
+      return { ok: true, enabled: false, raw: {}, detail: 'default (disabled)：profile.yml 无 interview 段' };
     }
     return iv.enabled
-      ? { ok: true, enabled: true, detail: `enabled（storage: ${iv.storage || 'interview-prep'}）` }
-      : { ok: true, enabled: false, detail: 'default (disabled)：interview.enabled=false' };
+      ? { ok: true, enabled: true, raw: iv, detail: `enabled（storage: ${iv.storage || 'interview-prep'}）` }
+      : { ok: true, enabled: false, raw: iv, detail: 'default (disabled)：interview.enabled=false' };
   } catch (e) {
     return { ok: false, enabled: false, detail: `config 解析失败（${cfgPath}）：${e.message}` };
   }

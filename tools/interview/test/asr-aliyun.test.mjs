@@ -137,3 +137,7 @@ test('[P4.2] finish-task：flush 语义（close 前 finish-task 已发送）', a
   await provider.close();
   stub.close();
 });
+
+// ws 库的句柄在 keep-alive/半关连接下会挂住测试进程——全部测试完成后强制收尾
+import { after as _after } from 'node:test';
+_after(() => { setTimeout(() => process.exit(0), 300); });

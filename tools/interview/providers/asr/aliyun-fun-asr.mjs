@@ -32,7 +32,7 @@ export class AliyunFunAsrProvider {
     this.revisions = new Map(); // segmentId → last revision
   }
 
-  id() { return 'aliyun-fun-asr'; }
+  id = 'aliyun-fun-asr';
 
   capabilities() {
     return { streaming: true, hotwords: true, diarization: false, timestamps: true };
@@ -78,7 +78,7 @@ export class AliyunFunAsrProvider {
       ws.on('message', (raw, isBinary) => this.onMessage(raw, isBinary));
       ws.on('error', (e) => {
         clearTimeout(failTimer);
-        this.emit?.({ provider: this.id(), streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'error', code: 'WS_ERROR', message: e.message });
+        this.emit?.({ provider: this.id, streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'error', code: 'WS_ERROR', message: e.message });
         reject(e);
       });
       ws.on('close', () => {
@@ -104,7 +104,7 @@ export class AliyunFunAsrProvider {
     if (msg.message_type === 'heartbeat') return; // 忽略
     if (msg.message_type === 'task-failed') {
       this.emit({
-        provider: this.id(), streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic',
+        provider: this.id, streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic',
         type: 'error', code: String(msg.code || 'TASK_FAILED'), message: msg.message || 'task-failed',
       });
       return;
@@ -120,7 +120,7 @@ export class AliyunFunAsrProvider {
       const rev = (this.revisions.get(segmentId) || 0) + (isFinal ? 1 : 1);
       this.revisions.set(segmentId, rev);
       this.emit({
-        provider: this.id(),
+        provider: this.id,
         streamId: this.streamId,
         segmentId,
         revision: rev,
@@ -162,10 +162,10 @@ export class AliyunFunAsrProvider {
       this.streamId = `fun-${Date.now()}-${randomUUID().slice(0, 6)}`; // 重连 = 新 streamId
       this.started = false;
       this.connect().catch(() => {
-        this.emit?.({ provider: this.id(), streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'error', code: 'RECONNECT_FAILED', message: '重连失败' });
+        this.emit?.({ provider: this.id, streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'error', code: 'RECONNECT_FAILED', message: '重连失败' });
       });
     } else {
-      this.emit?.({ provider: this.id(), streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'error', code: 'DISCONNECTED', message: `连接断开且重连次数用尽（${this.maxReconnects}）` });
+      this.emit?.({ provider: this.id, streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'error', code: 'DISCONNECTED', message: `连接断开且重连次数用尽（${this.maxReconnects}）` });
     }
   }
 
@@ -175,7 +175,7 @@ export class AliyunFunAsrProvider {
       this.pendingPcm.push(pcm);
       if (this.pendingPcm.length > 20) { // 20×100ms = 2s 缓冲上限
         this.pendingPcm.shift();
-        this.emit?.({ provider: this.id(), streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'gap', code: 'BUFFER_OVERFLOW', message: 'task-started 前缓冲溢出，丢弃最旧帧' });
+        this.emit?.({ provider: this.id, streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'gap', code: 'BUFFER_OVERFLOW', message: 'task-started 前缓冲溢出，丢弃最旧帧' });
       }
       return;
     }

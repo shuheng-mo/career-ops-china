@@ -13,6 +13,8 @@
 
 **P3.3（library 就绪，server 接线待做）**：BYOK embedding 适配层（OpenAI-compatible，如百炼 text-embedding-v4）+ 内存缓存 + hybrid RRF 融合已实现并有完整测试（含 stub server 与失败降级），但 Studio server 的检索端点**尚未接线** embedding 配置（当前检索恒为 lexical，基础操作不受影响）。接线留给 P4 前的收尾。Judge 走 P1 的 agent 导出/回填路径（规格允许），未做 API judge。
 
+**P4 已实现（shipped，真实 Key 验收待用户）**：实时链路全部结构——麦克风采集（AudioWorklet 16k PCM）、WS 通道、Fast/Slow path（partial 不定位/候选人回答不触发/锁定/600ms 防抖/新问题作废旧 token/盲测实时链路同样不泄漏）、ASR adapter 三件套：**mock**（演练用）/**阿里云百炼 fun-asr-realtime**（WS 协议完整实现，协议正确性经本地 stub 验证；真实 Key 连通性/热词/费用读数属用户验收）/**sherpa-local**（动态加载 + manifest 校验，识别引擎接线待模型目录确认）。成本闸门：默认 90 分钟/场、云 ASR 预算 3 元、2s 发送缓冲超限记 gap、重连 ≤2 次且换新 streamId。降级矩阵：Key 未配 → mock 演练可用；云端失败 → 文本/手动模式，不静默换供应商。
+
 **P2 已实现（shipped）**：Interview Pack Compiler——按申请编号编译企业面试包。公司资料逐字引用评估报告 Block C 并带 freshness 判定（>7 天提示重查、>30 天标过期）；needs_review 块进「硬闸门」段不进正文；预算不足显式列出未覆盖块；freeze 后包内容不受知识库后续变化影响。测试与离线场景用 `--fixtures-tracker / --reports-dir / --cv-file` 注入（不触真实 tracker）。
 
 ## 安装与无 Key 体验

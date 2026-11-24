@@ -155,6 +155,8 @@ async function pagePractice() {
         <option value="real_record_only">真实面试·仅记录（不显示提示）</option>
       </select>
       <button id="pr-begin">开始练习</button>
+      <button id="pr-voice">🎙 开始语音采集（实验）</button>
+      <p class="muted" id="pr-voice-note">语音模式：麦克风采集（AudioWorklet 16k PCM）→ 实时转写 → 按上方模式提词。当前 ASR provider 未配置时仅 mock 演练；云端 Key 验收见文档。</p>
     </div>
     <div id="pr-area"></div>
   `;
@@ -163,6 +165,7 @@ async function pagePractice() {
     practice = await api('/api/practice/start', { method: 'POST', body: { mode } });
     renderPracticeInput(`已开始：${practice.mode}`);
   });
+  view.querySelector('#pr-voice').addEventListener('click', () => startVoicePractice());
 
   function renderPracticeInput(msg) {
     view.querySelector('#pr-area').innerHTML = `
@@ -336,3 +339,91 @@ async function route() {
 
 window.addEventListener('hashchange', route);
 route();
+
+
+// ---------- 语音采集（spec §9.1）----------
+let voiceState = null; // {ws, audioCtx, stream, workletNode, captureState}
+
+async function startVoicePractice() {
+  const mode = view.querySelector('#pr-mode').value;
+  const area = view.querySelector('#pr-area');
+  area.innerHTML = '<p class="muted">请求麦克风权限…</p>';
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true } });
+  } catch (e) {
+    area.innerHTML = `<p>✗ 麦克风权限被拒绝：${esc(e.message)}</p>`;
+    return;
+  }
+  const audioCtx = new AudioContext();
+  await audioCtx.audioWorklet.addModule('worklet.js');
+  const src = audioCtx.createMediaStreamSource(stream);
+  const node = new AudioWorkletNode(audioCtx, 'pcm-16k');
+  const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${wsProto}//${location.host}/ws/capture?token=${encodeURIComponent(sessionStorage.getItem(TOKEN_KEY) || '')}`);
+  voiceState = { ws, audioCtx, stream, node, state: 'permission_pending' };
+  area.innerHTML = `
+    <p id="vc-state">状态：<b>connecting</b></p>
+    <p id="vc-live" class="muted">（实时转写预览）</p>
+    <div id="vc-hint"></div>
+    <button id="vc-lock">🔒 锁定当前定位</button>
+    <button id="vc-stop">⏹ 停止采集</button>
+  `;
+  const setState = (s) => { voiceState.state = s; const el = view.querySelector('#vc-state'); if (el) el.innerHTML = `状态：<b>${esc(s)}</b>`; };
+  ws.addEventListener('open', () => {
+    setState('connecting');
+    ws.send(JSON.stringify({ type: 'start', mode }));
+    src.connect(node).connect(audioCtx.destination);
+  });
+  node.port.onmessage = (e) => {
+    if (e.data?.type === 'pcm' && ws.readyState === WebSocket.OPEN && voiceState.state === 'recording') {
+      ws.send(JSON.stringify({ type: 'pcm', data: e.data.data }));
+    }
+  };
+  ws.addEventListener('message', (e) => {
+    const m = JSON.parse(e.data);
+    if (m.type === 'state') setState(m.state);
+    if (m.type === 'asr' && m.event?.text) {
+      const live = view.querySelector('#vc-live');
+      if (live) live.textContent = `${m.event.type === 'final' ? '🟢' : '⏳'} ${m.event.text}`;
+    }
+    if (m.type === 'hint') renderVoiceHint(m);
+    if (m.type === 'error') {
+      const live = view.querySelector('#vc-live');
+      if (live) live.textContent = `✗ ${esc(m.message)}（降级为文本模式：${esc(m.message)}）`;
+    }
+  });
+  view.querySelector('#vc-lock').addEventListener('click', () => {
+    ws.send(JSON.stringify({ type: 'lock', locked: true }));
+  });
+  view.querySelector('#vc-stop').addEventListener('click', async () => {
+    ws.send(JSON.stringify({ type: 'stop' }));
+    stopVoice();
+    setState('finished');
+  });
+
+  function renderVoiceHint(hint) {
+    const box = view.querySelector('#vc-hint');
+    if (!box) return;
+    if (hint.blind) {
+      box.innerHTML = '<p>🙈 盲测中——口头作答后点「揭示」。</p>';
+      return;
+    }
+    if (hint.decision === 'hit' && hint.block) {
+      box.innerHTML = `<p>✅ 命中 <b>${esc(hint.block.block_id)}</b></p><pre>${esc(hint.block.body)}</pre>`;
+    } else if (hint.decision === 'candidates') {
+      box.innerHTML = `<p>❓ 候选：${(hint.candidates || []).map((c) => esc(c.blockId)).join('、')}</p>`;
+    } else {
+      box.innerHTML = '<p class="muted">未命中（知识缺口）</p>';
+    }
+  }
+}
+
+function stopVoice() {
+  if (!voiceState) return;
+  try { voiceState.stream.getTracks().forEach((t) => t.stop()); } catch {}
+  try { voiceState.audioCtx.close(); } catch {}
+  try { voiceState.ws.close(); } catch {}
+  voiceState = null;
+}
+window.addEventListener('beforeunload', stopVoice);

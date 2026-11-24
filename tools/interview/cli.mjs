@@ -19,6 +19,7 @@ import { normalizeTranscript, detectFormat } from './review/normalize.mjs';
 import { segmentExport, segmentApply } from './review/segment.mjs';
 import { alignExport, alignApply } from './review/align.mjs';
 import { reviewPrepare, reviewApply } from './review/rubric.mjs';
+import { computeStats } from './core/stats.mjs';
 import { ROUNDS } from '../feishu/interviews.mjs';
 import { basename } from 'node:path';
 
@@ -178,6 +179,21 @@ const commands = {
       message: `✓ signals reconcile：新增 ${result.registered}，去重 ${result.deduped}，CV 核验标记 ${result.flagged}`,
       ...result,
     });
+  },
+
+  stats({ flags, jsonFlag, fail, output }) {
+    const { root } = resolveRoot(flags.root);
+    const stats = computeStats(root, {
+      track: flags.track && flags.track !== true ? flags.track : undefined,
+      round: flags.round && flags.round !== true ? flags.round : undefined,
+      days: flags.days && flags.days !== true ? Number(flags.days) : undefined,
+    });
+    if (jsonFlag) return output(jsonFlag, stats);
+    const lines = stats.blocks.map((b) => {
+      const pct = (v) => (v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`);
+      return `  ${b.block_id}  频率:${pct(b.frequency)} 掌握:${pct(b.mastery)} 辅助掌握:${pct(b.mastery_assisted)} 优先级:${pct(b.priority)}${b.needs_review ? ' ⛔事实冲突' : ''}${b.low_sample ? ' （样本<5）' : ''}`;
+    });
+    console.log(`真实样本 ${stats.real_samples} 场${stats.note ? `\n⚠ ${stats.note}` : ''}\n${lines.join('\n')}`);
   },
 
   review({ flags, jsonFlag, fail, output, positional }) {

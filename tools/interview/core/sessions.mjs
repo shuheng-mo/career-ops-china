@@ -43,6 +43,8 @@ export function createSession(root, {
     created_at: new Date().toISOString(),
     source,
     consent: { recording: false, cloud_audio: false, cloud_text: false },
+    // 历史导入没有「当时的 pack」——明确标记，避免复盘假装当时已准备（spec §5.1.6）
+    retrospective: mode === 'historical_import' ? true : undefined,
     status: 'created',
   };
   if (sourceText !== null && sourceText !== undefined) {

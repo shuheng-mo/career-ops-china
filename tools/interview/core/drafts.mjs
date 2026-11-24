@@ -40,7 +40,8 @@ function techFactIds(root) {
   if (!existsSync(f)) return new Set();
   const doc = YAML.parse(readFileSync(f, 'utf8'));
   const list = Array.isArray(doc) ? doc : (doc && doc.facts) || [];
-  return new Set(list.map((x) => x.id).filter(Boolean));
+  // 只有 confirmed 的事实才能给 experience 类答案背书（pending/disputed/retired 不放行）
+  return new Set(list.filter((x) => x.id && x.status === 'confirmed').map((x) => x.id));
 }
 
 function kindForSeed(seed) {

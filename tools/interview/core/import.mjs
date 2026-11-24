@@ -5,6 +5,28 @@ import { resolveRoot, atomicWriteJson, atomicWriteText } from './storage.mjs';
 import { assertValid } from './validation.mjs';
 import { listSeeds, saveSeed } from './bootstrap.mjs';
 import { readBlocks } from './blocks.mjs';
+import { readFileSync as _rfs, existsSync as _es } from 'node:fs';
+import YAML from 'yaml';
+import { join as _join, dirname as _dirname } from 'node:path';
+
+function verifiedFactIds(root) {
+  const ids = new Set();
+  const { paths } = resolveRoot(root);
+  if (_es(paths.techFactsFile)) {
+    const doc = YAML.parse(_rfs(paths.techFactsFile, 'utf8')) || {};
+    const list = Array.isArray(doc) ? doc : (doc && doc.facts) || [];
+    for (const x of list) if (x && x.id && x.status === 'confirmed') ids.add(x.id);
+  }
+  const ledgerPath = _join(_dirname(paths.root), 'cv-evolve', 'ledger.yml');
+  if (_es(ledgerPath)) {
+    try {
+      const doc = YAML.parse(_rfs(ledgerPath, 'utf8')) || {};
+      const entries = Array.isArray(doc) ? doc : (doc.entries || doc.facts || []);
+      for (const x of entries) if (x && x.id && x.status === 'confirmed') ids.add(`cv:${x.id}`);
+    } catch { /* 账本解析失败按无账本处理 */ }
+  }
+  return ids;
+}
 
 // 问题归一化：NFKC + 小写 + 去空白/标点/符号（用于重复判断，不用于展示）
 export function normalizeQuestion(q) {
@@ -54,6 +76,7 @@ export function applyCandidates(root, candidatesObj, { trackIds = ['ai-app'], no
   const candidateRecords = [];
   const seenInBatch = new Map();
   const { paths } = resolveRoot(root);
+  const verified = verifiedFactIds(root);
   for (const c of candidatesObj) {
     const qHash = questionsHash(c.questions);
     let duplicateOf = null;
@@ -83,7 +106,8 @@ export function applyCandidates(root, candidatesObj, { trackIds = ['ai-app'], no
       tracks: c.tracks?.length ? c.tracks : trackIds,
       rounds: [],
       source_refs: [{ artifact_id: 'import', locator: c.source_locator }],
-      fact_refs: c.fact_refs,
+      // 只保留可核验引用：agent 自我声明的引用不得成为事实闸门的依据
+      fact_refs: c.fact_refs.filter((ref) => verified.has(ref)),
       origin_kind: 'story_import',
       status: 'draft_ready',
       missing_fields: [],

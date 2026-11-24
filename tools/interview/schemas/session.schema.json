@@ -27,6 +27,7 @@
         "cloud_text": { "type": "boolean" }
       }
     },
+    "retrospective": { "type": ["boolean", "null"] },
     "status": { "enum": ["created", "recording", "reviewing", "finished"] }
   }
 }

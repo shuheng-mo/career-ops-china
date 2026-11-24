@@ -39,7 +39,8 @@
     "test:stages": "node tools/test-recruitment-stages.mjs",
     "audit:stages": "node tools/audit-recruitment-stages.mjs",
     "funnel": "node tools/funnel-export.mjs",
-    "retro": "node tools/retro.mjs"
+    "retro": "node tools/retro.mjs",
+    "interview:studio": "node tools/interview/cli.mjs studio"
   },
   "keywords": [
     "ai",

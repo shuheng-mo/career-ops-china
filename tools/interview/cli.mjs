@@ -15,6 +15,7 @@ import { readBlocks } from './core/blocks.mjs';
 import { appendSignal, scanReports, checkCvFacts } from './core/signals.mjs';
 import { ingestOriginal, applyCandidates } from './core/import.mjs';
 import { createSession, appendEvent, recoverEvents, getSession, readEvents, findSessionByImport, saveUtterances } from './core/sessions.mjs';
+import { randomToken } from './server/server.mjs';
 import { normalizeTranscript, detectFormat } from './review/normalize.mjs';
 import { segmentExport, segmentApply } from './review/segment.mjs';
 import { alignExport, alignApply } from './review/align.mjs';
@@ -247,6 +248,22 @@ const commands = {
       }
     }
     return fail(EXIT.USAGE, '用法：pack build|list|show|freeze');
+  },
+
+  studio({ flags, jsonFlag, fail, output }) {
+    const { root } = resolveRoot(flags.root);
+    const port = flags.port && flags.port !== true ? Number(flags.port) : 8790;
+    const token = randomToken();
+    import('./server/server.mjs').then(async ({ createStudioServer }) => {
+      const srv = await createStudioServer(root, { port, token });
+      const real = srv.address().port;
+      console.log(`✓ Interview Studio 已启动（仅本机）：`);
+      console.log(`  http://127.0.0.1:${real}/?token=${token}`);
+      console.log(`  token: ${token}`);
+      console.log('  Ctrl-C 退出；数据目录：' + root);
+    }).catch((e) => {
+      fail(EXIT.UNEXPECTED, `启动失败：${e.message}`);
+    });
   },
 
   patch({ flags, jsonFlag, fail, output, positional }) {

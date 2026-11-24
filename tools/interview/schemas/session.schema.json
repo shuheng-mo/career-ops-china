@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "session",
+  "title": "interview session (spec §4.3)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "session_id", "mode", "application_num", "round", "track", "pack_id", "kb_revision", "created_at", "source", "consent", "status"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "session_id": { "type": "string", "minLength": 8, "maxLength": 64 },
+    "mode": { "enum": ["historical_import", "mock_assisted", "mock_anchor", "mock_blind", "real_record_only", "real_reference_allowed"] },
+    "application_num": { "type": ["integer", "null"] },
+    "round": { "type": ["string", "null"], "maxLength": 64 },
+    "track": { "type": ["string", "null"], "maxLength": 64 },
+    "pack_id": { "type": ["string", "null"], "maxLength": 64 },
+    "kb_revision": { "type": "string", "maxLength": 64 },
+    "created_at": { "type": "string", "maxLength": 64 },
+    "source": { "type": "string", "maxLength": 64 },
+    "source_hash": { "type": ["string", "null"], "maxLength": 64 },
+    "consent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recording", "cloud_audio", "cloud_text"],
+      "properties": {
+        "recording": { "type": "boolean" },
+        "cloud_audio": { "type": "boolean" },
+        "cloud_text": { "type": "boolean" }
+      }
+    },
+    "status": { "enum": ["created", "recording", "reviewing", "finished"] }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "utterance",
+  "title": "normalized utterance (spec §5.1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "role", "speaker_id", "start_ms", "end_ms", "raw_text", "source_span"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^u\\d{3}$" },
+    "role": { "enum": ["interviewer", "candidate", "unknown"] },
+    "speaker_id": { "type": ["string", "null"], "maxLength": 64 },
+    "start_ms": { "type": ["integer", "null"], "minimum": 0 },
+    "end_ms": { "type": ["integer", "null"], "minimum": 0 },
+    "raw_text": { "type": "string", "minLength": 1, "maxLength": 5000 },
+    "source_span": { "type": "object", "additionalProperties": true }
+  }
+}

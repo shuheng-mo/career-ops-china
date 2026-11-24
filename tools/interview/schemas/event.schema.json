@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "event",
+  "title": "session event (spec §4.3)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "session_id", "seq", "type", "at", "payload", "schema_version"],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 8, "maxLength": 64 },
+    "session_id": { "type": "string", "minLength": 8, "maxLength": 64 },
+    "seq": { "type": "integer", "minimum": 1 },
+    "type": { "type": "string", "enum": ["session.created", "segment.final", "segment.corrected", "question.detected", "alignment.proposed", "alignment.confirmed", "hint.revealed", "answer.started", "answer.ended", "rating.self", "capture.gap", "session.finished", "recovery"] },
+    "at": { "type": "string", "maxLength": 64 },
+    "payload": { "type": "object" },
+    "schema_version": { "const": 1 }
+  }
+}

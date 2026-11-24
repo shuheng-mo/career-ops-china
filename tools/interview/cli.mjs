@@ -14,6 +14,10 @@ import { draftsExport, approveDrafts } from './core/drafts.mjs';
 import { readBlocks } from './core/blocks.mjs';
 import { appendSignal, scanReports, checkCvFacts } from './core/signals.mjs';
 import { ingestOriginal, applyCandidates } from './core/import.mjs';
+import { createSession, appendEvent, recoverEvents, getSession, readEvents, findSessionByImport, saveUtterances } from './core/sessions.mjs';
+import { normalizeTranscript, detectFormat } from './review/normalize.mjs';
+import { ROUNDS } from '../feishu/interviews.mjs';
+import { basename } from 'node:path';
 
 const REPO_ROOT = resolve(join(dirname(fileURLToPath(import.meta.url)), '..', '..'));
 
@@ -170,6 +174,50 @@ const commands = {
     output(jsonFlag, {
       message: `✓ signals reconcile：新增 ${result.registered}，去重 ${result.deduped}，CV 核验标记 ${result.flagged}`,
       ...result,
+    });
+  },
+
+  transcript({ flags, jsonFlag, fail, output, positional }) {
+    const sub = positional[0] || 'import';
+    if (sub !== 'import') return fail(EXIT.USAGE, `未知 transcript 子命令「${sub}」，可用：import`);
+    const { root } = resolveRoot(flags.root);
+    if (!flags.file || flags.file === true) return fail(EXIT.USAGE, '用法：transcript import --file <逐字稿.md|srt|json> [--application N] [--round 一面]');
+    if (!existsSync(flags.file)) return fail(EXIT.NOT_FOUND, `文件不存在：${flags.file}`);
+    const round = flags.round && flags.round !== true ? flags.round : null;
+    if (round && !ROUNDS.includes(round)) {
+      return fail(EXIT.VALIDATION, `round「${round}」不在白名单：${ROUNDS.join(' / ')}`);
+    }
+    const applicationNum = flags.application && flags.application !== true ? Number(flags.application) : null;
+    if (flags.application && !Number.isInteger(applicationNum)) {
+      return fail(EXIT.USAGE, '--application 必须是整数编号');
+    }
+    const text = readFileSync(flags.file, 'utf8');
+    const existing = findSessionByImport(root, { sourceText: text, applicationNum, round });
+    if (existing) {
+      return output(jsonFlag, {
+        message: `♻ 该逐字稿已导入过（同 hash + 申请 + 轮次），复用 session ${existing}，不重复计数`,
+        session_id: existing, reused: true,
+      });
+    }
+    let utterances;
+    try {
+      utterances = normalizeTranscript(text, detectFormat(flags.file));
+    } catch (e) {
+      return fail(EXIT.VALIDATION, `逐字稿解析失败：${e.message}`);
+    }
+    const session = createSession(root, {
+      mode: 'historical_import',
+      source: basename(flags.file),
+      applicationNum,
+      round,
+      sourceText: text,
+    });
+    saveUtterances(root, session.session_id, utterances);
+    output(jsonFlag, {
+      message: `✓ 逐字稿导入：session ${session.session_id}，utterances ${utterances.length} 条（角色 unknown 待确认）`,
+      session_id: session.session_id,
+      utterances: utterances.length,
+      reused: false,
     });
   },
 

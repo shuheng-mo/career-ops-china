@@ -31,7 +31,7 @@ test('[P4.4] partial 不产生定位；final 问题 → hit 提交（带 generat
   const fp = new FastPath(t, { mode: 'mock_assisted' });
   const r1 = fp.onAsrEvent({ ...finalEvent('嗯那个好的'), channel: 'mic' });
   assert.equal(r1, null, '非问题文本不触发');
-  await fp.onAsrEvent({ ...finalEvent('那你具体说说怎么限制查询权限？'), channel: 'mic' });
+  await fp.onAsrEvent({ ...finalEvent('你如何限制查询权限？'), channel: 'mic' });
   // 稳定期 2000ms 前不提交
   assert.equal(fp.lastSubmission, null, '稳定期内不提交');
   await new Promise((r) => setTimeout(r, 2100));

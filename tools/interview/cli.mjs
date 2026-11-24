@@ -21,6 +21,9 @@ import { alignExport, alignApply } from './review/align.mjs';
 import { reviewPrepare, reviewApply } from './review/rubric.mjs';
 import { computeStats } from './core/stats.mjs';
 import { proposePatch, setPatchStatus, applyPatch, listPatches } from './core/patches.mjs';
+import { compilePack, buildPackCommand } from './packs/compile.mjs';
+import { gatherContext } from './packs/context.mjs';
+import { readdirSync } from 'node:fs';
 import { ROUNDS } from '../feishu/interviews.mjs';
 import { basename } from 'node:path';
 
@@ -178,6 +181,47 @@ const commands = {
       message: `✓ signals reconcile：新增 ${result.registered}，去重 ${result.deduped}，CV 核验标记 ${result.flagged}`,
       ...result,
     });
+  },
+
+  pack({ flags, jsonFlag, fail, output, positional }) {
+    const { root } = resolveRoot(flags.root);
+    const sub = positional[0] || 'build';
+    if (sub === 'build') {
+      if (!flags.application || flags.application === true) {
+        return fail(EXIT.USAGE, '用法：pack build --application <num> [--round 一面] [--minutes 60] [--fixtures-tracker <json>] [--reports-dir <dir>] [--cv-file <md>]');
+      }
+      try {
+        const pack = compilePack(root, gatherContext(root, {
+          applicationNum: Number(flags.application),
+          round: flags.round && flags.round !== true ? flags.round : null,
+          trackerFile: flags['fixtures-tracker'] && flags['fixtures-tracker'] !== true ? flags['fixtures-tracker'] : undefined,
+          roundsFile: flags['fixtures-rounds'] && flags['fixtures-rounds'] !== true ? flags['fixtures-rounds'] : undefined,
+          reportsDir: flags['reports-dir'] && flags['reports-dir'] !== true ? flags['reports-dir'] : join(REPO_ROOT, 'reports'),
+          cvFile: flags['cv-file'] && flags['cv-file'] !== true ? flags['cv-file'] : undefined,
+        }), { prepMinutes: flags.minutes && flags.minutes !== true ? Number(flags.minutes) : 60 });
+        return output(jsonFlag, {
+          message: `✓ pack 编译：${pack.pack_id}（draft；selected ${pack.selected_blocks.length}，硬闸门 ${pack.hard_gates.length}，覆盖缺口 ${pack.coverage_gaps.length}）`,
+          ...pack,
+        });
+      } catch (e) {
+        if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+        if (e instanceof PathEscapeError) return fail(EXIT.VALIDATION, e.message);
+        throw e;
+      }
+    }
+    if (sub === 'list') {
+      const { paths } = resolveRoot(root);
+      if (!existsSync(paths.packsDir)) return output(jsonFlag, { packs: [] });
+      const packs = readdirSync(paths.packsDir)
+        .filter((d) => /^pack-[a-f0-9]{12}$/.test(d) && existsSync(join(paths.packsDir, d, 'pack.json')))
+        .map((d) => JSON.parse(readFileSync(join(paths.packsDir, d, 'pack.json'), 'utf8')));
+      if (jsonFlag) return output(jsonFlag, { packs });
+      for (const p of packs) {
+        console.log(`  [${p.status}] ${p.pack_id} #${p.application_num} ${p.round || ''} ${p.created_at.slice(0, 16)}`);
+      }
+      return;
+    }
+    return fail(EXIT.USAGE, '用法：pack build|list|show|freeze（show/freeze 随 Task 3 提供）');
   },
 
   patch({ flags, jsonFlag, fail, output, positional }) {

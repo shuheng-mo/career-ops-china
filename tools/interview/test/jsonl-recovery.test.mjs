@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdtempSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+
 import { createSession, appendEvent, readEvents } from '../core/sessions.mjs';
 import { resolveRoot } from '../core/storage.mjs';
 import { appendSignal, readSignals } from '../core/signals.mjs';
@@ -32,6 +33,7 @@ test('[I3] 尾部半行后 appendEvent：半行被截断、新事件完整落盘
 
 test('[I3] 尾部半行后 appendSignal：同样自愈', () => {
   const t = tmpRoot();
+  mkdirSync(join(t, 'knowledge'), { recursive: true });
   const { paths } = resolveRoot(t);
   const sigFile = paths.signalsFile;
   writeFileSync(sigFile, '{"signal_id":"' + 'a'.repeat(16) + '","kind":"predi'); // 半行

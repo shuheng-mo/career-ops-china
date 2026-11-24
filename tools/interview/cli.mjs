@@ -11,6 +11,7 @@ import { assertValid, ValidationError } from './core/validation.mjs';
 import { loadBootstrap, listSeeds, bootstrapFromCv } from './core/bootstrap.mjs';
 import { digPrepare, digIngest } from './core/dig.mjs';
 import { draftsExport, approveDrafts } from './core/drafts.mjs';
+import { readBlocks } from './core/blocks.mjs';
 
 const REPO_ROOT = resolve(join(dirname(fileURLToPath(import.meta.url)), '..', '..'));
 
@@ -133,6 +134,30 @@ const commands = {
       const lines = seeds.map((s) => `  [${s.status}] ${s.intent_key} — ${s.question} (seed_id: ${s.seed_id})`);
       console.log(`共 ${seeds.length} 个种子：\n${lines.join('\n')}`);
     }
+  },
+
+  practice({ flags, jsonFlag, fail, output }) {
+    const { root } = resolveRoot(flags.root);
+    let blocks = readBlocks(root);
+    if (flags.track) blocks = blocks.filter((b) => (b.frontMatter.tracks || []).includes(flags.track));
+    if (!blocks.length) {
+      const msg = '知识库为空（或没有匹配 track 的块）。先跑 bootstrap --from cv → dig → approve 建立第一批可练习块。';
+      return output(jsonFlag, { message: msg, blocks: [] });
+    }
+    const sections = [];
+    for (const b of blocks) {
+      const fm = b.frontMatter;
+      const qLines = (fm.questions || []).map((q) => `- ${q}`).join('\n');
+      const aLines = (fm.anchors || []).map((a) => `#${a}`).join(' ');
+      const sec30 = (b.body.match(/## 30 秒版\n([\s\S]*?)(?=\n## |$)/) || ['', ''])[1].trim();
+      sections.push(
+        `## ${fm.block_id}（${fm.kind}, criticality: ${fm.criticality || 'normal'}）\n\n`
+        + `**问题：**\n${qLines}\n\n**锚点：** ${aLines || '（无）'}\n\n### 30 秒版\n${sec30}\n`
+      );
+    }
+    const md = `# 练习题单（${blocks.length} 块）\n\n${sections.join('\n---\n\n')}`;
+    if (jsonFlag) return output(jsonFlag, { markdown: md, blocks: blocks.map((b) => b.frontMatter.block_id) });
+    console.log(md);
   },
 
   drafts({ flags, jsonFlag, fail, output, positional }) {

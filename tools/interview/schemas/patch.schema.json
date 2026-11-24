@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "patch",
+  "title": "knowledge evolution patch (spec §6.2)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["patch_id", "type", "target_id", "base_revision", "before_hash", "proposed_diff", "reason", "source_refs", "status", "reviewer", "created_at"],
+  "properties": {
+    "patch_id": { "type": "string", "pattern": "^[a-f0-9]{12}$" },
+    "type": { "enum": ["alias_add", "block_add", "block_edit", "fact_conflict", "archive", "merge", "gap_add"] },
+    "target_id": { "type": ["string", "null"], "maxLength": 192 },
+    "base_revision": { "type": ["integer", "null"], "minimum": 1 },
+    "before_hash": { "type": ["string", "null"], "maxLength": 64 },
+    "proposed_diff": { "type": "object" },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "source_refs": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["artifact_id"],
+        "properties": {
+          "artifact_id": { "type": "string", "maxLength": 128 },
+          "locator": { "type": "string", "maxLength": 256 }
+        }
+      }
+    },
+    "status": { "enum": ["pending", "approved", "rejected", "applied", "stale"] },
+    "reviewer": { "type": ["string", "null"], "maxLength": 64 },
+    "created_at": { "type": "string", "maxLength": 64 }
+  }
+}

@@ -20,6 +20,7 @@ import { segmentExport, segmentApply } from './review/segment.mjs';
 import { alignExport, alignApply } from './review/align.mjs';
 import { reviewPrepare, reviewApply } from './review/rubric.mjs';
 import { computeStats } from './core/stats.mjs';
+import { proposePatch, setPatchStatus, applyPatch, listPatches } from './core/patches.mjs';
 import { ROUNDS } from '../feishu/interviews.mjs';
 import { basename } from 'node:path';
 
@@ -179,6 +180,55 @@ const commands = {
       message: `✓ signals reconcile：新增 ${result.registered}，去重 ${result.deduped}，CV 核验标记 ${result.flagged}`,
       ...result,
     });
+  },
+
+  patch({ flags, jsonFlag, fail, output, positional }) {
+    const { root } = resolveRoot(flags.root);
+    const sub = positional[0];
+    if (sub === 'propose') {
+      if (!flags.file || flags.file === true) return fail(EXIT.USAGE, '用法：patch propose --file <patch.json>');
+      if (!existsSync(flags.file)) return fail(EXIT.NOT_FOUND, `文件不存在：${flags.file}`);
+      let obj;
+      try {
+        obj = JSON.parse(readFileSync(flags.file, 'utf8'));
+      } catch (e) {
+        return fail(EXIT.VALIDATION, `patch 文件不是合法 JSON：${e.message}`);
+      }
+      try {
+        const patch = proposePatch(root, obj);
+        return output(jsonFlag, { message: `✓ patch propose：${patch.patch_id}（pending，等人工 approve）`, patch_id: patch.patch_id, status: patch.status });
+      } catch (e) {
+        if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+        throw e;
+      }
+    }
+    if (sub === 'list') {
+      const patches = listPatches(root, { status: flags.status && flags.status !== true ? flags.status : undefined });
+      if (jsonFlag) return output(jsonFlag, { patches });
+      const lines = patches.map((p) => `  [${p.status}] ${p.patch_id} ${p.type} → ${p.target_id || '(无)'}：${p.reason}`);
+      console.log(`共 ${patches.length} 个 patch：\n${lines.join('\n')}`);
+      return;
+    }
+    const action = sub;
+    if (!['approve', 'reject', 'apply'].includes(action)) {
+      return fail(EXIT.USAGE, '用法：patch propose|list|approve|reject|apply');
+    }
+    const patchId = positional[1];
+    if (!patchId) return fail(EXIT.USAGE, `用法：patch ${action} <patch_id>`);
+    try {
+      if (action === 'apply') {
+        const result = applyPatch(root, patchId);
+        return output(jsonFlag, {
+          message: result.idempotent ? `♻ patch ${patchId} 已应用过（幂等 no-op）` : `✓ patch ${patchId} 已应用`,
+          ...result,
+        });
+      }
+      const patch = setPatchStatus(root, patchId, action);
+      return output(jsonFlag, { message: `✓ patch ${patchId} → ${patch.status}`, patch_id: patch.patch_id, status: patch.status });
+    } catch (e) {
+      if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+      throw e;
+    }
   },
 
   stats({ flags, jsonFlag, fail, output }) {

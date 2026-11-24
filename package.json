@@ -25,6 +25,7 @@
     "feishu:insights": "node tools/feishu/insights.mjs",
     "pulse": "node tools/feishu/pulse.mjs",
     "interview": "node tools/feishu/interviews.mjs",
+    "interview:kb": "node tools/interview/cli.mjs",
     "tracker:backfill-track": "node tools/backfill-track.mjs",
     "tracker:reconcile": "node tools/setup-bitable-tracker.mjs --reconcile",
     "cv": "node tools/cv-md-to-pdf.mjs",

@@ -3,9 +3,14 @@ import { join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { resolveRoot, atomicWriteJson, appendJsonl, readJsonlSafe, withLock } from './storage.mjs';
 import { readManifest } from './blocks.mjs';
-import { assertValid } from './validation.mjs';
+import { assertValid, ValidationError } from './validation.mjs';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 function sessionDir(root, sessionId) {
+  if (!UUID_RE.test(String(sessionId))) {
+    throw new ValidationError(`非法 session id（必须是 uuid）：${sessionId}`);
+  }
   const { paths } = resolveRoot(root);
   return join(paths.sessionsDir, sessionId);
 }

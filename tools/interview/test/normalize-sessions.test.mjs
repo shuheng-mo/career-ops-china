@@ -96,7 +96,7 @@ test('appendEvent seq 单调；不存在的 session → 报中文错', () => {
   // session.created 占 seq 1，后续事件从 2 起单调递增
   assert.deepEqual(events.map((e) => e.seq), [1, 2, 3]);
   assert.equal(events[0].type, 'session.created');
-  assert.throws(() => appendEvent(t, 'no-such-session', { type: 'question.detected', payload: {} }), /不存在/);
+  assert.throws(() => appendEvent(t, 'no-such-session', { type: 'question.detected', payload: {} }), /不存在|非法/);
 });
 
 test('崩溃恢复：尾部半行被丢弃并记 recovery 事件', () => {

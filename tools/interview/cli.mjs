@@ -279,6 +279,14 @@ const commands = {
       }
     }
     if (sub === 'show') {
+      try {
+        if (!getSession(root, flags.session)) {
+          return fail(EXIT.NOT_FOUND, `session 不存在：${flags.session}`);
+        }
+      } catch (e) {
+        if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+        throw e;
+      }
       const { paths } = resolveRoot(root);
       const f = join(paths.reviewsDir, flags.session, 'review.json');
       if (!existsSync(f)) return fail(EXIT.NOT_FOUND, `session ${flags.session} 还没有复盘结果（先 review apply）`);

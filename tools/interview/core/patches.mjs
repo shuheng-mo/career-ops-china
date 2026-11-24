@@ -7,6 +7,9 @@ import { assertValid, ValidationError } from './validation.mjs';
 import { readBlockById, writeBlock, readManifest } from './blocks.mjs';
 
 function patchFile(root, patchId) {
+  if (!/^[a-f0-9]{12}$/.test(String(patchId))) {
+    throw new ValidationError(`非法 patch id（必须是 12 位 hex）：${patchId}`);
+  }
   const { paths } = resolveRoot(root);
   return join(paths.patchesDir, `${patchId}.json`);
 }

@@ -59,7 +59,7 @@ export class CaptureSession {
     if (this.stopped) return this.resources; // 幂等：资源只释放一次
     if (this.state !== STATES.finished && this.state !== STATES.error) {
       // 未显式走 stopping 的，直接补齐到 finished（用户可随时停止）
-      if (ACTIVE.has(this.state)) this.transition(STATES.stopping);
+      if (this.state !== STATES.stopping && ACTIVE.has(this.state)) this.transition(STATES.stopping);
       this.transition(STATES.finished);
     }
     this.stopped = true;

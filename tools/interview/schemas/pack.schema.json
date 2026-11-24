@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pack",
+  "title": "interview pack (spec §7 pack.json)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pack_id", "application_num", "round", "track", "created_at", "kb_revision", "cv_source", "cv_snapshot_hash", "jd_source", "report_source", "research_refs", "selected_blocks", "hard_gates", "overlays", "coverage_gaps", "prep_minutes", "status"],
+  "properties": {
+    "pack_id": { "type": "string", "pattern": "^pack-[a-f0-9]{12}$" },
+    "application_num": { "type": ["integer", "null"] },
+    "round": { "type": ["string", "null"], "maxLength": 64 },
+    "track": { "type": ["string", "null"], "maxLength": 64 },
+    "created_at": { "type": "string", "maxLength": 64 },
+    "kb_revision": { "type": "string", "maxLength": 64 },
+    "cv_source": { "type": "string", "maxLength": 128 },
+    "cv_snapshot_hash": { "type": "string", "maxLength": 64 },
+    "submitted_pdf": { "type": ["string", "null"], "maxLength": 256 },
+    "jd_source": { "type": ["string", "null"], "maxLength": 512 },
+    "report_source": { "type": ["string", "null"], "maxLength": 256 },
+    "research_refs": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim", "retrieved_at", "freshness"],
+        "properties": {
+          "claim": { "type": "string", "maxLength": 500 },
+          "source_url": { "type": ["string", "null"], "maxLength": 512 },
+          "retrieved_at": { "type": "string", "maxLength": 64 },
+          "freshness": { "enum": ["fresh", "stale", "expired", "unknown"] }
+        }
+      }
+    },
+    "selected_blocks": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "revision", "priority", "estimated_minutes", "reason"],
+        "properties": {
+          "id": { "type": "string", "maxLength": 192 },
+          "revision": { "type": "integer", "minimum": 1 },
+          "priority": { "type": ["number", "null"] },
+          "estimated_minutes": { "type": "integer", "minimum": 1, "maximum": 120 },
+          "reason": { "type": "string", "maxLength": 200 }
+        }
+      }
+    },
+    "hard_gates": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "reason"],
+        "properties": {
+          "id": { "type": "string", "maxLength": 192 },
+          "reason": { "type": "string", "maxLength": 300 }
+        }
+      }
+    },
+    "overlays": {
+      "type": "array",
+      "maxItems": 20,
+      "items": { "type": "string", "maxLength": 1000 }
+    },
+    "rounds_feedback": {
+      "type": "array",
+      "maxItems": 20,
+      "items": { "type": "object", "additionalProperties": true }
+    },
+    "coverage_gaps": {
+      "type": "array",
+      "maxItems": 5,
+      "items": { "type": "string", "maxLength": 500 }
+    },
+    "warnings": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 500 } },
+    "prep_minutes": { "type": "integer", "minimum": 5, "maximum": 600 },
+    "status": { "enum": ["draft", "validated", "frozen"] }
+  }
+}

@@ -2,6 +2,12 @@
 // 安全：所有动态内容经 esc() 后再进 innerHTML；token 存 sessionStorage 不落盘。
 
 const TOKEN_KEY = 'studio-token';
+// 启动 URL 带 token（CLI 打印的地址）→ 存 sessionStorage 并清掉地址栏，缩短 token 暴露时间
+const urlToken = new URLSearchParams(location.search).get('token');
+if (urlToken) {
+  sessionStorage.setItem(TOKEN_KEY, urlToken);
+  history.replaceState(null, '', location.pathname + location.hash);
+}
 const token = sessionStorage.getItem(TOKEN_KEY) || '';
 const view = document.getElementById('view');
 

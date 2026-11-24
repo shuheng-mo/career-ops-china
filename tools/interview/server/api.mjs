@@ -11,6 +11,7 @@ import { ValidationError } from '../core/validation.mjs';
 import { readBlocks, readBlockById, writeBlock } from '../core/blocks.mjs';
 import { buildIndex, search } from '../retrieval/bm25.mjs';
 import { decide, autoThresholdFor } from '../retrieval/rank.mjs';
+
 import { computeStats } from '../core/stats.mjs';
 import { loadBootstrap, listSeeds } from '../core/bootstrap.mjs';
 import { createSession, getSession, listSessions, readUtterances, readQuestions, saveQuestions, saveUtterances, appendEvent, readEvents } from '../core/sessions.mjs';
@@ -164,7 +165,7 @@ export function registerCoreApi(root) {
         const blocks = readBlocks(root).map((b) => ({ block_id: b.block_id, frontMatter: b.frontMatter, body: b.body }));
         const index = buildIndex(blocks);
         const results = search(index, q, { topK: 5 });
-        const decision = decide(q, results, {});
+        const decision = decide(q, results, { autoThreshold: autoThresholdFor(index) });
         const questionRef = `pq-${randomUUID().slice(0, 8)}`;
         const top = results[0];
         if (BLIND_MODES.includes(mode)) {
@@ -216,7 +217,13 @@ export function registerCoreApi(root) {
         if (!Number.isInteger(score) || score < 0 || score > 4) {
           return json(res, 400, { ok: false, message: 'score 必须是 0-4 整数' });
         }
-        appendEvent(root, sid, { type: 'rating.self', payload: { question_ref: body.question_ref, score, revealed: !!body.revealed } });
+        const ref = body.question_ref;
+        const state = practiceState.get(`${sid}:${ref}`);
+        if (!state) return json(res, 404, { ok: false, message: `question_ref 不存在：${ref}` });
+        // revealed 以服务端揭示状态为准（spec §8：提示揭示是服务端保证，不信前端自报）
+        const revealed = state.revealed;
+        state.blockId = state.blockId || state.topBlockId || null;
+        appendEvent(root, sid, { type: 'rating.self', payload: { question_ref: ref, score, revealed, block: state.blockId } });
         return json(res, 200, { ok: true });
       }
       mm = path.match(/^\/api\/practice\/([^/]+)\/finish$/);
@@ -245,7 +252,7 @@ export function registerCoreApi(root) {
           utterances: readUtterances(root, sess.session_id),
           questions: readQuestions(root, sess.session_id),
           review,
-          events: readEvents(root, sess.session_id).map((e) => ({ type: e.type, seq: e.seq, at: e.at })),
+          events: readEvents(root, sess.session_id).map((e) => ({ type: e.type, seq: e.seq, at: e.at, payload: e.payload })),
         });
       }
       mm = path.match(/^\/api\/sessions\/([^/]+)\/correct$/);

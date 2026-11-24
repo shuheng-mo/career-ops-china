@@ -15,7 +15,12 @@ const MIME = {
 
 export function serveStatic(appDir, urlPath) {
   if (urlPath.includes('\0')) return { status: 400, body: 'bad path' };
-  let rel = decodeURIComponent(urlPath).replace(/^\/+/, '');
+  let rel;
+  try {
+    rel = decodeURIComponent(urlPath).replace(/^\/+/, '');
+  } catch {
+    return { status: 400, body: 'malformed percent-encoding' };
+  }
   if (rel === '') rel = 'index.html';
   const target = resolve(appDir, rel);
   if (target !== resolve(appDir) && !target.startsWith(resolve(appDir) + sep)) {

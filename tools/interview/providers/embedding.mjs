@@ -3,8 +3,18 @@
 // 传输用 node:http 原生请求（不用 undici fetch——其连接池 keep-alive 会挂住测试进程）；
 // hybrid = 词法 BM25 与向量余弦 RRF 融合（k=60）；provider 失败由调用方降级 lexical。
 import http from 'node:http';
+import https from 'node:https';
 import { createHash } from 'node:crypto';
 import { buildIndex, search } from '../retrieval/bm25.mjs';
+
+// 传输选择：https base_url（百炼/OpenAI 等）必须走 node:https 与 443 默认端口
+export function requestOptionsFor(url) {
+  const isHttps = url.protocol === 'https:';
+  return {
+    mod: isHttps ? 'https' : 'http',
+    port: url.port ? Number(url.port) : (isHttps ? 443 : 80),
+  };
+}
 
 export function createEmbeddingProvider({ base_url: baseUrl, model, apiKey, timeoutMs = 15000 }) {
   if (!baseUrl || !model) throw new Error('embedding provider 需要 base_url 与 model');
@@ -13,11 +23,13 @@ export function createEmbeddingProvider({ base_url: baseUrl, model, apiKey, time
 
   function postEmbeddings(inputs) {
     return new Promise((resolve, reject) => {
+      const opts = requestOptionsFor(url);
+      const transport = opts.mod === 'https' ? https : http;
       const payload = JSON.stringify({ model, input: inputs });
-      const req = http.request(
+      const req = transport.request(
         {
           hostname: url.hostname,
-          port: url.port || 80,
+          port: opts.port,
           path: `${url.pathname.replace(/\/$/, '')}/embeddings`,
           method: 'POST',
           headers: {

@@ -84,3 +84,26 @@ test('[S3.1] 静态路径穿越 → 400', async () => {
     assert.ok(!r.text.includes('root:'), '不得泄漏 passwd 内容');
   });
 });
+
+test('[S3.C1] 畸形百分号编码 → 400/404，server 存活（不打崩进程）', async () => {
+  const t = preparedRoot();
+  await withServer(t, { port: 0, token: 'tok' }, async (srv) => {
+    const port = srv.address().port;
+    const r1 = await fetchWithClose(`http://127.0.0.1:${port}/%?token=tok`);
+    assert.ok([400, 404].includes(r1.status), `畸形编码实际 ${r1.status}`);
+    // server 还活着：后续正常请求可用
+    const r2 = await fetchWithClose(`http://127.0.0.1:${port}/?token=tok`);
+    assert.equal(r2.status, 200);
+  });
+});
+
+test('[S3.I5] Origin localhost 拼写与端口精确匹配；前缀仿冒 403', async () => {
+  const t = preparedRoot();
+  await withServer(t, { port: 0, token: 'tok' }, async (srv) => {
+    const port = srv.address().port;
+    const rLocal = await fetchWithClose(`http://127.0.0.1:${port}/api/blocks?token=tok`, { headers: { Origin: `http://localhost:${port}` } });
+    assert.equal(rLocal.status, 200, `localhost 同源应放行，实际 ${rLocal.status}`);
+    const rEvil = await fetchWithClose(`http://127.0.0.1:${port}/api/blocks?token=tok`, { headers: { Origin: `http://127.0.0.1:${port}evil.com` } });
+    assert.equal(rEvil.status, 403, '前缀仿冒 Origin 必须 403');
+  });
+});

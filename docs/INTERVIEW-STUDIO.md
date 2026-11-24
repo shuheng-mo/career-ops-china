@@ -11,7 +11,7 @@
 
 **P3 已实现（shipped）**：本地 Studio（`npm run interview:studio`）——只监听 127.0.0.1，启动打印随机 token（URL 带 token 访问）；知识库查看/检索/编辑、面试包查看、Heatmap、**文字练习三模式**（完整提词/锚点/盲测，盲测在揭示前不返回任何块内容，`hint.revealed` 落事件且该次不进独立掌握度）、Replay（说话人纠正/对齐确认）、Settings。中文默认、深浅跟随系统、紫色仅品牌强调、零 CDN（CSP `default-src 'self'`）。转录等非可信内容渲染时 HTML-escape。
 
-**P3.3（可选，默认关）**：BYOK embedding（OpenAI-compatible，如百炼 text-embedding-v4）+ 内存缓存（键 = model|文本）+ hybrid RRF 融合；provider 失败自动降级 lexical，不阻塞任何基础操作。Judge 走 P1 的 agent 导出/回填路径（规格允许），未做 API judge。
+**P3.3（library 就绪，server 接线待做）**：BYOK embedding 适配层（OpenAI-compatible，如百炼 text-embedding-v4）+ 内存缓存 + hybrid RRF 融合已实现并有完整测试（含 stub server 与失败降级），但 Studio server 的检索端点**尚未接线** embedding 配置（当前检索恒为 lexical，基础操作不受影响）。接线留给 P4 前的收尾。Judge 走 P1 的 agent 导出/回填路径（规格允许），未做 API judge。
 
 **P2 已实现（shipped）**：Interview Pack Compiler——按申请编号编译企业面试包。公司资料逐字引用评估报告 Block C 并带 freshness 判定（>7 天提示重查、>30 天标过期）；needs_review 块进「硬闸门」段不进正文；预算不足显式列出未覆盖块；freeze 后包内容不受知识库后续变化影响。测试与离线场景用 `--fixtures-tracker / --reports-dir / --cv-file` 注入（不触真实 tracker）。
 

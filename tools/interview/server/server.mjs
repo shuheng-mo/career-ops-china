@@ -27,16 +27,20 @@ export function randomToken() {
 
 export function createStudioServer(root, { port = 8790, token = randomToken(), host = '127.0.0.1' } = {}) {
   const apiHandlers = [...apiExtensions.map((f) => f(root)), registerCoreApi(root)];
+  let boundPort = port; // port=0 时由 listen 回调回填实际端口（Origin 精确匹配依赖它）
   const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url, `http://127.0.0.1:${port}`);
+    try {
+    const effPort = boundPort;
+    const url = new URL(req.url, `http://127.0.0.1:${effPort}`);
     // Host 必须是 127.0.0.1(:port)
     const hostHeader = (req.headers.host || '').split(':')[0];
     if (hostHeader !== '127.0.0.1' && hostHeader !== 'localhost') {
       return json(res, 403, { ok: false, message: '非本机 Host，已拒绝' });
     }
-    // Origin 出现时必须是同源（本服务自身）——校验先于 token，避免把跨源探测误当认证问题
+    // Origin 出现时必须是同源（本服务自身，两种本机拼写精确等值）——先于 token 校验
     const origin = req.headers.origin;
-    if (origin && !origin.startsWith(`http://127.0.0.1:${port}`) && origin !== `http://127.0.0.1:${port}`) {
+    const allowedOrigins = [`http://127.0.0.1:${effPort}`, `http://localhost:${effPort}`];
+    if (origin && !allowedOrigins.includes(origin)) {
       return json(res, 403, { ok: false, message: '跨源请求已拒绝' });
     }
     // token：查询参数或 X-Studio-Token 头
@@ -68,8 +72,18 @@ export function createStudioServer(root, { port = 8790, token = randomToken(), h
       res.writeHead(r.status, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end(r.body);
     }
+    } catch (e) {
+      // 顶层兜底：任何 handler 异常都不允许杀掉 server 进程（spec §10 可靠性）
+      try {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ ok: false, message: `服务内部错误：${e.message}` }));
+      } catch { /* 响应已发出时忽略 */ }
+    }
   });
   return new Promise((resolve) => {
-    server.listen(port, host, () => resolve(server));
+    server.listen(port, host, () => {
+      boundPort = server.address().port;
+      resolve(server);
+    });
   });
 }

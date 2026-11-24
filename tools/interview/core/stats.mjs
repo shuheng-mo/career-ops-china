@@ -6,7 +6,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolveRoot } from './storage.mjs';
-import { listSessions, readQuestions } from './sessions.mjs';
+import { listSessions, readQuestions, readEvents } from './sessions.mjs';
 import { readBlocks } from './blocks.mjs';
 import { RUBRIC_WEIGHTS } from '../review/rubric.mjs';
 
@@ -73,10 +73,23 @@ export function computeStats(root, { track, round, days } = {}) {
     }
   }
   // mastery 池：independent（含 mock_blind）与 assisted，来自全部 session 的 review
+  // 无 review 的练习 session：rating.self 事件（服务端 revealed 标记）作为掌握度样本
   // 冲突块从所有场次收集（硬闸门不区分场次类型）
   for (const s of sessions) {
     const review = readReview(paths, s.session_id);
-    if (!review) continue;
+    if (!review) {
+      // 练习 session（Practice 页产生）：从事件流取自评
+      if (s.mode === 'mock_blind' || s.mode === 'mock_assisted' || s.mode === 'mock_anchor') {
+        for (const ev of readEvents(root, s.session_id)) {
+          if (ev.type !== 'rating.self' || !ev.payload?.block) continue;
+          const pool = ev.payload.revealed ? assistedScores : indepScores;
+          const arr = pool.get(ev.payload.block) || [];
+          arr.push({ score: ev.payload.score / 4, at: ev.at, session_id: s.session_id });
+          pool.set(ev.payload.block, arr);
+        }
+      }
+      continue;
+    }
     for (const q of review.questions) {
       if (!q.block_id) continue;
       if (q.needs_review) needsReviewBlocks.add(q.block_id);

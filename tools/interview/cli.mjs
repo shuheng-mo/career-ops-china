@@ -2,10 +2,33 @@
 // Interview Studio CLI — npm run interview:kb -- <command> [flags]
 // 规格契约见 docs/interview-studio/spec-v0.2.md §11；退出码：0 成功 / 1 未预期 /
 // 2 校验失败 / 3 用法错误 / 4 目标不存在。
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
+import { join, dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { resolveRoot, safeJoin, PathEscapeError } from './core/storage.mjs';
 import { splitFrontMatter, loadYamlSafe, YamlSafeError } from './core/yaml.mjs';
 import { assertValid, ValidationError } from './core/validation.mjs';
+
+const REPO_ROOT = resolve(join(dirname(fileURLToPath(import.meta.url)), '..', '..'));
+
+function readInterviewConfig() {
+  const cfgPath = join(REPO_ROOT, 'config', 'profile.yml');
+  if (!existsSync(cfgPath)) {
+    return { ok: true, detail: 'default (disabled)：config/profile.yml 不存在，interview 模块未启用' };
+  }
+  try {
+    const cfg = loadYamlSafe(readFileSync(cfgPath, 'utf8'));
+    const iv = cfg && cfg.interview;
+    if (!iv || typeof iv !== 'object') {
+      return { ok: true, detail: 'default (disabled)：profile.yml 无 interview 段' };
+    }
+    return iv.enabled
+      ? { ok: true, detail: `enabled（storage: ${iv.storage || 'interview-prep'}）` }
+      : { ok: true, detail: 'default (disabled)：interview.enabled=false' };
+  } catch (e) {
+    return { ok: false, detail: `config/profile.yml 解析失败：${e.message}` };
+  }
+}
 
 export const EXIT = { OK: 0, UNEXPECTED: 1, VALIDATION: 2, USAGE: 3, NOT_FOUND: 4 };
 
@@ -61,6 +84,61 @@ function checkRubricUnique(fm) {
 }
 
 const commands = {
+  init({ flags, jsonFlag, fail, output }) {
+    const { root, paths } = resolveRoot(flags.root);
+    const DIRS = [
+      paths.imports, paths.blocksDir, paths.draftsDir, paths.versionsDir,
+      dirname(paths.bootstrapFile), dirname(paths.signalsFile),
+      paths.packsDir, paths.sessionsDir, paths.reviewsDir, paths.patchesDir,
+      paths.cacheDir, paths.evalPrivateDir,
+    ];
+    let created = 0;
+    try {
+      for (const dir of DIRS) {
+        mkdirSync(dir, { recursive: true });
+        const keep = join(dir, '.gitkeep');
+        if (!existsSync(keep)) {
+          writeFileSync(keep, '');
+          created++;
+        }
+      }
+    } catch (e) {
+      return fail(e instanceof PathEscapeError ? EXIT.VALIDATION : EXIT.UNEXPECTED, e.message);
+    }
+    output(jsonFlag, {
+      message: `✓ init 完成：${root}（新建 ${created} 项；幂等，可重复运行）`,
+      root,
+    });
+  },
+
+  doctor({ flags, jsonFlag, fail, output }) {
+    const { root } = resolveRoot(flags.root);
+    const checks = {};
+    const nodeMajor = Number(process.versions.node.split('.')[0]);
+    checks.node = { ok: nodeMajor >= 22, detail: `node ${process.versions.node}${nodeMajor >= 22 ? '' : '（需要 22/24 LTS）'}` };
+    checks.yaml = { ok: existsSync(join(REPO_ROOT, 'node_modules', 'yaml')), detail: 'yaml ^2 已安装' };
+    checks.ajv = { ok: existsSync(join(REPO_ROOT, 'node_modules', 'ajv')), detail: 'ajv ^8 已安装' };
+    let writableOk = false;
+    if (existsSync(root)) {
+      const probe = join(root, `.doctor-probe-${process.pid}`);
+      try {
+        writeFileSync(probe, '');
+        unlinkSync(probe);
+        writableOk = true;
+      } catch {}
+    }
+    checks.writable = { ok: writableOk, detail: writableOk ? root : (existsSync(root) ? `${root} 不可写` : `${root} 不存在（先运行 init）`) };
+    const cfg = readInterviewConfig();
+    checks.config = cfg;
+    const allOk = Object.values(checks).every((c) => c.ok);
+    if (!allOk) {
+      const bad = Object.entries(checks).filter(([, c]) => !c.ok).map(([k, c]) => `${k}: ${c.detail}`);
+      output(jsonFlag, { message: `doctor 检查未通过：\n- ${bad.join('\n- ')}`, checks }, { ok: false });
+      process.exit(EXIT.VALIDATION);
+    }
+    output(jsonFlag, { message: `✓ doctor 检查全部通过：${root}`, checks });
+  },
+
   validate({ flags, jsonFlag, fail }) {
     if (!flags.file || flags.file === true) return fail(EXIT.USAGE, '用法：validate --file <block.md>');
     if (!existsSync(flags.file)) return fail(EXIT.NOT_FOUND, `文件不存在：${flags.file}`);

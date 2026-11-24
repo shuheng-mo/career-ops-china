@@ -91,6 +91,14 @@ export function atomicWriteJson(file, obj) {
 
 export function appendJsonl(file, obj) {
   mkdirSync(dirname(file), { recursive: true });
+  // 自愈：崩溃可能留下尾部半行——追加前截掉，否则新行与半行粘连（历史有效行保留）
+  if (existsSync(file)) {
+    const text = readFileSync(file, 'utf8');
+    if (text.length && !text.endsWith('\n')) {
+      const lastNl = text.lastIndexOf('\n');
+      writeFileSync(file, lastNl === -1 ? '' : text.slice(0, lastNl + 1));
+    }
+  }
   writeFileSync(file, JSON.stringify(obj) + '\n', { flag: 'a' });
 }
 

@@ -1,7 +1,7 @@
 // Pack 编译（spec §7）：确定性选块 + coverage_gaps + pack.json。
 // 规则：needs_review 块 → hard_gates（不进 selected）；track 命中 → stats 优先级降序 →
 // criticality high>normal>low → block_id；预算按 estimated_minutes（high 15 / normal 10 / low 5）截断。
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { resolveRoot, atomicWriteJson } from '../core/storage.mjs';
@@ -70,7 +70,12 @@ export function compilePack(root, ctx, { prepMinutes = 60, now = new Date().toIS
 
   const kbRev = currentKbRevision(root);
   const seedForId = `${ctx.application.num}|${ctx.round}|${kbRev}|${selected.map((s) => `${s.id}@${s.revision}`).join(',')}`;
-  const packId = `pack-${createHash('sha256').update(seedForId).digest('hex').slice(0, 12)}`;
+  let packId = `pack-${createHash('sha256').update(seedForId).digest('hex').slice(0, 12)}`;
+  // 同 id 已冻结 → 重编译派生新 id（冻结包不可覆盖）
+  for (let i = 2; existsSync(join(paths.packsDir, packId, 'pack.json'))
+    && JSON.parse(readFileSync(join(paths.packsDir, packId, 'pack.json'), 'utf8')).status === 'frozen'; i++) {
+    packId = `pack-${createHash('sha256').update(`${seedForId}#${i}`).digest('hex').slice(0, 12)}`;
+  }
   const pack = {
     pack_id: packId,
     application_num: ctx.application.num,

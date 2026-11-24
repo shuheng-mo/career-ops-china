@@ -9,6 +9,8 @@
 
 **逐字稿不是必需品**：新用户仅凭 CV 即可冷启动（onboarding 可跳过）。
 
+**P2 已实现（shipped）**：Interview Pack Compiler——按申请编号编译企业面试包。公司资料逐字引用评估报告 Block C 并带 freshness 判定（>7 天提示重查、>30 天标过期）；needs_review 块进「硬闸门」段不进正文；预算不足显式列出未覆盖块；freeze 后包内容不受知识库后续变化影响。测试与离线场景用 `--fixtures-tracker / --reports-dir / --cv-file` 注入（不触真实 tracker）。
+
 ## 安装与无 Key 体验
 
 ```bash
@@ -51,6 +53,8 @@ node tools/interview/eval/demo-b-transcript-replay.mjs
 | `review prepare/apply/show --session <id>` | rubric 复盘（30/25/20/15/10，冲突硬闸门） |
 | `stats [--track] [--round] [--days 180]` | 频率 k/n、掌握度、优先级 |
 | `signals reconcile [--scan-reports] [--check-cv]` | JD/Block F 信号登记 + CV 账本增量核验 |
+| `pack build --application N --round R [--minutes 60]` | 编译企业面试包（tracker+report+CV+知识块 → 考前一页/硬闸门/覆盖缺口/反问/准备计划） |
+| `pack list / show <id> / freeze <id>` | 列包 / 渲染（冻结包只读快照）/ 冻结 |
 | `patch propose/list/approve/reject/apply` | 知识演进（同义问/改块/事实冲突/归档/合并） |
 
 Agent 编排入口：`/career-ops interview-prep`、`/career-ops interview-review <num>`、`/career-ops interview-evolve`、`/career-ops interview-heatmap`。

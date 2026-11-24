@@ -26,6 +26,15 @@
 | 5 | 新依赖只加 `yaml` ^2 + `ajv` ^8（规格 §3.1 授权）；schema 校验器选 Ajv | 规格「JSON Schema + Ajv 或仓库已有等价校验器，选择一个」 | 供应商锁定的风险 = 两个纯 JS 库，可替换 |
 | 6 | spec 文档随仓库提交：`docs/interview-studio/spec-v0.2.md`（从仓库根移入，内容逐字未改） | 实现契约需要与代码同行；文件无个人数据（个人逐字稿 v2.6 仅被引用不包含） | 公开仓库可见产品规格——规格本身设计为对外叙事的一部分（§14） |
 
+### ADR-0002 | 2026-11-24 | Phase 2 Pack Compiler 来源注入与降级
+
+| # | 决策 | 理由 | 代价 |
+|---|------|------|------|
+| 1 | tracker/rounds/CV 读取支持 `--fixtures-tracker/--fixtures-rounds/--cv-file` 注入；未注入 fixtures 时真实 tracker 读取需显式 `--allow-real-tracker`（P2 默认关闭，tests 永不触真实存储） | 规格 §13 禁止测试访问真实 Tracker；生产走 listApplications() | 用户多传一个旗标 |
+| 2 | 公司资料逐字引用评估报告 Block C（retrieved_at=report 日期），不做网络重查 | 规格：禁止编造新信息；重查是 P2.2 的「面试前再查」人工动作 | 资料新鲜度受限于上次评估日期，freshness 判定兜底 |
+| 3 | CV 恒用当前 cv.md 并显式标注「非投递快照」+ hash；投递 PDF 若在 tracker 记录则列出供人工比对 | 规格禁止拿当前 CV 假装当时版本；CV 快照存储留给 P3+ | 需要人工核对版本差异 |
+| 4 | 预算不足的块进 warnings（「预算不足，未覆盖：…」），不伪造成 coverage_gaps | coverage_gaps 语义 = 知识库没有的内容；预算跳过 = 有但没装 | 无 |
+
 ### P1 明确不做（规格 §12 Later / P2+）
 
 Pack Compiler（P2）、localhost UI/Studio（P3）、ASR 与实时定位（P4）、飞书同步、Tencent/火山/Paraformer ASR adapter、自动删除低频问题、LLM 判分当真值。

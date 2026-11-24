@@ -61,6 +61,10 @@
 
 `practice --track <目标track>` 输出题单（问题 + 锚点 + 30 秒版）。这是 P1 的最终交付物——不依赖 UI/ASR。
 
+### pack（考前编译）
+
+面试邀请来了 → `pack build --application <num> --round <轮次>`：从 tracker 取真实投递记录和评估报告（公司资料带 freshness，过期必警示）、按 track/优先级选知识块、needs_review 块单独成硬闸门段、时间预算截断并显示未覆盖。编译后**人工过一遍硬闸门和覆盖缺口**，确认无误再 `pack freeze`。冻结后的包不随后续知识演进变化——可回放、可对照。
+
 ### signals（增量信号）
 
 - 评估 mode（auto-pipeline/offer/batch）**report 成功落盘后**：跑一次

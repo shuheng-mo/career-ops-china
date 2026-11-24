@@ -22,6 +22,7 @@ import { reviewPrepare, reviewApply } from './review/rubric.mjs';
 import { computeStats } from './core/stats.mjs';
 import { proposePatch, setPatchStatus, applyPatch, listPatches } from './core/patches.mjs';
 import { compilePack, buildPackCommand } from './packs/compile.mjs';
+import { renderPack, freezePack } from './packs/render.mjs';
 import { gatherContext } from './packs/context.mjs';
 import { readdirSync } from 'node:fs';
 import { ROUNDS } from '../feishu/interviews.mjs';
@@ -221,7 +222,31 @@ const commands = {
       }
       return;
     }
-    return fail(EXIT.USAGE, '用法：pack build|list|show|freeze（show/freeze 随 Task 3 提供）');
+    if (sub === 'freeze') {
+      const packId = positional[1];
+      if (!packId) return fail(EXIT.USAGE, '用法：pack freeze <pack_id>');
+      try {
+        const r = freezePack(root, packId);
+        return output(jsonFlag, { message: r.idempotent ? `♻ pack ${packId} 已冻结（幂等）` : `✓ pack ${packId} 已冻结（快照落盘，知识库后续变化不影响它）`, ...r });
+      } catch (e) {
+        if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+        throw e;
+      }
+    }
+    if (sub === 'show') {
+      const packId = positional[1];
+      if (!packId) return fail(EXIT.USAGE, '用法：pack show <pack_id>');
+      try {
+        const md = renderPack(root, packId);
+        if (jsonFlag) return output(jsonFlag, { markdown: md });
+        console.log(md);
+        return;
+      } catch (e) {
+        if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+        throw e;
+      }
+    }
+    return fail(EXIT.USAGE, '用法：pack build|list|show|freeze');
   },
 
   patch({ flags, jsonFlag, fail, output, positional }) {

@@ -18,6 +18,7 @@ import { createSession, appendEvent, recoverEvents, getSession, readEvents, find
 import { normalizeTranscript, detectFormat } from './review/normalize.mjs';
 import { segmentExport, segmentApply } from './review/segment.mjs';
 import { alignExport, alignApply } from './review/align.mjs';
+import { reviewPrepare, reviewApply } from './review/rubric.mjs';
 import { ROUNDS } from '../feishu/interviews.mjs';
 import { basename } from 'node:path';
 
@@ -177,6 +178,50 @@ const commands = {
       message: `✓ signals reconcile：新增 ${result.registered}，去重 ${result.deduped}，CV 核验标记 ${result.flagged}`,
       ...result,
     });
+  },
+
+  review({ flags, jsonFlag, fail, output, positional }) {
+    const { root } = resolveRoot(flags.root);
+    const sub = positional[0];
+    if (!flags.session || flags.session === true) return fail(EXIT.USAGE, '用法：review prepare|apply|show --session <id> [--file <result.json>]');
+    if (sub === 'prepare') {
+      try {
+        return output(jsonFlag, reviewPrepare(root, flags.session));
+      } catch (e) {
+        if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+        throw e;
+      }
+    }
+    if (sub === 'apply') {
+      if (!flags.file || flags.file === true) return fail(EXIT.USAGE, '用法：review apply --session <id> --file <result.json>');
+      if (!existsSync(flags.file)) return fail(EXIT.NOT_FOUND, `文件不存在：${flags.file}`);
+      let obj;
+      try {
+        obj = JSON.parse(readFileSync(flags.file, 'utf8'));
+      } catch (e) {
+        return fail(EXIT.VALIDATION, `结果文件不是合法 JSON：${e.message}`);
+      }
+      try {
+        const result = reviewApply(root, flags.session, obj);
+        return output(jsonFlag, {
+          message: `✓ review apply：${result.questions} 问（冲突闸门 ${result.needs_review}，新问题 ${result.new_questions}）`,
+          ...result,
+        });
+      } catch (e) {
+        if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+        throw e;
+      }
+    }
+    if (sub === 'show') {
+      const { paths } = resolveRoot(root);
+      const f = join(paths.reviewsDir, flags.session, 'review.json');
+      if (!existsSync(f)) return fail(EXIT.NOT_FOUND, `session ${flags.session} 还没有复盘结果（先 review apply）`);
+      const review = JSON.parse(readFileSync(f, 'utf8'));
+      if (jsonFlag) return output(jsonFlag, review);
+      console.log(readFileSync(join(paths.reviewsDir, flags.session, 'review.md'), 'utf8'));
+      return;
+    }
+    return fail(EXIT.USAGE, '用法：review prepare|apply|show');
   },
 
   segment({ flags, jsonFlag, fail, output, positional }) {

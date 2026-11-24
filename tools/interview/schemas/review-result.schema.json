@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "review-result",
+  "title": "rubric review agent 回填（spec §5.2）",
+  "type": "array",
+  "minItems": 1,
+  "maxItems": 200,
+  "$defs": {
+    "dim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "reason"],
+      "properties": {
+        "score": { "anyOf": [{ "type": "integer", "minimum": 0, "maximum": 4 }, { "enum": ["na", "unknown"] }] },
+        "reason": { "type": "string", "maxLength": 500 },
+        "evidence_refs": { "type": "array", "maxItems": 50, "items": { "type": "string", "pattern": "^u\\d{3}$" } }
+      }
+    }
+  },
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["question_id", "dimensions", "fact_conflicts"],
+    "properties": {
+      "question_id": { "type": "string", "pattern": "^q\\d{3}$", "maxLength": 8 },
+      "block_id": { "type": ["string", "null"], "maxLength": 192 },
+      "dimensions": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["accuracy", "coverage", "relevance", "clarity", "boundary_honesty"],
+        "properties": {
+          "accuracy": { "$ref": "#/$defs/dim" },
+          "coverage": { "$ref": "#/$defs/dim" },
+          "relevance": { "$ref": "#/$defs/dim" },
+          "clarity": { "$ref": "#/$defs/dim" },
+          "boundary_honesty": { "$ref": "#/$defs/dim" }
+        }
+      },
+      "fact_conflicts": {
+        "type": "array",
+        "maxItems": 10,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fact_ref", "claimed", "actual"],
+          "properties": {
+            "fact_ref": { "type": "string", "maxLength": 256 },
+            "claimed": { "type": "string", "maxLength": 300 },
+            "actual": { "type": "string", "maxLength": 300 }
+          }
+        }
+      },
+      "new_question": { "type": ["string", "null"], "maxLength": 500 },
+      "practice_action": { "type": ["string", "null"], "maxLength": 300 }
+    }
+  }
+}

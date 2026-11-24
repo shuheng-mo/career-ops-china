@@ -1,0 +1,44 @@
+[
+  {
+    "question_id": "q002",
+    "block_id": "demo.intro-self",
+    "dimensions": {
+      "accuracy": { "score": 4, "reason": "原话与事实一致", "evidence_refs": ["u003"] },
+      "coverage": { "score": 3, "reason": "覆盖项目和职责，缺量化结果", "evidence_refs": ["u003"] },
+      "relevance": { "score": 4, "reason": "直接回答了自我介绍", "evidence_refs": ["u002"] },
+      "clarity": { "score": 3, "reason": "结构清晰但结尾略散", "evidence_refs": ["u003"] },
+      "boundary_honesty": { "score": "unknown", "reason": "原话未涉及边界", "evidence_refs": [] }
+    },
+    "fact_conflicts": [],
+    "practice_action": "补一个量化结果收尾"
+  },
+  {
+    "question_id": "q003",
+    "block_id": null,
+    "dimensions": {
+      "accuracy": { "score": "na", "reason": "无对应知识块，不判分", "evidence_refs": ["u005"] },
+      "coverage": { "score": "na", "reason": "同上", "evidence_refs": [] },
+      "relevance": { "score": 4, "reason": "回答了路由问题", "evidence_refs": ["u005"] },
+      "clarity": { "score": 3, "reason": "结构可", "evidence_refs": ["u005"] },
+      "boundary_honesty": { "score": "unknown", "reason": "未涉及", "evidence_refs": [] }
+    },
+    "fact_conflicts": [],
+    "new_question": "多模型路由是怎么设计的？为什么要做路由？",
+    "practice_action": "为路由问题建知识块"
+  },
+  {
+    "question_id": "q004",
+    "block_id": "demo.intro-self",
+    "dimensions": {
+      "accuracy": { "score": 1, "reason": "声称与知识块冲突", "evidence_refs": ["u007"] },
+      "coverage": { "score": 2, "reason": "只答了一半", "evidence_refs": ["u007"] },
+      "relevance": { "score": 4, "reason": "切题", "evidence_refs": ["u006"] },
+      "clarity": { "score": 3, "reason": "可", "evidence_refs": ["u007"] },
+      "boundary_honesty": { "score": 0, "reason": "把计划说成已实现", "evidence_refs": ["u007"] }
+    },
+    "fact_conflicts": [
+      { "fact_ref": "tech:demo.node-count", "claimed": "重构成了 20 个节点", "actual": "知识块记录为 14 节点" }
+    ],
+    "practice_action": "核对节点数口径后再练"
+  }
+]

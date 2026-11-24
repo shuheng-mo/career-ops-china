@@ -16,6 +16,8 @@ import { appendSignal, scanReports, checkCvFacts } from './core/signals.mjs';
 import { ingestOriginal, applyCandidates } from './core/import.mjs';
 import { createSession, appendEvent, recoverEvents, getSession, readEvents, findSessionByImport, saveUtterances } from './core/sessions.mjs';
 import { normalizeTranscript, detectFormat } from './review/normalize.mjs';
+import { segmentExport, segmentApply } from './review/segment.mjs';
+import { alignExport, alignApply } from './review/align.mjs';
 import { ROUNDS } from '../feishu/interviews.mjs';
 import { basename } from 'node:path';
 
@@ -175,6 +177,68 @@ const commands = {
       message: `✓ signals reconcile：新增 ${result.registered}，去重 ${result.deduped}，CV 核验标记 ${result.flagged}`,
       ...result,
     });
+  },
+
+  segment({ flags, jsonFlag, fail, output, positional }) {
+    const { root } = resolveRoot(flags.root);
+    const sub = positional[0];
+    if (!flags.session || flags.session === true) return fail(EXIT.USAGE, '用法：segment export|apply --session <id> [--file <result.json>]');
+    if (sub === 'export') {
+      return output(jsonFlag, segmentExport(root, flags.session));
+    }
+    if (sub === 'apply') {
+      if (!flags.file || flags.file === true) return fail(EXIT.USAGE, '用法：segment apply --session <id> --file <result.json>');
+      if (!existsSync(flags.file)) return fail(EXIT.NOT_FOUND, `文件不存在：${flags.file}`);
+      let obj;
+      try {
+        obj = JSON.parse(readFileSync(flags.file, 'utf8'));
+      } catch (e) {
+        return fail(EXIT.VALIDATION, `结果文件不是合法 JSON：${e.message}`);
+      }
+      try {
+        const result = segmentApply(root, flags.session, obj);
+        return output(jsonFlag, {
+          message: `✓ segment apply：${result.questions} 个问题${result.idempotent ? '（幂等跳过）' : ''}`,
+          ...result,
+        });
+      } catch (e) {
+        if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+        throw e;
+      }
+    }
+    return fail(EXIT.USAGE, '用法：segment export|apply');
+  },
+
+  align({ flags, jsonFlag, fail, output, positional }) {
+    const { root } = resolveRoot(flags.root);
+    const sub = positional[0];
+    if (!flags.session || flags.session === true) return fail(EXIT.USAGE, '用法：align export|apply --session <id> [--file <result.json>]');
+    if (sub === 'export') {
+      try {
+        return output(jsonFlag, alignExport(root, flags.session));
+      } catch (e) {
+        if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+        throw e;
+      }
+    }
+    if (sub === 'apply') {
+      if (!flags.file || flags.file === true) return fail(EXIT.USAGE, '用法：align apply --session <id> --file <result.json>');
+      if (!existsSync(flags.file)) return fail(EXIT.NOT_FOUND, `文件不存在：${flags.file}`);
+      let obj;
+      try {
+        obj = JSON.parse(readFileSync(flags.file, 'utf8'));
+      } catch (e) {
+        return fail(EXIT.VALIDATION, `结果文件不是合法 JSON：${e.message}`);
+      }
+      try {
+        const result = alignApply(root, flags.session, obj);
+        return output(jsonFlag, { message: `✓ align apply：${result.aligned} 个问题已对齐`, ...result });
+      } catch (e) {
+        if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+        throw e;
+      }
+    }
+    return fail(EXIT.USAGE, '用法：align export|apply');
   },
 
   transcript({ flags, jsonFlag, fail, output, positional }) {

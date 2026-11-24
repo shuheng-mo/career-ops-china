@@ -31,7 +31,7 @@
 
 ---
 
-### Task P2.1: 来源收集（context gather）
+### Task 1: 来源收集（context gather）
 
 **Files:** Create `tools/interview/packs/context.mjs`、`schemas/pack.schema.json`（§7 pack.json 字段）、`tools/interview/test/pack-context.test.mjs`、fixtures（fictional tracker JSON + report md）
 
@@ -42,7 +42,7 @@
 - [ ] 失败测试：fixtures tracker 有 #901（report 存在）与 #902（report 缺失）两条 → gather 断言各自路径；缺号 #999 → 抛；report 日期 40 天前 → freshness expired
 - [ ] 实现 → 测试绿 → commit
 
-### Task P2.2: 编译（选块 + coverage_gaps + pack.json）
+### Task 2: 编译（选块 + coverage_gaps + pack.json）
 
 **Files:** Create `tools/interview/packs/compile.mjs`；Modify cli（`pack build`）
 
@@ -54,7 +54,7 @@
 - [ ] 失败测试：两块（一 normal 一 needs_review）→ selected 只含 normal、hard_gates 含另一；budget 15 → 只装 high 块；同输入两次 compile → 除 pack_id/created_at 外字段一致；queued 种子进 coverage_gaps ≤5
 - [ ] 实现 → 绿 → commit
 
-### Task P2.3: 渲染 + freeze + 文档路由
+### Task 3: 渲染 + freeze + 文档路由
 
 **Files:** Create `tools/interview/packs/render.mjs`；Modify cli（`pack freeze/list/show`）、docs/INTERVIEW-STUDIO.md、modes/interview-prep.md（pack 段）、ADR 追加
 

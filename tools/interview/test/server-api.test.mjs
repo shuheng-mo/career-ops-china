@@ -10,11 +10,12 @@ import { writeBlock } from '../core/blocks.mjs';
 import { listSeeds, saveSeed } from '../core/bootstrap.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const fetchWithClose = (url, init = {}) => fetch(url, { ...init, headers: { Connection: 'close', ...(init.headers || {}) } });
 
 async function jsonFetch(base, path, { method = 'GET', body, token } = {}) {
-  const res = await fetch(`${base}${path}${path.includes('?') ? '&' : '?'}token=${token}`, {
+  const res = await fetchWithClose(`${base}${path}${path.includes('?') ? '&' : '?'}token=${token}`, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : {},
+    headers: { Connection: 'close', ...(body ? { 'Content-Type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   return { status: res.status, json: await res.json() };
@@ -39,6 +40,7 @@ test('[S3.2-4] API 全链：知识库/检索/统计/practice/replay', async () =
   });
 
   const srv = await createStudioServer(t, { port: 0, token: 'tok' });
+  try {
   const base = `http://127.0.0.1:${srv.address().port}`;
   const F = (path, opts = {}) => jsonFetch(base, path, { token: 'tok', ...opts });
 
@@ -93,7 +95,8 @@ test('[S3.2-4] API 全链：知识库/检索/统计/practice/replay', async () =
   assert.equal(wrong.status, 404);
   const finished = await F(`/api/practice/${sid}/finish`, { method: 'POST' });
   assert.equal(finished.json.ok, true);
-
-  srv.closeAllConnections();
-  await new Promise((r) => srv.close(r));
+  } finally {
+    srv.closeAllConnections();
+    await new Promise((r) => srv.close(r));
+  }
 });

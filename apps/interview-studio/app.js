@@ -1,0 +1,332 @@
+// Interview Studio UI（P3）：hash 路由 + fetch 封装 + escapeHtml。
+// 安全：所有动态内容经 esc() 后再进 innerHTML；token 存 sessionStorage 不落盘。
+
+const TOKEN_KEY = 'studio-token';
+const token = sessionStorage.getItem(TOKEN_KEY) || '';
+const view = document.getElementById('view');
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+async function api(path, { method = 'GET', body } = {}) {
+  const res = await fetch(path, {
+    method,
+    headers: {
+      'X-Studio-Token': token,
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401) {
+    const t = prompt('请输入启动时终端打印的访问 token：');
+    if (t) {
+      sessionStorage.setItem(TOKEN_KEY, t);
+      location.reload();
+    }
+    throw new Error('未授权');
+  }
+  const json = await res.json();
+  if (!res.ok || json.ok === false) throw new Error(json.message || `HTTP ${res.status}`);
+  return json;
+}
+
+// ---------- 页面 ----------
+
+async function pageKb() {
+  const [blocksRes, bootRes] = await Promise.all([api('/api/blocks'), api('/api/bootstrap')]);
+  const { blocks } = blocksRes;
+  const active = blocks.filter((b) => b.status === 'active');
+  const drafts = blocks.filter((b) => b.status !== 'active');
+  const seeds = (bootRes.seeds || []).filter((s) => s.status === 'queued');
+  view.innerHTML = `
+    <h1>知识库</h1>
+    <p class="muted">建库/深挖/审批走 CLI（对话式流程）：<code>npm run interview:kb -- bootstrap --from cv</code></p>
+    <h2>活跃块（${active.length}）</h2>
+    <div id="block-list"></div>
+    ${drafts.length ? `<h2>非活跃（${drafts.length}）</h2><div class="muted">${drafts.map((b) => esc(b.block_id)).join('、')}</div>` : ''}
+    ${seeds.length ? `<h2>待回答种子（${seeds.length}）</h2><ul>${seeds.map((s) => `<li>${esc(s.question)}</li>`).join('')}</ul>` : ''}
+    <h2>检索</h2>
+    <form id="search-form"><input id="search-q" placeholder="输入面试问题试试定位…" autocomplete="off"><button>定位</button></form>
+    <div id="search-result"></div>
+    <h2>编辑块</h2>
+    <select id="edit-select"><option value="">选择块…</option>${blocks.map((b) => `<option value="${esc(b.block_id)}">${esc(b.block_id)}</option>`).join('')}</select>
+    <textarea id="edit-body" rows="10" placeholder="选块后载入正文"></textarea>
+    <button id="edit-save">保存（走 schema 校验，revision +1）</button>
+    <div id="edit-msg"></div>
+  `;
+  const list = view.querySelector('#block-list');
+  list.innerHTML = active.map((b) => `
+    <details><summary>${esc(b.block_id)}（${esc(b.kind)} · ${esc(b.criticality)}）</summary>
+      <p>${(b.questions || []).map((q) => esc(q)).join('<br>')}</p>
+      <p class="muted">锚点：${(b.anchors || []).map((a) => esc('#' + a)).join(' ')}</p>
+    </details>`).join('');
+
+  view.querySelector('#search-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const q = view.querySelector('#search-q').value;
+    const r = await api(`/api/search?q=${encodeURIComponent(q)}`);
+    const box = view.querySelector('#search-result');
+    if (r.decision === 'hit') {
+      box.innerHTML = `<p>✅ 命中 <b>${esc(r.block.block_id)}</b></p><pre>${esc(r.block.body)}</pre>`;
+    } else if (r.decision === 'candidates') {
+      box.innerHTML = `<p>❓ 候选（不自动跳）：${r.results.map((x) => esc(x.blockId)).join('、')}</p>`;
+    } else {
+      box.innerHTML = '<p>🚫 未知问题（知识库未覆盖）</p>';
+    }
+  });
+
+  const sel = view.querySelector('#edit-select');
+  sel.addEventListener('change', async () => {
+    if (!sel.value) return;
+    const b = await api(`/api/blocks/${encodeURIComponent(sel.value)}`);
+    view.querySelector('#edit-body').value = b.body;
+  });
+  view.querySelector('#edit-save').addEventListener('click', async () => {
+    const msg = view.querySelector('#edit-msg');
+    try {
+      const b = await api(`/api/blocks/${encodeURIComponent(sel.value)}`);
+      const r = await api(`/api/blocks/${encodeURIComponent(sel.value)}`, { method: 'POST', body: { frontMatter: b.frontMatter, body: view.querySelector('#edit-body').value } });
+      msg.textContent = `✓ 已保存，revision ${r.revision}`;
+    } catch (err) {
+      msg.textContent = `✗ ${err.message}`;
+    }
+  });
+}
+
+async function pagePacks() {
+  const { packs } = await api('/api/packs');
+  view.innerHTML = `
+    <h1>面试包</h1>
+    <p class="muted">编译走 CLI：<code>npm run interview:kb -- pack build --application &lt;num&gt; --round &lt;轮次&gt;</code></p>
+    ${packs.length ? packs.map((p) => `
+      <details><summary>[${esc(p.status)}] ${esc(p.pack_id)} · #${esc(p.application_num)} · ${esc(p.round || '')}</summary>
+        <pre id="md-${esc(p.pack_id)}">加载中…</pre>
+      </details>`).join('') : '<p class="muted">还没有编译过面试包。</p>'}
+  `;
+  for (const p of packs) {
+    api(`/api/packs/${p.pack_id}`).then((r) => {
+      const el = view.querySelector(`#md-${CSS.escape(p.pack_id)}`);
+      if (el) el.textContent = r.markdown;
+    }).catch(() => {});
+  }
+}
+
+async function pageHeatmap() {
+  const stats = await api('/api/stats');
+  view.innerHTML = `
+    <h1>Heatmap</h1>
+    <p>${stats.real_samples === 0 ? '🚫 暂无真实面试样本（频率/掌握度为 null，预测信号不填补热度）' : `真实样本 ${stats.real_samples} 场`}</p>
+    ${stats.note ? `<p class="muted">${esc(stats.note)}</p>` : ''}
+    <table><thead><tr><th>块</th><th>频率</th><th>掌握</th><th>辅助掌握</th><th>优先级</th><th>状态</th></tr></thead>
+    <tbody>
+    ${stats.blocks.map((b) => `<tr>
+      <td>${esc(b.block_id)}</td>
+      <td>${pct(b.frequency)}</td>
+      <td>${pct(b.mastery)}</td>
+      <td>${pct(b.mastery_assisted)}</td>
+      <td>${pct(b.priority)}</td>
+      <td>${b.needs_review ? '⛔ 事实冲突' : b.low_sample ? '样本&lt;5' : ''}</td>
+    </tr>`).join('')}
+    </tbody></table>
+  `;
+  function pct(v) { return v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`; }
+}
+
+let practice = null;
+
+async function pagePractice() {
+  view.innerHTML = `
+    <h1>练习</h1>
+    <p class="muted">训练顺序：读完整答案 → 只看锚点 → 盲测 → 按漏点再练。盲测在你点「揭示」前不显示任何块内容；揭示行为会记入事件（该次不进独立掌握度）。</p>
+    <div id="pr-start">
+      <select id="pr-mode">
+        <option value="mock_blind">盲测（mock_blind）</option>
+        <option value="mock_anchor">锚点（mock_anchor）</option>
+        <option value="mock_assisted">完整提词（mock_assisted）</option>
+        <option value="real_record_only">真实面试·仅记录（不显示提示）</option>
+      </select>
+      <button id="pr-begin">开始练习</button>
+    </div>
+    <div id="pr-area"></div>
+  `;
+  view.querySelector('#pr-begin').addEventListener('click', async () => {
+    const mode = view.querySelector('#pr-mode').value;
+    practice = await api('/api/practice/start', { method: 'POST', body: { mode } });
+    renderPracticeInput(`已开始：${practice.mode}`);
+  });
+
+  function renderPracticeInput(msg) {
+    view.querySelector('#pr-area').innerHTML = `
+      <p class="muted">${esc(msg)}</p>
+      <form id="q-form"><input id="q-text" placeholder="（模拟）面试官的问题…" autocomplete="off"><button>定位</button></form>
+      <div id="q-result"></div>
+      <div id="q-actions"></div>
+      <button id="pr-finish">结束练习</button>
+    `;
+    view.querySelector('#q-form').addEventListener('submit', onQuestion);
+    view.querySelector('#pr-finish').addEventListener('click', async () => {
+      await api(`/api/practice/${practice.session_id}/finish`, { method: 'POST' });
+      view.querySelector('#pr-area').innerHTML = '<p>练习已结束（事件已落盘）。</p>';
+    });
+  }
+
+  async function onQuestion(e) {
+    e.preventDefault();
+    const text = view.querySelector('#q-text').value;
+    const r = await api(`/api/practice/${practice.session_id}/question`, { method: 'POST', body: { text } });
+    const resultBox = view.querySelector('#q-result');
+    const actions = view.querySelector('#q-actions');
+    if (r.record_only) {
+      resultBox.innerHTML = '<p class="muted">真实记录模式：不显示定位（只记录）。</p>';
+      return;
+    }
+    if (r.blind) {
+      resultBox.innerHTML = '<p>🙈 盲测中——先口头作答，答完再揭示。</p>';
+      actions.innerHTML = '<button id="reveal-btn">揭示答案</button>';
+      actions.querySelector('#reveal-btn').addEventListener('click', () => doReveal(r.question_ref));
+      return;
+    }
+    if (r.decision === 'hit') {
+      const b = r.block;
+      if (b.body !== undefined) {
+        resultBox.innerHTML = `<p>✅ 命中 <b>${esc(b.block_id)}</b></p><pre>${esc(b.body)}</pre>`;
+        actions.innerHTML = ratingHtml(r.question_ref, false);
+        wireRating();
+      } else {
+        resultBox.innerHTML = `<p>⚓ 锚点模式 <b>${esc(b.block_id)}</b>：${(b.anchors || []).map((a) => esc('#' + a)).join(' ')}</p>`;
+        actions.innerHTML = ratingHtml(r.question_ref, false);
+        wireRating();
+      }
+      return;
+    }
+    if (r.decision === 'candidates') {
+      resultBox.innerHTML = `<p>❓ 多候选（手动锁定）：${r.candidates.map((c) => esc(c.blockId)).join('、')}</p>`;
+      actions.innerHTML = ratingHtml(r.question_ref, false);
+      wireRating();
+      return;
+    }
+    resultBox.innerHTML = '<p>🚫 未知问题——这是知识缺口，回 CLI 记种子。</p>';
+  }
+
+  function ratingHtml(ref, revealed) {
+    return `<div class="rating" data-ref="${esc(ref)}" data-revealed="${revealed}">自评：${[0, 1, 2, 3, 4].map((s) => `<button data-score="${s}">${s}</button>`).join(' ')}</div>`;
+  }
+  function wireRating() {
+    view.querySelectorAll('.rating button').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const box = btn.closest('.rating');
+        await api(`/api/practice/${practice.session_id}/rate`, {
+          method: 'POST',
+          body: { question_ref: box.dataset.ref, score: Number(btn.dataset.score), revealed: box.dataset.revealed === 'true' },
+        });
+        box.innerHTML = '<span class="muted">已记录自评</span>';
+      });
+    });
+  }
+  async function doReveal(ref) {
+    const r = await api(`/api/practice/${practice.session_id}/reveal`, { method: 'POST', body: { question_ref: ref } });
+    const resultBox = view.querySelector('#q-result');
+    resultBox.innerHTML = `<p>👁 已揭示（该次不进独立掌握度）：${r.block ? `<b>${esc(r.block.block_id)}</b>` : '无命中'}</p><pre>${esc(r.block ? r.block.body : r.candidates?.map((c) => esc(c)).join('、') || '（无候选）')}</pre>`;
+    view.querySelector('#q-actions').innerHTML = ratingHtml(ref, true);
+    wireRating();
+  }
+}
+
+async function pageReplay() {
+  const { sessions } = await api('/api/sessions');
+  view.innerHTML = `
+    <h1>Replay</h1>
+    ${sessions.length ? sessions.map((s) => `
+      <details><summary>${esc(s.session_id.slice(0, 8))}… ${esc(s.mode)} ${s.round ? '· ' + esc(s.round) : ''} ${s.retrospective ? '· 历史' : ''}</summary>
+        <div class="replay-body" data-sid="${esc(s.session_id)}"><p class="muted">加载中…</p></div>
+      </details>`).join('') : '<p class="muted">还没有 session。真实面试走 CLI import，模拟练习走练习页。</p>'}
+  `;
+  for (const s of sessions) {
+    api(`/api/sessions/${s.session_id}`).then((d) => {
+      const el = view.querySelector(`.replay-body[data-sid="${s.session_id}"]`);
+      if (!el) return;
+      const qs = d.questions || [];
+      el.innerHTML = `
+        <p class="muted">utterances ${d.utterances.length} · 问题 ${qs.length} · ${d.review ? '已复盘' : '未复盘'}</p>
+        <h3>问题对齐（人工确认）</h3>
+        ${qs.length ? `<table><thead><tr><th>问题</th><th>状态</th><th>块</th><th>确认</th></tr></thead><tbody>
+          ${qs.map((q) => `<tr>
+            <td>${esc(q.text.slice(0, 60))}</td>
+            <td>${esc(q.alignment?.status || '—')}</td>
+            <td>${esc((q.alignment?.matched_block_ids || []).join(','))}</td>
+            <td><button class="confirm-align" data-qid="${esc(q.question_id)}">确认当前对齐</button></td>
+          </tr>`).join('')}
+        </tbody></table>` : '<p class="muted">尚未切分（先走 CLI segment）。</p>'}
+        <h3>说话人纠正</h3>
+        ${d.utterances.slice(0, 20).map((u) => `<div class="utt">
+          <select class="role-fix" data-uid="${esc(u.id)}">
+            ${['interviewer', 'candidate', 'unknown'].map((role) => `<option ${u.role === role ? 'selected' : ''}>${role}</option>`).join('')}
+          </select>
+          <span>${esc(u.raw_text.slice(0, 90))}</span>
+        </div>`).join('')}
+        <p class="muted">仅显示前 20 条；完整纠正走 CLI。</p>
+      `;
+      el.querySelectorAll('.confirm-align').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const q = qs.find((x) => x.question_id === btn.dataset.qid);
+          await api(`/api/sessions/${s.session_id}/confirm-alignment`, {
+            method: 'POST',
+            body: { question_id: q.question_id, status: q.alignment?.status || 'unmatched', matched_block_ids: q.alignment?.matched_block_ids || [] },
+          });
+          btn.textContent = '✓ 已确认';
+        });
+      });
+      el.querySelectorAll('.role-fix').forEach((sel) => {
+        sel.addEventListener('change', async () => {
+          await api(`/api/sessions/${s.session_id}/correct`, { method: 'POST', body: { utterance_id: sel.dataset.uid, role: sel.value } });
+          sel.classList.add('saved');
+        });
+      });
+    }).catch(() => {});
+  }
+}
+
+async function pageSettings() {
+  let statsOk = false;
+  try { await api('/api/stats'); statsOk = true; } catch {}
+  view.innerHTML = `
+    <h1>设置</h1>
+    <p>API 连通性：${statsOk ? '✅ 正常' : '✗ 异常'}</p>
+    <h2>Provider</h2>
+    <p class="muted">默认 lexical 检索，无需任何 Key。BYOK embedding（如百炼 text-embedding-v4）通过环境变量提供 Key——<b>Key 永不回显、不写日志</b>；本页只显示是否配置了对应的 env 名称。</p>
+    <h2>安全模型</h2>
+    <ul>
+      <li>服务只监听 127.0.0.1；token 在启动时打印于终端</li>
+      <li>所有数据本地读写（interview-prep/），不上传</li>
+      <li>转录等非可信内容渲染时已 HTML-escape</li>
+    </ul>
+    <h2>删除数据</h2>
+    <p class="muted">整目录删除 <code>interview-prep/</code> 即可（派生 cache 可重建）。</p>
+  `;
+}
+
+const routes = {
+  '/kb': pageKb,
+  '/packs': pagePacks,
+  '/heatmap': pageHeatmap,
+  '/practice': pagePractice,
+  '/replay': pageReplay,
+  '/settings': pageSettings,
+};
+
+async function route() {
+  const hash = location.hash.replace('#', '') || '/kb';
+  const page = routes[hash] || pageKb;
+  view.innerHTML = '<p class="muted">加载中…</p>';
+  try {
+    await page();
+  } catch (e) {
+    view.innerHTML = `<p>✗ ${esc(e.message)}</p>`;
+  }
+}
+
+window.addEventListener('hashchange', route);
+route();

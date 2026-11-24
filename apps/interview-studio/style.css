@@ -1,0 +1,82 @@
+/* Interview Studio — 中文默认、低干扰、紫 #7C5CFC 仅品牌强调、深浅跟随系统 */
+:root {
+  --accent: #7c5cfc;
+  --bg: #fafafa;
+  --fg: #1a1a1a;
+  --muted: #6b6b6b;
+  --card: #ffffff;
+  --border: #e2e2e2;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161618;
+    --fg: #e8e8e8;
+    --muted: #9a9a9a;
+    --card: #1f1f22;
+    --border: #34343a;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.brand { font-weight: 700; color: var(--accent); }
+.nav { display: flex; gap: 16px; flex-wrap: wrap; }
+.nav a { color: var(--fg); text-decoration: none; padding: 4px 2px; }
+.nav a:hover { color: var(--accent); }
+.view { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+h1 { font-size: 22px; }
+h2 { font-size: 17px; margin-top: 28px; }
+.muted { color: var(--muted); font-size: 13px; }
+code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: 13px; }
+pre {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+}
+table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; font-size: 14px; }
+th { background: var(--card); }
+input, select, textarea {
+  background: var(--card);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: inherit;
+}
+textarea { width: 100%; }
+button {
+  background: var(--card);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 14px;
+}
+button:hover { border-color: var(--accent); color: var(--accent); }
+#search-q, #q-text { width: min(520px, 90%); margin-right: 8px; }
+.rating button { min-width: 34px; }
+.utt { padding: 3px 0; border-bottom: 1px dashed var(--border); }
+.utt.saved { color: var(--accent); }
+details { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); }
+summary { cursor: pointer; }

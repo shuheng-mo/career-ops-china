@@ -1,0 +1,8 @@
+{
+  "path": "/absolute/path/to/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20",
+  "sha256": "模型目录/包的 SHA256（手动导入后自行填写，用于校验）",
+  "source": "ModelScope / k2-fsa 官方发布页 URL（手填）",
+  "license": "Apache-2.0（照模型发布页填写）",
+  "sample_rate": 16000,
+  "language": "zh-en"
+}

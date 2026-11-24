@@ -11,6 +11,7 @@ import { loadBootstrap, saveBootstrap } from '../core/bootstrap.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CLI = join(HERE, '..', 'cli.mjs');
 const CV_FIXTURE = join(HERE, 'fixtures', 'cv-fixture.md');
+const REPO = join(HERE, '..', '..', '..');
 
 function runCli(args) {
   try {
@@ -113,4 +114,19 @@ test('seed list 列出已生成种子', () => {
   assert.equal(r.code, 0, r.out);
   const seeds = JSON.parse(r.out).seeds;
   assert.ok(seeds.length >= 5);
+});
+
+test('--from cv 不带 --cv → 默认读仓库 cv.md（文档默认形式）', () => {
+  const t = preparedRoot();
+  const repoCv = join(REPO, 'cv.md');
+  const r = runCli(['bootstrap', '--from', 'cv', '--root', t, '--json']);
+  if (existsSync(repoCv)) {
+    assert.equal(r.code, 0, `默认读仓库 cv.md 应成功，实际 ${r.code}: ${r.out.slice(0, 200)}`);
+    const j = JSON.parse(r.out);
+    assert.ok(j.seed_ids.length >= 5, `种子 ${j.seed_ids?.length}`);
+  } else {
+    // 仓库无 cv.md 的环境 → exit 4 + 中文提示
+    assert.equal(r.code, 4);
+    assert.match(r.out, /CV/);
+  }
 });

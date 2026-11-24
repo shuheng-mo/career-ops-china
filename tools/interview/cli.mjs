@@ -104,24 +104,22 @@ const commands = {
       return fail(EXIT.USAGE, `不支持的 bootstrap 来源「${flags.from}」，目前仅支持 --from cv`);
     }
     const { root } = resolveRoot(flags.root);
-    if (!flags.from || !flags.cv) {
-      // bootstrap status（无 --from/--cv 参数时）
-      if (!flags.from) {
-        const st = loadBootstrap(root);
-        const seeds = listSeeds(root);
-        const byStatus = {};
-        for (const s of seeds) byStatus[s.status] = (byStatus[s.status] || 0) + 1;
-        output(jsonFlag, {
-          message: `bootstrap 状态：${st.state}；种子 ${seeds.length} 个（${Object.entries(byStatus).map(([k, v]) => `${k}:${v}`).join(' / ') || '无'}）`,
-          state: st.state,
-          seed_count: seeds.length,
-          by_status: byStatus,
-        });
-        return;
-      }
-      return fail(EXIT.USAGE, '用法：bootstrap --from cv [--cv <cv.md 路径>]');
+    if (!flags.from) {
+      // 无 --from → bootstrap status
+      const st = loadBootstrap(root);
+      const seeds = listSeeds(root);
+      const byStatus = {};
+      for (const s of seeds) byStatus[s.status] = (byStatus[s.status] || 0) + 1;
+      output(jsonFlag, {
+        message: `bootstrap 状态：${st.state}；种子 ${seeds.length} 个（${Object.entries(byStatus).map(([k, v]) => `${k}:${v}`).join(' / ') || '无'}）`,
+        state: st.state,
+        seed_count: seeds.length,
+        by_status: byStatus,
+      });
+      return;
     }
-    const cvPath = flags.cv === true ? join(REPO_ROOT, 'cv.md') : flags.cv;
+    // --from cv：--cv 缺省/裸旗标 → 默认仓库 cv.md
+    const cvPath = !flags.cv || flags.cv === true ? join(REPO_ROOT, 'cv.md') : flags.cv;
     if (!existsSync(cvPath)) {
       return fail(EXIT.NOT_FOUND, `找不到 CV：${cvPath}。先完成 CV setup，或用 --cv 指定路径。`);
     }

@@ -154,3 +154,33 @@ test('CLI stats --json 可运行', () => {
 });
 
 function require_fs_guard() {}
+
+test('[fix] 部分 pending 不否定整场 session：有确认对齐即 eligible', async () => {
+  const { createSession, saveQuestions } = await import('../core/sessions.mjs');
+  const { resolveRoot, atomicWriteJson } = await import('../core/storage.mjs');
+  const { mkdirSync } = await import('node:fs');
+  const t = mkdtempSync(join(tmpdir(), 'ib-stats-pending-'));
+  runCli(['init', '--root', t]);
+  writeBlock(t, blockFm('demo.p'), '正文');
+  const s = createSession(t, { mode: 'historical_import', source: 'craft' });
+  saveQuestions(t, s.session_id, [
+    { question_id: 'q001', utterance_refs: ['u001'], kind: 'question', text: '确认对齐的问题', alignment: { status: 'matched', matched_block_ids: ['demo.p'], evidence_refs: ['u001'] } },
+    { question_id: 'q002', utterance_refs: ['u002'], kind: 'question', text: '角色存疑的问题', alignment: { status: 'pending', matched_block_ids: [], evidence_refs: [] } },
+  ]);
+  const { paths } = resolveRoot(t);
+  mkdirSync(join(paths.reviewsDir, s.session_id), { recursive: true });
+  atomicWriteJson(join(paths.reviewsDir, s.session_id, 'review.json'), {
+    schema_version: 1, session_id: s.session_id, application_num: null, round: null,
+    rubric_version: 'rubric-v1-2026-11-24', reviewed_at: new Date().toISOString(),
+    questions: [{
+      question_id: 'q001', block_id: 'demo.p', needs_review: false, mastery_eligible: true,
+      dimensions: { accuracy: { score: 4, reason: 'r', evidence_refs: ['u001'] }, coverage: { score: 4, reason: 'r', evidence_refs: [] }, relevance: { score: 4, reason: 'r', evidence_refs: [] }, clarity: { score: 4, reason: 'r', evidence_refs: [] }, boundary_honesty: { score: 4, reason: 'r', evidence_refs: [] } },
+      fact_conflicts: [], practice_action: null, new_question: null,
+    }],
+    summary: { top_improvements: [], needs_review: [], new_questions: [] },
+  });
+  const stats = computeStats(t, {});
+  assert.equal(stats.real_samples, 1, '有确认对齐的 session 应计入');
+  const p = stats.blocks.find((b) => b.block_id === 'demo.p');
+  assert.equal(p.frequency, 1);
+});

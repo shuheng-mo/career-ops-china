@@ -50,7 +50,8 @@ export function computeStats(root, { track, round, days } = {}) {
     if (!REAL_MODES.includes(s.mode)) continue;
     const questions = readQuestions(root, s.session_id);
     if (!questions.length) continue;
-    if (questions.some((q) => !q.alignment || q.alignment.status === 'pending')) continue;
+    // pending（角色/问题未确认）按题排除，不否定整场——有任一确认对齐即可入分母（规格 §6.1：pending 不进统计，非取消 session）
+    if (questions.every((q) => !q.alignment || q.alignment.status === 'pending')) continue;
     const review = readReview(paths, s.session_id);
     if (!review) continue;
     realSamples.push({ session: s, questions, review });

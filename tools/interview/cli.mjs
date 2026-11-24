@@ -13,6 +13,7 @@ import { digPrepare, digIngest } from './core/dig.mjs';
 import { draftsExport, approveDrafts } from './core/drafts.mjs';
 import { readBlocks } from './core/blocks.mjs';
 import { appendSignal, scanReports, checkCvFacts } from './core/signals.mjs';
+import { ingestOriginal, applyCandidates } from './core/import.mjs';
 
 const REPO_ROOT = resolve(join(dirname(fileURLToPath(import.meta.url)), '..', '..'));
 
@@ -170,6 +171,38 @@ const commands = {
       message: `✓ signals reconcile：新增 ${result.registered}，去重 ${result.deduped}，CV 核验标记 ${result.flagged}`,
       ...result,
     });
+  },
+
+  import({ flags, jsonFlag, fail, output, positional }) {
+    const { root } = resolveRoot(flags.root);
+    const sub = positional[0];
+    if (sub === 'apply') {
+      if (!flags.file || flags.file === true) return fail(EXIT.USAGE, '用法：import apply --file <candidates.json>');
+      if (!existsSync(flags.file)) return fail(EXIT.NOT_FOUND, `文件不存在：${flags.file}`);
+      let obj;
+      try {
+        obj = JSON.parse(readFileSync(flags.file, 'utf8'));
+      } catch (e) {
+        return fail(EXIT.VALIDATION, `候选文件不是合法 JSON：${e.message}`);
+      }
+      try {
+        const result = applyCandidates(root, obj);
+        return output(jsonFlag, {
+          message: `✓ import apply：候选 ${result.applied.length}（重复 ${result.duplicates.length}）`,
+          ...result,
+        });
+      } catch (e) {
+        if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+        throw e;
+      }
+    }
+    if (!flags.file || flags.file === true) return fail(EXIT.USAGE, '用法：import --file <笔记.md>（或 import apply --file <candidates.json>）');
+    if (!existsSync(flags.file)) return fail(EXIT.NOT_FOUND, `文件不存在：${flags.file}`);
+    const r = ingestOriginal(root, flags.file);
+    const message = r.reused
+      ? `♻ 已导入过（hash ${r.hash.slice(0, 12)}），复用原件，不重复保存`
+      : `✓ 原件已存 imports/（hash ${r.hash.slice(0, 12)}）。下一步：生成候选 JSON 后跑 import apply --file <candidates.json>`;
+    output(jsonFlag, { message, ...r });
   },
 
   practice({ flags, jsonFlag, fail, output }) {

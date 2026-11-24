@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "import-candidates",
+  "title": "agent 生成的导入候选数组（spec §4.2 导入）",
+  "type": "array",
+  "minItems": 1,
+  "maxItems": 100,
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["source_locator", "questions", "claim_kind", "fact_refs", "markdown"],
+    "properties": {
+      "source_locator": { "type": "string", "maxLength": 256 },
+      "questions": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "type": "string", "maxLength": 500 } },
+      "anchors": { "type": "array", "maxItems": 12, "items": { "type": "string", "maxLength": 64 } },
+      "claim_kind": { "enum": ["experience", "design", "knowledge"] },
+      "fact_refs": { "type": "array", "maxItems": 50, "items": { "type": "string", "maxLength": 256 } },
+      "tracks": { "type": "array", "maxItems": 6, "items": { "type": "string", "maxLength": 64 } },
+      "markdown": { "type": "string", "minLength": 1, "maxLength": 20000 }
+    }
+  }
+}

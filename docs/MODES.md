@@ -23,6 +23,9 @@
 | `project` | `/career-ops project` | 评估某个作品集项目的投入产出 |
 | `story-sync` | `/career-ops story-sync` | 从所有 report 抽 Block F，去重后累积到面试故事库 |
 | `interview-prep` | `/career-ops interview-prep` | 面试知识库：CV 冷启动 → 深挖问卷 → 草稿审批 → 练习题单（可跳过，详见 [INTERVIEW-STUDIO.md](INTERVIEW-STUDIO.md)） |
+| `interview-review` | `/career-ops interview-review 753` | 逐字稿导入 → 问题对齐 → rubric 复盘 → 事实冲突闸门 → 改进队列 |
+| `interview-evolve` | `/career-ops interview-evolve` | 知识库演进：复盘产出的 patch 提案逐条审批 |
+| `interview-heatmap` | `/career-ops interview-heatmap` | 真实面试频率 k/n、掌握度、复习优先级 |
 
 `modes/feishu.md` 不是独立命令，而是飞书集成的配置、授权和体检说明，见 [FEISHU.md](FEISHU.md)。
 

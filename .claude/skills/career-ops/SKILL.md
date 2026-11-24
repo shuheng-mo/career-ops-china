@@ -2,7 +2,7 @@
 name: career-ops
 description: 中国大陆 AI 求职指挥中心 — 评估岗位、生成定制简历、扫描门户、追踪申请
 user_invocable: true
-argument-hint: "[JD截图/文本/URL] | scan | radar | inbox | tracker | offer | offers | pdf | contact | deep | apply | pipeline | batch | training | project | story-sync | evolve | interview-prep"
+argument-hint: "[JD截图/文本/URL] | scan | radar | inbox | tracker | offer | offers | pdf | contact | deep | apply | pipeline | batch | training | project | story-sync | evolve | interview-prep | interview-review | interview-evolve | interview-heatmap"
 arguments: mode
 ---
 
@@ -38,6 +38,9 @@ arguments: mode
 | `story-sync` | `story-sync`（扫 reports/* 抽取 Block F，累积到 story-bank.md）|
 | `evolve` / `evolve init` / `evolve dig` / `evolve status` | `evolve`（简历进化：深挖问卷 → 事实账本 → cv.md 版本 + 传导）|
 | `interview-prep` / `interview-prep init` / `interview-prep dig` / `interview-prep import` / `interview-prep status` | `interview-prep`（面试知识库：CV 冷启动 → 深挖 → 审批 → 练习题单；可跳过，不影响旧流程）|
+| `interview-review` | `interview-review`（逐字稿 → 对齐 → rubric 复盘 → 改进队列）|
+| `interview-evolve` | `interview-evolve`（知识库演进：patch 提案逐条审批）|
+| `interview-heatmap` | `interview-heatmap`（真实面试频率/掌握度/复习优先级）|
 | `batch` | `batch`（批量处理） |
 
 **Auto-pipeline 检测：** 如果 `{{mode}}` 不是已知子命令但包含：
@@ -96,7 +99,7 @@ Applies to: `auto-pipeline`, `offer`, `offers`, `pdf`, `contact`, `apply`, `pipe
 ### Standalone modes (only their mode file):
 Read `modes/{mode}.md`
 
-Applies to: `tracker`, `deep`, `training`, `project`, `story-sync`, `radar`, `evolve`, `interview-prep`
+Applies to: `tracker`, `deep`, `training`, `project`, `story-sync`, `radar`, `evolve`, `interview-prep`, `interview-review`, `interview-evolve`, `interview-heatmap`
 
 ### Modes delegated to subagent:
 For `scan`, `apply` (with Playwright), and `pipeline` (3+ URLs): launch as Agent with the content of `_shared.md` + `modes/{mode}.md` injected into the subagent prompt.

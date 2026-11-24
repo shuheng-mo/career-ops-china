@@ -34,7 +34,7 @@
     "waiqi": "node tools/waiqi-scan.mjs",
     "apply-link": "node tools/apply-link.mjs",
     "test:retro": "node tools/test-retro.mjs",
-    "test:interview": "node --test \"tools/interview/test/*.test.mjs\"",
+    "test:interview": "node --test \"tools/interview/test/*.test.mjs\" && node tools/interview/eval/demo-a-cv-coldstart.mjs && node tools/interview/eval/demo-b-transcript-replay.mjs",
     "test:stages": "node tools/test-recruitment-stages.mjs",
     "audit:stages": "node tools/audit-recruitment-stages.mjs",
     "funnel": "node tools/funnel-export.mjs",

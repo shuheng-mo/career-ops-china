@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, appendFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, appendFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import YAML from 'yaml';
@@ -84,9 +84,15 @@ export function proposePatch(root, input) {
     reviewer: null,
     created_at: new Date().toISOString(),
   };
-  // 同 target+diff 去重（reject 的记录保留，可人工再提）
+  // 同 target+diff 去重（reject 的记录保留，可人工再提；stale 记录被新提案替换——否则流程死锁）
   for (const existing of listPatches(root)) {
-    if (existing.patch_id === patch.patch_id && existing.status !== 'rejected') {
+    if (existing.patch_id !== patch.patch_id) continue;
+    if (existing.status === 'stale') {
+      const { paths: p2 } = resolveRoot(root);
+      unlinkSync(join(p2.patchesDir, `${existing.patch_id}.json`));
+      continue;
+    }
+    if (existing.status !== 'rejected') {
       throw new ValidationError(`重复提案：同 target+diff 的 patch 已存在（${existing.patch_id}，状态 ${existing.status}）`);
     }
   }

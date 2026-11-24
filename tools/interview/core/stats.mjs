@@ -40,7 +40,10 @@ function daysSince(iso) {
 export function computeStats(root, { track, round, days } = {}) {
   const { paths } = resolveRoot(root);
   const blocks = readBlocks(root).filter((b) => !track || (b.frontMatter.tracks || []).includes(track));
-  const sessions = listSessions(root).filter((s) => !round || s.round === round);
+  const cutoff = days ? Date.now() - days * 86400000 : null;
+  const sessions = listSessions(root)
+    .filter((s) => !round || s.round === round)
+    .filter((s) => !cutoff || new Date(s.created_at).getTime() >= cutoff);
   const realSamples = [];
 
   for (const s of sessions) {
@@ -58,15 +61,14 @@ export function computeStats(root, { track, round, days } = {}) {
   const assistedScores = new Map();
   const needsReviewBlocks = new Set();
 
+  // frequency 门槛 = 被问到且对齐（matched），与事实冲突解耦（冲突只压制 mastery）
   for (const { session, review } of realSamples) {
     for (const q of review.questions) {
       if (!q.block_id) continue;
       if (q.needs_review) needsReviewBlocks.add(q.block_id);
-      if (q.mastery_eligible && q.block_id) {
-        const hits = hitsByBlock.get(q.block_id) || new Set();
-        hits.add(session.session_id);
-        hitsByBlock.set(q.block_id, hits);
-      }
+      const hits = hitsByBlock.get(q.block_id) || new Set();
+      hits.add(session.session_id);
+      hitsByBlock.set(q.block_id, hits);
     }
   }
   // mastery 池：independent（含 mock_blind）与 assisted，来自全部 session 的 review

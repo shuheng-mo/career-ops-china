@@ -34,10 +34,11 @@ test('additionalProperties: false 拒绝未知字段', () => {
 });
 
 test('schemas 目录中的 schema 文件自动按文件名注册', () => {
-  // answer-block.schema.json 在 Task 5 才有；此处用 test-simple 之外的机制验证：
-  // 目录里出现新 *.schema.json 后无需手动 register 即可 validate
-  assert.throws(() => validate('answer-block', {}), (e) => {
-    // answer-block 尚不存在 → 中文「未找到」；一旦 Task 5 落盘，这里变成校验失败
-    return /未找到|不存在|未注册/.test(e.message);
-  });
+  // answer-block.schema.json 已随 Task 5 落盘：无需手动 register，
+  // validate('answer-block', …) 即可用文件里的 schema 校验
+  const r = validate('answer-block', {});
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.length > 0);
+  // 真正不存在的 schema 名仍然报中文「未找到」
+  assert.throws(() => validate('definitely-missing-schema', {}), /未找到|不存在|未注册/);
 });

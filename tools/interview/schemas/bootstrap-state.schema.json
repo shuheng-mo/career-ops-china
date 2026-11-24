@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bootstrap-state",
+  "title": "bootstrap.json (spec §4.2.1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "state", "track_ids", "seed_ids"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "state": { "enum": ["not_started", "in_progress", "ready", "paused"] },
+    "cv_source_hash": { "type": "string", "maxLength": 64 },
+    "track_ids": { "type": "array", "maxItems": 6, "items": { "type": "string", "maxLength": 64 } },
+    "last_prompt_at": { "type": ["string", "null"] },
+    "dismissed": { "type": "boolean" },
+    "cursor": { "type": ["string", "null"], "maxLength": 256 },
+    "seed_ids": { "type": "array", "maxItems": 500, "items": { "type": "string", "maxLength": 64 } },
+    "completed_at": { "type": ["string", "null"] }
+  }
+}

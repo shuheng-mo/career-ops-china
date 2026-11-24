@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "seed",
+  "title": "question_seed (spec §4.2.1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["seed_id", "intent_key", "question", "aliases", "tracks", "rounds", "source_refs", "fact_refs", "origin_kind", "status", "missing_fields", "answer_block_id", "created_at", "revision"],
+  "properties": {
+    "seed_id": { "type": "string", "pattern": "^[a-f0-9]{12}$" },
+    "project_ref": { "type": ["string", "null"], "maxLength": 128 },
+    "intent_key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9.-]*$", "maxLength": 200 },
+    "question": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "aliases": { "type": "array", "maxItems": 10, "items": { "type": "string", "maxLength": 500 } },
+    "tracks": { "type": "array", "maxItems": 6, "items": { "type": "string", "maxLength": 64 } },
+    "rounds": { "type": "array", "maxItems": 16, "items": { "type": "string", "maxLength": 64 } },
+    "source_refs": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["artifact_id"],
+        "properties": {
+          "artifact_id": { "type": "string", "maxLength": 128 },
+          "locator": { "type": "string", "maxLength": 256 }
+        }
+      }
+    },
+    "fact_refs": { "type": "array", "maxItems": 50, "items": { "type": "string", "maxLength": 256 } },
+    "origin_kind": { "enum": ["template", "cv", "jd", "report_f", "story_import", "transcript", "user"] },
+    "status": { "enum": ["queued", "needs_input", "draft_ready", "linked", "dismissed"] },
+    "missing_fields": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 64 } },
+    "answer_block_id": { "type": ["string", "null"], "maxLength": 192 },
+    "created_at": { "type": "string", "maxLength": 64 },
+    "revision": { "type": "integer", "minimum": 1 }
+  },
+  "if": { "properties": { "status": { "enum": ["draft_ready", "linked"] } } },
+  "then": { "required": ["seed_id", "intent_key"] }
+}

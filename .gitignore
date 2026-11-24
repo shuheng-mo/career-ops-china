@@ -50,6 +50,8 @@ cv.md
 # NOTE: .gitignore has no trailing-comment syntax; a comment on the pattern line
 # becomes part of the pattern and the rule silently matches nothing.
 cv-*.md
+# 虚构 CV fixture（interview-studio 测试用，非真人数据）——精确反排除
+!tools/interview/test/fixtures/cv-fixture.md
 article-digest.md
 # (interview-prep/story-bank.md is gitignored under the interview-prep section below)
 

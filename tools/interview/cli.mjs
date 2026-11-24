@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { resolveRoot, safeJoin, PathEscapeError } from './core/storage.mjs';
 import { splitFrontMatter, loadYamlSafe, YamlSafeError } from './core/yaml.mjs';
 import { assertValid, ValidationError } from './core/validation.mjs';
+import { loadBootstrap, listSeeds, bootstrapFromCv } from './core/bootstrap.mjs';
 
 const REPO_ROOT = resolve(join(dirname(fileURLToPath(import.meta.url)), '..', '..'));
 
@@ -84,6 +85,54 @@ function checkRubricUnique(fm) {
 }
 
 const commands = {
+  bootstrap({ flags, jsonFlag, fail, output }) {
+    if (flags.from && flags.from !== 'cv') {
+      return fail(EXIT.USAGE, `不支持的 bootstrap 来源「${flags.from}」，目前仅支持 --from cv`);
+    }
+    const { root } = resolveRoot(flags.root);
+    if (!flags.from || !flags.cv) {
+      // bootstrap status（无 --from/--cv 参数时）
+      if (!flags.from) {
+        const st = loadBootstrap(root);
+        const seeds = listSeeds(root);
+        const byStatus = {};
+        for (const s of seeds) byStatus[s.status] = (byStatus[s.status] || 0) + 1;
+        output(jsonFlag, {
+          message: `bootstrap 状态：${st.state}；种子 ${seeds.length} 个（${Object.entries(byStatus).map(([k, v]) => `${k}:${v}`).join(' / ') || '无'}）`,
+          state: st.state,
+          seed_count: seeds.length,
+          by_status: byStatus,
+        });
+        return;
+      }
+      return fail(EXIT.USAGE, '用法：bootstrap --from cv [--cv <cv.md 路径>]');
+    }
+    const cvPath = flags.cv === true ? join(REPO_ROOT, 'cv.md') : flags.cv;
+    if (!existsSync(cvPath)) {
+      return fail(EXIT.NOT_FOUND, `找不到 CV：${cvPath}。先完成 CV setup，或用 --cv 指定路径。`);
+    }
+    const cvText = readFileSync(cvPath, 'utf8');
+    const result = bootstrapFromCv(root, cvText, { trackIds: flags.track ? [flags.track] : [] });
+    output(jsonFlag, {
+      message: `✓ bootstrap：state=${result.state}，种子 ${result.seed_ids.length} 个（本次新增 ${result.added}）`,
+      ...result,
+    });
+  },
+
+  seed({ flags, jsonFlag, fail, output, positional }) {
+    const sub = positional[0] || 'list';
+    if (sub !== 'list') return fail(EXIT.USAGE, `未知 seed 子命令「${sub}」，可用：list`);
+    const { root } = resolveRoot(flags.root);
+    let seeds = listSeeds(root);
+    if (flags.status) seeds = seeds.filter((s) => s.status === flags.status);
+    if (jsonFlag) {
+      output(jsonFlag, { seeds });
+    } else {
+      const lines = seeds.map((s) => `  [${s.status}] ${s.intent_key} — ${s.question} (seed_id: ${s.seed_id})`);
+      console.log(`共 ${seeds.length} 个种子：\n${lines.join('\n')}`);
+    }
+  },
+
   init({ flags, jsonFlag, fail, output }) {
     const { root, paths } = resolveRoot(flags.root);
     const DIRS = [

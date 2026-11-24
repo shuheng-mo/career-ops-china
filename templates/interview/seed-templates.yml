@@ -1,0 +1,35 @@
+schema_version: 1
+# 通用种子问题模板（spec §4.2.1 Seed）。{p} 会被替换成项目标题。
+# 生成纪律：首批 ≤10 题，intro 优先，随后按项目顺序 × priority 升序；
+# 问题本身不等于事实，允许空答案，避免为简历每个词生成数十题。
+templates:
+  - intent_key: intro.self
+    question: 请做一个 1 分钟自我介绍，按目标岗位（track）定制重点
+    aliases: []
+    rounds: [hr, technical, cto]
+    priority: 0
+  - intent_key: "project.{p}.story"
+    question: "讲一下 {p} 这个项目：背景、你做了什么、结果如何"
+    aliases: []
+    rounds: [technical, cto]
+    priority: 1
+  - intent_key: "project.{p}.contribution"
+    question: "在 {p} 里你个人的具体贡献是什么（区别于团队整体产出）？"
+    aliases: []
+    rounds: [technical]
+    priority: 2
+  - intent_key: "project.{p}.decision"
+    question: "{p} 里你做过的最关键的技术决策是什么？当时的权衡是什么？"
+    aliases: []
+    rounds: [technical, cto]
+    priority: 3
+  - intent_key: "project.{p}.result"
+    question: "{p} 的结果有没有可核对的数字或证据？口径（测试集/样本量/测量环境）是什么？"
+    aliases: []
+    rounds: [technical, hr]
+    priority: 4
+  - intent_key: "project.{p}.boundary"
+    question: "{p} 里哪些是你没做或没实现的？面试时如何诚实划边界？"
+    aliases: []
+    rounds: [technical]
+    priority: 5

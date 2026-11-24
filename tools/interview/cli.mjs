@@ -10,6 +10,7 @@ import { splitFrontMatter, loadYamlSafe, YamlSafeError } from './core/yaml.mjs';
 import { assertValid, ValidationError } from './core/validation.mjs';
 import { loadBootstrap, listSeeds, bootstrapFromCv } from './core/bootstrap.mjs';
 import { digPrepare, digIngest } from './core/dig.mjs';
+import { draftsExport, approveDrafts } from './core/drafts.mjs';
 
 const REPO_ROOT = resolve(join(dirname(fileURLToPath(import.meta.url)), '..', '..'));
 
@@ -131,6 +132,44 @@ const commands = {
     } else {
       const lines = seeds.map((s) => `  [${s.status}] ${s.intent_key} — ${s.question} (seed_id: ${s.seed_id})`);
       console.log(`共 ${seeds.length} 个种子：\n${lines.join('\n')}`);
+    }
+  },
+
+  drafts({ flags, jsonFlag, fail, output, positional }) {
+    const sub = positional[0] || 'export';
+    if (sub !== 'export') return fail(EXIT.USAGE, `未知 drafts 子命令「${sub}」，可用：export`);
+    const { root } = resolveRoot(flags.root);
+    const task = draftsExport(root);
+    if (!task.seeds.length) {
+      return fail(EXIT.NOT_FOUND, '没有 draft_ready 状态的种子（先跑 dig prepare / dig ingest）。');
+    }
+    if (jsonFlag) return output(jsonFlag, task);
+    console.log(task.instructions);
+    console.log('\n待起草种子：');
+    for (const s of task.seeds) {
+      console.log(`\n[${s.seed_id}] ${s.question}\n  原话：${(s.raw_answer || '').slice(0, 200)}`);
+    }
+  },
+
+  approve({ flags, jsonFlag, fail, output }) {
+    if (!flags.file || flags.file === true) return fail(EXIT.USAGE, '用法：approve --file <drafts.json>');
+    if (!existsSync(flags.file)) return fail(EXIT.NOT_FOUND, `文件不存在：${flags.file}`);
+    let obj;
+    try {
+      obj = JSON.parse(readFileSync(flags.file, 'utf8'));
+    } catch (e) {
+      return fail(EXIT.VALIDATION, `草稿文件不是合法 JSON：${e.message}`);
+    }
+    const { root } = resolveRoot(flags.root);
+    try {
+      const result = approveDrafts(root, obj);
+      return output(jsonFlag, {
+        message: `✓ approve：激活 ${result.applied.length} 块，跳过 ${result.skipped.length}（幂等）`,
+        ...result,
+      });
+    } catch (e) {
+      if (e instanceof ValidationError) return fail(EXIT.VALIDATION, e.message);
+      throw e;
     }
   },
 

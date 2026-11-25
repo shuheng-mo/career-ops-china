@@ -116,7 +116,7 @@ test('[I3] task-started 超时 → error + 重连（stub 不回 task-started）'
     ws.on('message', (raw) => {
       try {
         const msg = JSON.parse(raw.toString());
-        if (msg.message_type === 'run-task') log.push('run-task');
+        if (msg.header?.action === 'run-task') log.push('run-task');
         // 故意不回 task-started
       } catch { /* 二进制帧忽略 */ }
     });

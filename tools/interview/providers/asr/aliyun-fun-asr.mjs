@@ -1,15 +1,10 @@
-// 阿里云百炼 Fun-ASR-Realtime WebSocket adapter（spec §3.2）。
-// 协议：run-task → task-started → binary PCM（Header+payload）→ finish-task → task-finished；
-// result-generated 映射 partial/final（sentence_end）；heartbeat 忽略；task-failed → error。
+// 阿里云百炼 Fun-ASR-Realtime WebSocket adapter（spec §3.2，协议对齐官方 WebSocket 接入指南）。
+// 协议：run-task → task-started → binary 裸 PCM → finish-task → task-finished；
+// 事件在 header.event（task-started/result-generated/task-finished/task-failed）；
+// result-generated 的 payload.output.sentence：end_time 为 null = partial，非 null = final。
 // 超时：任务启动 10s；finish flush 5s；重连默认 2 次（新 streamId）。Key 只在本地 server 进程。
 import { randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
-
-// PCM 帧前需 4 字节 Header（spec §3.2：带 4 字节头）；此处生成负载数据帧头
-// 格式参考 Fun-ASR WS 协议：header(4B) + payload；header 第 2 字节低 4 位 = 序列类型（0=全量）
-function pcmFrameHeader() {
-  return Buffer.from([0x10, 0x10, 0x00, 0x00]);
-}
 
 export class AliyunFunAsrProvider {
   constructor({ endpoint, apiKey, model = 'fun-asr-realtime', vocabularyId = '', maxReconnects = 2, startTimeoutMs = 10000, flushTimeoutMs = 5000 } = {}) {
@@ -63,18 +58,19 @@ export class AliyunFunAsrProvider {
           this.handleDisconnect();
         }, this.startTimeoutMs);
         const runTask = {
-          header: { message_id: randomUUID(), task_id: this.taskId, action: 'run-task', streaming: 'in' },
-          message_type: 'run-task',
-          task: 'asr',
+          header: { task_id: this.taskId, action: 'run-task', streaming: 'duplex' },
           payload: {
-            model: this.model,
-            task_group: 'asr',
+            task_group: 'audio',
             task: 'asr',
             function: 'recognition',
-            format: 'pcm',
-            sample_rate: 16000,
-            language_hints: ['zh', 'en'],
-            ...(this.vocabularyId ? { vocabulary_id: this.vocabularyId } : {}),
+            model: this.model,
+            parameters: {
+              format: 'pcm',
+              sample_rate: 16000,
+              language_hints: ['zh', 'en'],
+              ...(this.vocabularyId ? { vocabulary_id: this.vocabularyId } : {}),
+            },
+            input: {},
           },
         };
         ws.send(JSON.stringify(runTask));
@@ -98,31 +94,33 @@ export class AliyunFunAsrProvider {
     if (isBinary) return; // 服务端不下发音频
     let msg;
     try { msg = JSON.parse(raw.toString()); } catch { return; }
-    if (msg.message_type === 'task-started') {
+    const event = msg.header?.event;
+    if (event === 'task-started') {
       clearTimeout(this.startedTimer);
-      this.taskId = msg.task_id; // 每轮 run-task 重新生成，重连不复用旧 taskId
+      this.taskId = msg.header.task_id || this.taskId; // 每轮 run-task 重新生成，重连不复用旧 taskId
       this.started = true;
       // 放行缓冲中的音频
       for (const frame of this.pendingPcm) this.sendPcm(frame);
       this.pendingPcm = [];
       return;
     }
-    if (msg.message_type === 'heartbeat') return; // 忽略
-    if (msg.message_type === 'task-failed') {
+    if (event === 'heartbeat') return; // 忽略
+    if (event === 'task-failed') {
       this.emit({
         provider: this.id, streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic',
-        type: 'error', code: String(msg.code || 'TASK_FAILED'), message: msg.message || 'task-failed',
+        type: 'error', code: String(msg.header.error_code || 'TASK_FAILED'), message: msg.header.error_message || 'task-failed',
       });
       return;
     }
-    if (msg.message_type === 'task-finished') {
+    if (event === 'task-finished') {
       this.started = false;
       return;
     }
-    if (msg.message_type === 'result-generated') {
-      const out = msg.payload?.output || {};
-      const segmentId = String(out.sentence_id ?? '');
-      const isFinal = out.sentence_end === true;
+    if (event === 'result-generated') {
+      const sentence = msg.payload?.output?.sentence || {};
+      // 官方协议无 sentence_id：同一句子的 partial 序列以 begin_time 为锚递增 revision
+      const segmentId = `t${sentence.begin_time ?? 0}`;
+      const isFinal = sentence.end_time !== null && sentence.end_time !== undefined;
       const rev = (this.revisions.get(segmentId) || 0) + 1;
       this.revisions.set(segmentId, rev);
       this.emit({
@@ -132,9 +130,9 @@ export class AliyunFunAsrProvider {
         revision: rev,
         channel: 'mic',
         type: isFinal ? 'final' : 'partial',
-        startMs: out.begin_time ?? 0,
-        endMs: out.end_time ?? 0,
-        text: out.text || '',
+        startMs: sentence.begin_time ?? 0,
+        endMs: sentence.end_time ?? 0,
+        text: sentence.text || '',
       });
     }
   }
@@ -145,11 +143,8 @@ export class AliyunFunAsrProvider {
       this.emit?.({ provider: this.id, streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'gap', code: 'SEND_BUFFER_FULL', message: '发送缓冲超限，丢帧' });
       return;
     }
-    // 协议：binary 帧 = 4B header + PCM payload
-    const header = pcmFrameHeader();
-    const buf = Buffer.concat([header, frame]);
-    this.ws.send(buf, { binary: true });
-    void buf;
+    // 官方 WebSocket 协议：binary 帧直发裸 PCM（无帧头）
+    this.ws.send(frame, { binary: true });
   }
 
   async start({ sessionId, channel, sampleRate, signal }, emitFn) {
@@ -200,7 +195,7 @@ export class AliyunFunAsrProvider {
       this.ws.once('message', function onFinished(raw) {
         try {
           const msg = JSON.parse(raw.toString());
-          if (msg.message_type === 'task-finished') {
+          if (msg.header?.event === 'task-finished') {
             clearTimeout(timer);
             this.removeListener('message', onFinished);
             resolve();
@@ -208,8 +203,8 @@ export class AliyunFunAsrProvider {
         } catch { /* 非 JSON 忽略，继续等 */ }
       });
       this.ws.send(JSON.stringify({
-        header: { message_id: randomUUID(), task_id: this.taskId, action: 'finish-task', streaming: 'in' },
-        message_type: 'finish-task',
+        header: { task_id: this.taskId, action: 'finish-task', streaming: 'duplex' },
+        payload: { input: {} },
       }));
     });
   }

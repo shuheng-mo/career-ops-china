@@ -1,33 +1,30 @@
 import { test } from 'node:test';
-import http from 'node:http';
 import assert from 'node:assert/strict';
 import { WebSocketServer, WebSocket } from 'ws';
 import { AliyunFunAsrProvider } from '../providers/asr/aliyun-fun-asr.mjs';
 
-// 本地 ws stub：按 Fun-ASR 协议应答，行为可编程
+// 本地 ws stub：按百炼 Fun-ASR-Realtime 官方 WebSocket 协议应答（header.event 分发；
+// payload.parameters 嵌套；裸 PCM binary 帧），行为可编程
 function startProtocolStub({ failTask, emit: emitScript } = {}) {
   const log = [];
   const wss = new WebSocketServer({ port: 0, host: '127.0.0.1' });
-  const sent = [];
   let taskId = 'task-stub-1';
   wss.on('connection', (ws) => {
     ws.on('message', (raw, isBinary) => {
-      if (isBinary) { log.push({ header: { type: 'pcm' } }); return; }
+      if (isBinary) { log.push({ binary: true, bytes: raw.length }); return; }
       const msg = JSON.parse(raw.toString());
       log.push(msg);
-      if (msg.message_type === 'run-task') {
+      if (msg.header?.action === 'run-task') {
         if (failTask) {
-          ws.send(JSON.stringify({ message_type: 'task-failed', task_id: taskId, code: 45000001, message: 'stub 失败' }));
+          ws.send(JSON.stringify({ header: { event: 'task-failed', task_id: taskId, error_code: 45000001, error_message: 'stub 失败' } }));
           return;
         }
-        ws.send(JSON.stringify({ message_type: 'task-started', task_id: taskId }));
+        ws.send(JSON.stringify({ header: { event: 'task-started', task_id: taskId } }));
         ws._taskId = taskId;
-      } else if (msg.message_type === 'finish-task') {
-        ws.send(JSON.stringify({ message_type: 'task-finished', task_id: ws._taskId }));
-      } else if (msg.message_type === 'heartbeat') {
-        // heartbeat 不应答（协议：服务端可发；stub 收到即可）——客户端不应把 heartbeat 当事件
+      } else if (msg.header?.action === 'finish-task') {
+        ws.send(JSON.stringify({ header: { event: 'task-finished', task_id: ws._taskId } }));
       }
-      void sent;
+      void WebSocket;
     });
     if (emitScript) {
       emitScript(ws, taskId);
@@ -48,48 +45,52 @@ function startProtocolStub({ failTask, emit: emitScript } = {}) {
 
 function pcmFrame(ms = 100) {
   // 16k mono s16le：100ms = 1600 samples = 3200 bytes
-  return Buffer.alloc(1600 * 2, 0);
+  return Buffer.alloc(1600 * 2 * (ms / 100), 0);
 }
 
-test('[P4.2] 协议：run-task → task-started 前不发音频；PCM 帧带 task_id 头', async () => {
+test('[P4.2] run-task 报文符合官方协议；task-started 前不发音频；PCM 裸发无帧头', async () => {
   const stub = await startProtocolStub();
   const provider = new AliyunFunAsrProvider({ endpoint: stub.url, apiKey: 'sk-test', model: 'fun-asr-realtime' });
   const events = [];
   await provider.start({ sessionId: 's1', channel: 'mic', sampleRate: 16000 }, (e) => events.push(e));
   await provider.push(pcmFrame());
-  // 给 stub 一点时间
   await new Promise((r) => setTimeout(r, 120));
-  const runTask = stub.log.find((m) => m.message_type === 'run-task');
+  const runTask = stub.log.find((m) => m.header?.action === 'run-task');
   assert.ok(runTask, '应发送 run-task');
-  assert.equal(runTask.task, 'asr');
+  assert.equal(runTask.header.streaming, 'duplex');
+  assert.equal(runTask.payload.task_group, 'audio');
+  assert.equal(runTask.payload.task, 'asr');
+  assert.equal(runTask.payload.function, 'recognition');
   assert.equal(runTask.payload.model, 'fun-asr-realtime');
-  assert.equal(runTask.payload.sample_rate, 16000);
-  assert.equal(runTask.payload.format, 'pcm');
-  assert.ok(stub.log.filter((m) => m.message_type === 'run-task').every(() => true));
-  // 音频帧必须在 task-started 之后才发（stub 收到的消息序）
-  const runIdx = stub.log.findIndex((m) => m.message_type === 'run-task');
-  const pcmIdx = stub.log.findIndex((m) => m.header?.type === 'pcm');
+  assert.equal(runTask.payload.parameters.sample_rate, 16000);
+  assert.equal(runTask.payload.parameters.format, 'pcm');
+  assert.ok(runTask.payload.input, 'payload.input 必须存在（官方结构）');
+  // 裸 PCM：binary 帧长度 = 原始 PCM 字节数（3200），不带任何帧头
+  const bin = stub.log.find((m) => m.binary);
+  assert.ok(bin, '应有 binary 音频帧');
+  assert.equal(bin.bytes, 3200, `PCM 应裸发（期望 3200 字节，实际 ${bin.bytes}）`);
+  // 音频帧必须在 run-task 之后（stub 收到的消息序）
+  const runIdx = stub.log.findIndex((m) => m.header?.action === 'run-task');
+  const pcmIdx = stub.log.findIndex((m) => m.binary);
   assert.ok(pcmIdx > runIdx, `PCM 应在 task-started 后（run=${runIdx}, pcm=${pcmIdx}）`);
   await provider.close();
   stub.close();
 });
 
-test('[P4.2] result-generated 映射：partial / sentence_end → final', async () => {
+test('[P4.2] result-generated 映射：end_time null → partial，非 null → final', async () => {
   const stub = await startProtocolStub({
     emit: (ws, taskId) => {
-      // task-started 后由测试触发文本
       setTimeout(() => {
-        ws.send(JSON.stringify({ message_type: 'task-started', task_id: taskId }));
-        ws.send(JSON.stringify({ header: { type: 'pcm' } })); // 占位，触发 pending 帧放行
+        ws.send(JSON.stringify({ header: { event: 'task-started', task_id: taskId } }));
         ws.send(JSON.stringify({
-          message_type: 'result-generated', task_id: taskId,
-          payload: { output: { sentence_id: 1, begin_time: 0, end_time: 900, text: '介绍' , sentence_end: false } },
+          header: { event: 'result-generated', task_id: taskId },
+          payload: { output: { sentence: { begin_time: 0, end_time: null, text: '介绍' } } },
         }));
         ws.send(JSON.stringify({
-          message_type: 'result-generated', task_id: taskId,
-          payload: { output: { sentence_id: 1, begin_time: 0, end_time: 1800, text: '介绍一下你的项目', sentence_end: true } },
+          header: { event: 'result-generated', task_id: taskId },
+          payload: { output: { sentence: { begin_time: 0, end_time: 1800, text: '介绍一下你的项目' } } },
         }));
-        ws.send(JSON.stringify({ message_type: 'heartbeat', task_id: taskId }));
+        ws.send(JSON.stringify({ header: { event: 'heartbeat', task_id: taskId } }));
       }, 30);
     },
   });
@@ -102,7 +103,7 @@ test('[P4.2] result-generated 映射：partial / sentence_end → final', async 
   const finals = events.filter((e) => e.type === 'final');
   assert.equal(partials.length, 1);
   assert.equal(partials[0].text, '介绍');
-  assert.equal(partials[0].segmentId, '1');
+  assert.equal(partials[0].segmentId, 't0');
   assert.equal(partials[0].revision, 1);
   assert.equal(finals.length, 1);
   assert.equal(finals[0].text, '介绍一下你的项目');
@@ -112,7 +113,7 @@ test('[P4.2] result-generated 映射：partial / sentence_end → final', async 
   stub.close();
 });
 
-test('[P4.2] task-failed → error 事件（带 code/message）', async () => {
+test('[P4.2] task-failed → error 事件（header.error_code/error_message）', async () => {
   const stub = await startProtocolStub({ failTask: true });
   const provider = new AliyunFunAsrProvider({ endpoint: stub.url, apiKey: 'sk-test', model: 'fun-asr-realtime' });
   const events = [];
@@ -126,14 +127,17 @@ test('[P4.2] task-failed → error 事件（带 code/message）', async () => {
   stub.close();
 });
 
-test('[P4.2] finish-task：flush 语义（close 前 finish-task 已发送）', async () => {
+test('[P4.2] finish-task 报文符合官方协议；task-finished 后 flush 返回', async () => {
   const stub = await startProtocolStub();
   const provider = new AliyunFunAsrProvider({ endpoint: stub.url, apiKey: 'sk-test', model: 'fun-asr-realtime' });
   const events = [];
   await provider.start({ sessionId: 's1', channel: 'mic', sampleRate: 16000 }, (e) => events.push(e));
   await new Promise((r) => setTimeout(r, 120));
   await provider.finish();
-  assert.ok(stub.log.some((m) => m.message_type === 'finish-task'), 'finish 应发送 finish-task');
+  const finishTask = stub.log.find((m) => m.header?.action === 'finish-task');
+  assert.ok(finishTask, 'finish 应发送 finish-task');
+  assert.equal(finishTask.header.streaming, 'duplex');
+  assert.ok(finishTask.payload?.input, 'payload.input 必须存在（官方结构）');
   await provider.close();
   stub.close();
 });

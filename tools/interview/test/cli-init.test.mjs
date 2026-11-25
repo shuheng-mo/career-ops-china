@@ -67,11 +67,14 @@ test('init --root 不写仓库 interview-prep 任何内容', () => {
 test('doctor 健康 root → exit 0 且 JSON 含五项检查', () => {
   const t = tmpRoot();
   runCli(['init', '--root', t]);
-  const r = runCli(['doctor', '--root', t, '--json']);
+  // 不读真实 profile.yml（用户配置随时会切换 asr provider / export key）
+  const cfgFixture = join(t, 'profile-fixture.yml');
+  writeFileSync(cfgFixture, 'name: fixture\n');
+  const r = runCli(['doctor', '--root', t, '--config', cfgFixture, '--json']);
   assert.equal(r.code, 0, r.out);
   const j = JSON.parse(r.out);
   assert.equal(j.ok, true);
-  for (const key of ['node', 'yaml', 'ajv', 'writable', 'config']) {
+  for (const key of ['node', 'yaml', 'ajv', 'writable', 'config', 'asr']) {
     assert.ok(key in j.checks, `缺少检查项 ${key}`);
   }
   assert.ok(j.checks.node.ok);

@@ -142,6 +142,45 @@ test('[P4.2] finish-task 报文符合官方协议；task-finished 后 flush 返�
   stub.close();
 });
 
+test('[P4.R] close 后在途 result-generated → 忽略，不崩进程（emit 已置 null）', async () => {
+  const stub = await startProtocolStub({
+    emit: (ws, taskId) => {
+      setTimeout(() => {
+        ws.send(JSON.stringify({ header: { event: 'task-started', task_id: taskId } }));
+      }, 20);
+    },
+  });
+  const provider = new AliyunFunAsrProvider({ endpoint: stub.url, apiKey: 'sk-test', model: 'fun-asr-realtime' });
+  const events = [];
+  await provider.start({ sessionId: 's1', channel: 'mic', sampleRate: 16000 }, (e) => events.push(e));
+  await new Promise((r) => setTimeout(r, 80));
+  await provider.close(); // this.emit → null；真实事故：stop 后在途识别结果到达即崩
+  stub.sendToClient(JSON.stringify({
+    header: { event: 'result-generated', task_id: 'x' },
+    payload: { output: { sentence: { begin_time: 0, end_time: 500, text: '在途' } } },
+  }));
+  stub.sendToClient(JSON.stringify({
+    header: { event: 'task-failed', task_id: 'x', error_code: 1, error_message: 'late' },
+  }));
+  await new Promise((r) => setTimeout(r, 120));
+  assert.ok(!events.some((e) => e.text === '在途'), 'close 后事件应被忽略');
+  stub.close();
+});
+
+test('[P4.R] 服务端畸形报文（JSON null）→ 监听器自兜底，不外泄异常', async () => {
+  const stub = await startProtocolStub();
+  const provider = new AliyunFunAsrProvider({ endpoint: stub.url, apiKey: 'sk-test', model: 'fun-asr-realtime' });
+  const events = [];
+  await provider.start({ sessionId: 's1', channel: 'mic', sampleRate: 16000 }, (e) => events.push(e));
+  await new Promise((r) => setTimeout(r, 80));
+  stub.sendToClient('null'); // JSON.parse('null') → null，读 null.header 若无兜底直接杀进程
+  stub.sendToClient(JSON.stringify({ header: { event: 'result-generated' }, payload: { output: { sentence: { begin_time: 0, end_time: 500, text: 'ok' } } } }));
+  await new Promise((r) => setTimeout(r, 120));
+  assert.ok(events.some((e) => e.type === 'final' && e.text === 'ok'), '兜底后正常报文仍可处理');
+  await provider.close();
+  stub.close();
+});
+
 // ws 库的句柄在 keep-alive/半关连接下会挂住测试进程——全部测试完成后强制收尾
 import { after as _after } from 'node:test';
 _after(() => { setTimeout(() => process.exit(0), 300); });

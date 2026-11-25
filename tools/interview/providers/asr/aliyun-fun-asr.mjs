@@ -76,7 +76,14 @@ export class AliyunFunAsrProvider {
         ws.send(JSON.stringify(runTask));
         resolve();
       });
-      ws.on('message', (raw, isBinary) => this.onMessage(raw, isBinary));
+      ws.on('message', (raw, isBinary) => {
+        // 监听器自兜底：本监听器不经过 server 的 try/catch，任何异常外泄都会杀进程
+        try {
+          this.onMessage(raw, isBinary);
+        } catch (e) {
+          this.emit?.({ provider: this.id, streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'error', code: 'ON_MESSAGE_ERROR', message: `处理服务端消息失败：${e.message}` });
+        }
+      });
       ws.on('error', (e) => {
         clearTimeout(failTimer);
         this.emit?.({ provider: this.id, streamId: this.streamId, segmentId: '', revision: 0, channel: 'mic', type: 'error', code: 'WS_ERROR', message: e.message });
@@ -92,6 +99,9 @@ export class AliyunFunAsrProvider {
 
   onMessage(raw, isBinary) {
     if (isBinary) return; // 服务端不下发音频
+    // close 后（emit 已置 null）到达的在途消息一律忽略：stop → finish → close 后
+    // 服务端仍可能 flush 尾部 result-generated/task-failed，此时直调 emit 会崩掉 server 进程
+    if (this.closed || !this.emit) return;
     let msg;
     try { msg = JSON.parse(raw.toString()); } catch { return; }
     const event = msg.header?.event;

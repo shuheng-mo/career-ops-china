@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import http from 'node:http';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -105,3 +105,34 @@ test('[P4.5] WS：盲测模式 hint 不含块内容', async () => {
 // ws 库的句柄在 keep-alive/半关连接下会挂住测试进程——全部测试完成后强制收尾
 import { after as _after } from 'node:test';
 _after(() => { setTimeout(() => process.exit(0), 300); });
+
+test('[P4.5] WS：final 转写落盘 events.jsonl（完整文字记录）', async () => {
+  const t = preparedRoot();
+  const srv = await createStudioServer(t, { port: 0, token: 'tok' });
+  let providerRef = null;
+  srv.attachWs({ token: 'tok', root: t, asrConfig: { createProvider: () => { const p = createMockAsrProvider(); providerRef = p; return p; } } });
+  const port = srv.address().port;
+  const { ws, msgs } = await wsOpen(`ws://127.0.0.1:${port}/ws/capture?token=tok`);
+  ws.send(JSON.stringify({ type: 'start', mode: 'mock_assisted' }));
+  await wait(200);
+  await providerRef.pushScript([
+    { type: 'final', text: '你如何限制查询权限？', segmentId: 'seg1' },
+    { type: 'final', text: '说说你的第二个项目。', segmentId: 'seg2' },
+  ]);
+  await wait(400);
+  // 落盘：events.jsonl 应有两条 asr.final，payload.text 完整
+  const sessDir = join(t, 'sessions');
+  const sid = readdirSync(sessDir).find((d) => d.endsWith('.json') === false && d !== '.gitkeep' && /^[0-9a-f-]{36}$/.test(d));
+  const lines = readFileSync(join(sessDir, sid, 'events.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  const finals = lines.filter((e) => e.type === 'asr.final');
+  assert.equal(finals.length, 2, `应有 2 条 asr.final：${lines.map((l) => l.type).join(',')}`);
+  assert.equal(finals[0].payload.text, '你如何限制查询权限？');
+  assert.equal(finals[1].payload.text, '说说你的第二个项目。');
+  assert.equal(finals[0].payload.provider, 'mock');
+  // partial 不落盘（预览态不提交事实）
+  assert.ok(!lines.some((e) => e.type === 'asr.partial'), 'partial 不应落盘');
+  void msgs;
+  ws.close();
+  srv.closeAllConnections();
+  await new Promise((r) => srv.close(r));
+});

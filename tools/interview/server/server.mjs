@@ -182,6 +182,21 @@ export function attachWs(server, { token, root, asrConfig, createProvider: creat
           provider = createProvider(mode);
           await provider.start({ sessionId: ps.session_id, channel: 'mic', sampleRate: 16000 }, (event) => {
             send({ type: 'asr', event });
+            // final 转写落盘：完整文字记录（partial 是预览态不提交事实，spec §9）
+            if (event.type === 'final' && event.text) {
+              try {
+                appendEvent(root, ps.session_id, {
+                  type: 'asr.final',
+                  payload: {
+                    provider: event.provider, streamId: event.streamId, channel: event.channel,
+                    segmentId: event.segmentId, revision: event.revision,
+                    startMs: event.startMs, endMs: event.endMs, text: event.text,
+                  },
+                });
+              } catch (e) {
+                console.warn(`[studio] asr.final 落盘失败（session ${ps.session_id}）：${e.message}`);
+              }
+            }
             // gap 计入 capture（stop 后随 state 消息上报）
             if (event.type === 'gap') capture?.noteGap();
             const handle = fastPath.onAsrEvent(event);

@@ -180,7 +180,8 @@ export function attachWs(server, { token, root, asrConfig, createProvider: creat
           capture.transition(CAP_STATES.connecting);
           fastPath = new FastPath(root, { mode });
           provider = createProvider(mode);
-          await provider.start({ sessionId: ps.session_id, channel: 'mic', sampleRate: 16000 }, (event) => {
+          await provider.start({ sessionId: ps.session_id, channel: 'mic', sampleRate: 16000 }, async (event) => {
+           try {
             send({ type: 'asr', event });
             // final 转写落盘：完整文字记录（partial 是预览态不提交事实，spec §9）
             if (event.type === 'final' && event.text) {
@@ -199,7 +200,7 @@ export function attachWs(server, { token, root, asrConfig, createProvider: creat
             }
             // gap 计入 capture（stop 后随 state 消息上报）
             if (event.type === 'gap') capture?.noteGap();
-            const handle = fastPath.onAsrEvent(event);
+            const handle = await fastPath.onAsrEvent(event);
             if (handle) {
               // 实时提交落盘（question.detected 带 realtime 标记）
               try {
@@ -224,6 +225,9 @@ export function attachWs(server, { token, root, asrConfig, createProvider: creat
               }
               send(hint);
             }
+           } catch (e) {
+            send({ type: 'error', message: `实时链路处理失败：${e.message}` });
+           }
           });
           capture.transition(CAP_STATES.recording);
           send({ type: 'state', state: 'recording', mode });

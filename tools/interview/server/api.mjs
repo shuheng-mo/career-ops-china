@@ -11,6 +11,7 @@ import { ValidationError } from '../core/validation.mjs';
 import { readBlocks, readBlockById, writeBlock } from '../core/blocks.mjs';
 import { buildIndex, search } from '../retrieval/bm25.mjs';
 import { decide, autoThresholdFor } from '../retrieval/rank.mjs';
+import { runSearch } from './retrieval-service.mjs';
 
 import { computeStats } from '../core/stats.mjs';
 import { loadBootstrap, listSeeds } from '../core/bootstrap.mjs';
@@ -88,10 +89,8 @@ export function registerCoreApi(root) {
       if (path === '/api/search' && m === 'GET') {
         const q = url.searchParams.get('q') || '';
         if (!q.trim()) return json(res, 400, { ok: false, message: '缺少 q' });
-        const blocks = readBlocks(root).map((b) => ({ block_id: b.block_id, frontMatter: b.frontMatter, body: b.body }));
-        const index = buildIndex(blocks);
-        const results = search(index, q, { topK: 5 });
-        const decision = decide(q, results, { autoThreshold: autoThresholdFor(index) });
+        const { results, threshold } = await runSearch(root, q, { topK: 5 });
+        const decision = decide(q, results, { autoThreshold: threshold });
         let block = null;
         if (decision === 'hit') {
           const blk = readBlockById(root, results[0].blockId);
@@ -162,10 +161,8 @@ export function registerCoreApi(root) {
           appendEvent(root, sid, { type: 'question.detected', payload: { question_ref: ref, record_only: true } });
           return json(res, 200, { ok: true, question_ref: ref, record_only: true });
         }
-        const blocks = readBlocks(root).map((b) => ({ block_id: b.block_id, frontMatter: b.frontMatter, body: b.body }));
-        const index = buildIndex(blocks);
-        const results = search(index, q, { topK: 5 });
-        const decision = decide(q, results, { autoThreshold: autoThresholdFor(index) });
+        const { results, threshold } = await runSearch(root, q, { topK: 5 });
+        const decision = decide(q, results, { autoThreshold: threshold });
         const questionRef = `pq-${randomUUID().slice(0, 8)}`;
         const top = results[0];
         if (BLIND_MODES.includes(mode)) {

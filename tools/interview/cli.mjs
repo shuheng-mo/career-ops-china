@@ -274,6 +274,8 @@ const commands = {
       return fail(EXIT.VALIDATION, e.message);
     }
     import('./server/server.mjs').then(async ({ createStudioServer }) => {
+      const { configureRetrieval } = await import('./server/retrieval-service.mjs');
+      const retrieval = configureRetrieval(cfg.raw?.embedding);
       const srv = await createStudioServer(root, { port, token });
       srv.attachWs({ token, asrConfig: { createProvider: asr.createProvider } });
       const real = srv.address().port;
@@ -281,6 +283,7 @@ const commands = {
       console.log(`  http://127.0.0.1:${real}/?token=${token}`);
       console.log(`  token: ${token}`);
       console.log(`  ASR：${asr.detail}`);
+      console.log(`  检索：${retrieval.detail}`);
       console.log('  Ctrl-C 退出；数据目录：' + root);
     }).catch((e) => {
       fail(EXIT.UNEXPECTED, `启动失败：${e.message}`);

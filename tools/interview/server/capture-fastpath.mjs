@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { readBlocks, readBlockById } from '../core/blocks.mjs';
 import { buildIndex, search } from '../retrieval/bm25.mjs';
 import { decide, autoThresholdFor } from '../retrieval/rank.mjs';
+import { runSearch } from './retrieval-service.mjs';
 
 const QUESTION_RE = /[？?]|什么|怎么|为什么|多少|哪|有没有|是不是|讲一下|介绍一下|说说|了解/;
 const MIN_JUMP_INTERVAL_MS = 600;
@@ -38,8 +39,9 @@ export class FastPath {
     this.timers.clear();
   }
 
-  // 返回 null（未触发）或 {generationToken, ...}（稳定期后异步提交，此处返回提交句柄）
-  onAsrEvent(event) {
+  // 返回 null（未触发）或 {generationToken, ...}（稳定期后异步提交，此处返回提交句柄）。
+  // async：检索经 retrieval-service（embedding hybrid 配置时走远端，失败降级词法）
+  async onAsrEvent(event) {
     if (event.type !== 'final') return null; // partial 永不定位
     // 重连去重：同一 (streamId, segmentId, revision) 只提交一次
     const dedupKey = `${event.streamId}:${event.segmentId}:${event.revision}`;
@@ -58,9 +60,15 @@ export class FastPath {
     // 候选人回答不触发（mic=提问者通道；remote=候选人——单麦练习时提问来自 Studio 文本/脚本）
     if (event.channel === 'remote' || event.channel === 'candidate') return null;
     if (!QUESTION_RE.test(text)) return null;
+    // 用户锁定禁止自动跳：必须在返回 handle 之前拦截——server 收到 handle 即向浏览器发 hint，
+    // 只靠 scheduleSubmission 的稳定期检查挡不住（真实面试 e2e 实锤：lock 后 hint 照发）
+    if (this.locked) {
+      this.suppressed.push({ text: text.slice(0, 80), reason: 'locked' });
+      return null;
+    }
 
-    const results = search(this.index, text, { topK: 5 });
-    const decision = decide(text, results, { autoThreshold: autoThresholdFor(this.index) });
+    const { results, threshold } = await runSearch(this.root, text, { topK: 5 });
+    const decision = decide(text, results, { autoThreshold: threshold });
     const token = randomUUID();
     this.currentGenerationToken = token;
     // 盲测：handle 不携带 decision/块信息（泄漏即违规）

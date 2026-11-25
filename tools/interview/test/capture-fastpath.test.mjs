@@ -29,7 +29,7 @@ function finalEvent(text) {
 test('[P4.4] partial 不产生定位；final 问题 → hit 提交（带 generation token）', async () => {
   const t = preparedRoot();
   const fp = new FastPath(t, { mode: 'mock_assisted' });
-  const r1 = fp.onAsrEvent({ ...finalEvent('嗯那个好的'), channel: 'mic' });
+  const r1 = await fp.onAsrEvent({ ...finalEvent('嗯那个好的'), channel: 'mic' });
   assert.equal(r1, null, '非问题文本不触发');
   await fp.onAsrEvent({ ...finalEvent('你如何限制查询权限？'), channel: 'mic' });
   // 稳定期 2000ms 前不提交
@@ -44,7 +44,7 @@ test('[P4.4] partial 不产生定位；final 问题 → hit 提交（带 generat
 test('[P4.4] partial 事件永不触发定位', async () => {
   const t = preparedRoot();
   const fp = new FastPath(t, { mode: 'mock_assisted' });
-  const r = fp.onAsrEvent({ type: 'partial', provider: 'mock', streamId: 'st', segmentId: 's1', revision: 1, channel: 'mic', text: '怎样防止越权读取数据？' });
+  const r = await fp.onAsrEvent({ type: 'partial', provider: 'mock', streamId: 'st', segmentId: 's1', revision: 1, channel: 'mic', text: '怎样防止越权读取数据？' });
   assert.equal(r, null);
   await new Promise((r2) => setTimeout(r2, 2100));
   assert.equal(fp.lastSubmission, null);
@@ -71,10 +71,10 @@ test('[P4.4] 锁定后禁止自动跳', async () => {
 test('[P4.4] 新问题取消旧提交（generation token 过时丢弃）', async () => {
   const t = preparedRoot();
   const fp = new FastPath(t, { mode: 'mock_assisted' });
-  const p1 = fp.onAsrEvent(finalEvent('那你说说怎样防止越权读取数据？'));
+  const p1 = await fp.onAsrEvent(finalEvent('那你说说怎样防止越权读取数据？'));
   const token1 = p1.generationToken;
   // 立刻来一个新问题（同 streamId 连续）→ 旧 token 作废
-  const p2 = fp.onAsrEvent(finalEvent('那多模型路由是怎么设计的？'));
+  const p2 = await fp.onAsrEvent(finalEvent('那多模型路由是怎么设计的？'));
   assert.ok(token1 !== p2.generationToken);
   await new Promise((r) => setTimeout(r, 2100));
   // 旧 token 的延迟提交必须被丢弃（只留最新）
@@ -84,11 +84,11 @@ test('[P4.4] 新问题取消旧提交（generation token 过时丢弃）', async
 test('[P4.4] 同 block 600ms 防抖：连续追问不重复跳', async () => {
   const t = preparedRoot();
   const fp = new FastPath(t, { mode: 'mock_assisted' });
-  const a = fp.onAsrEvent(finalEvent('你如何限制查询权限？'));
+  const a = await fp.onAsrEvent(finalEvent('你如何限制查询权限？'));
   assert.ok(a);
   // 600ms 内再来一个同块问题（追问）
   const before = fp.lastSubmissionCount;
-  fp.onAsrEvent(finalEvent('那你具体怎么做的权限过滤呢？'));
+  await fp.onAsrEvent(finalEvent('那你具体怎么做的权限过滤呢？'));
   await new Promise((r) => setTimeout(r, 700));
   assert.equal(fp.lastSubmissionCount, before, '同块 600ms 内不重复提交');
 });
@@ -96,9 +96,29 @@ test('[P4.4] 同 block 600ms 防抖：连续追问不重复跳', async () => {
 test('[P4.4] 盲测模式不回传块内容', async () => {
   const t = preparedRoot();
   const fp = new FastPath(t, { mode: 'mock_blind' });
-  const r = fp.onAsrEvent(finalEvent('那你说说怎样防止越权读取数据？'));
+  const r = await fp.onAsrEvent(finalEvent('那你说说怎样防止越权读取数据？'));
   assert.ok(r);
   assert.equal(r.blind, true);
   assert.equal(r.block, undefined);
   assert.equal(r.decision, undefined, '盲测不回传 decision');
+});
+
+test('[F.lock] 锁定后 onAsrEvent 直接返回 null（hint 不外发，e2e 实锤路径）', async () => {
+  const { FastPath } = await import('../server/capture-fastpath.mjs');
+  const { writeBlock } = await import('../core/blocks.mjs');
+  const t = mkdtempSync(join(tmpdir(), 'ib-fp-'));
+  execFileSync('node', [join(HERE, '..', 'cli.mjs'), 'init', '--root', t], { encoding: 'utf8' });
+  writeBlock(t, {
+    schema_version: 1, block_id: 'demo.lock', revision: 1, kind: 'qa', status: 'active',
+    tracks: ['ai-app'], rounds: [], questions: ['你的搜索架构是什么？'], anchors: [],
+    fact_refs: [], claim_kind: 'knowledge', criticality: 'normal', pinned: false, source_refs: [],
+  }, '## 30 秒版\n混合检索。');
+  const fp = new FastPath(t, { mode: 'mock_assisted' });
+  const h1 = await fp.onAsrEvent({ type: 'final', text: '你的搜索架构是什么？', channel: 'mic', streamId: 's1', segmentId: '1', revision: 1 });
+  assert.ok(h1, '未锁定时应返回 handle');
+  fp.setLocked(true);
+  const h2 = await fp.onAsrEvent({ type: 'final', text: '讲一下你的项目背景？', channel: 'mic', streamId: 's1', segmentId: '2', revision: 1 });
+  assert.equal(h2, null, '锁定后 onAsrEvent 必须返回 null（server 据此不发 hint）');
+  assert.ok(fp.suppressed.some((s) => s.reason === 'locked'), '应记 suppressed');
+  fp.dispose();
 });

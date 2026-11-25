@@ -107,3 +107,33 @@ test('[S3.I5] Origin localhost 拼写与端口精确匹配；前缀仿冒 403', 
     assert.equal(rEvil.status, 403, '前缀仿冒 Origin 必须 403');
   });
 });
+
+test('[S3.6] 首访 query token 种 cookie；子资源凭 cookie 加载（浏览器真实链路）', async () => {
+  const t = preparedRoot();
+  await withServer(t, { port: 0, token: 'tok123' }, async (srv) => {
+    const port = srv.address().port;
+    const base = `http://127.0.0.1:${port}`;
+    // 1. 带 token 打开 HTML → 200 + 种 HttpOnly/SameSite=Strict cookie
+    const html = await fetchWithClose(`${base}/?token=tok123`);
+    assert.equal(html.status, 200);
+    const setCookie = html.headers['set-cookie'];
+    assert.ok(setCookie && setCookie.length > 0, '首访应种 Set-Cookie');
+    assert.match(setCookie[0], /studio-token=tok123/);
+    assert.match(setCookie[0], /HttpOnly/i);
+    assert.match(setCookie[0], /SameSite=Strict/i);
+    // 2. 子资源（script/link 标签不带 query token）凭 cookie → 200
+    const cookie = setCookie[0].split(';')[0];
+    const js = await fetchWithClose(`${base}/app.js`, { headers: { Cookie: cookie } });
+    assert.equal(js.status, 200, 'app.js 凭 cookie 应可加载');
+    assert.match(js.headers['content-type'] || '', /javascript/);
+    const css = await fetchWithClose(`${base}/style.css`, { headers: { Cookie: cookie } });
+    assert.equal(css.status, 200, 'style.css 凭 cookie 应可加载');
+    const worklet = await fetchWithClose(`${base}/worklet.js`, { headers: { Cookie: cookie } });
+    assert.equal(worklet.status, 200, 'worklet.js 凭 cookie 应可加载');
+    // 3. 错 cookie / 无凭据仍 401（子资源不公开豁免）
+    const bad = await fetchWithClose(`${base}/app.js`, { headers: { Cookie: 'studio-token=wrong' } });
+    assert.equal(bad.status, 401);
+    const none = await fetchWithClose(`${base}/app.js`);
+    assert.equal(none.status, 401);
+  });
+});

@@ -25,6 +25,15 @@ export function randomToken() {
   return randomBytes(16).toString('hex');
 }
 
+function cookieTokenOf(header) {
+  if (!header) return undefined;
+  for (const part of header.split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0 && part.slice(0, i).trim() === 'studio-token') return part.slice(i + 1).trim();
+  }
+  return undefined;
+}
+
 export function createStudioServer(root, { port = 8790, token = randomToken(), host = '127.0.0.1' } = {}) {
   const apiHandlers = [...apiExtensions.map((f) => f(root)), registerCoreApi(root)];
   let boundPort = port; // port=0 时由 listen 回调回填实际端口（Origin 精确匹配依赖它）
@@ -43,8 +52,8 @@ export function createStudioServer(root, { port = 8790, token = randomToken(), h
     if (origin && !allowedOrigins.includes(origin)) {
       return json(res, 403, { ok: false, message: '跨源请求已拒绝' });
     }
-    // token：查询参数或 X-Studio-Token 头
-    const supplied = url.searchParams.get('token') || req.headers['x-studio-token'];
+    // token：查询参数、X-Studio-Token 头或首访种的 cookie（浏览器加载子资源不带 query）
+    const supplied = url.searchParams.get('token') || req.headers['x-studio-token'] || cookieTokenOf(req.headers.cookie);
     if (supplied !== token) {
       return json(res, 401, { ok: false, message: 'token 缺失或不正确（以启动时终端打印的为准）' });
     }
@@ -61,12 +70,16 @@ export function createStudioServer(root, { port = 8790, token = randomToken(), h
     // 静态资源
     const r = serveStatic(APP_DIR, url.pathname);
     if (r.status === 200) {
-      res.writeHead(200, {
+      const headers = {
         'Content-Type': r.contentType,
         'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:",
         'X-Content-Type-Options': 'nosniff',
         'Cache-Control': 'no-store',
-      });
+      };
+      if (url.searchParams.get('token') === token) {
+        headers['Set-Cookie'] = `studio-token=${token}; Path=/; HttpOnly; SameSite=Strict`;
+      }
+      res.writeHead(200, headers);
       res.end(r.body);
     } else {
       res.writeHead(r.status, { 'Content-Type': 'text/plain; charset=utf-8' });

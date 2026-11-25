@@ -150,3 +150,13 @@ test('block_edit：apply 替换正文并 bump revision', () => {
   assert.equal(block.frontMatter.revision, 2);
   assert.match(block.body, /v2 更新内容/);
 });
+
+test('[P.R] alias_add 字段名写错（questions 而非 questions_add）→ propose 即拒', async () => {
+  const { proposePatch } = await import('../core/patches.mjs');
+  const t = mkdtempSync(join(tmpdir(), 'ib-pat-'));
+  execFileSync('node', [CLI, 'init', '--root', t], { encoding: 'utf8' });
+  assert.throws(
+    () => proposePatch(t, { type: 'alias_add', target_id: 'x.y', base_revision: 1, proposed_diff: { questions: ['q？'] }, reason: '字段名错误', source_refs: [{ artifact_id: 't' }] }),
+    (e) => e.message.includes('questions_add'),
+  );
+});

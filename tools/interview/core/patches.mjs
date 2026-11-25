@@ -46,6 +46,14 @@ export function proposePatch(root, input) {
   if (needsTarget && !input.target_id) {
     throw new ValidationError(`patch 类型 ${input.type} 需要 target_id`);
   }
+  // diff 结构在 propose 时校验：字段写错（如 alias_add 用 questions 而非 questions_add）
+  // 会被 apply 静默忽略，产生"applied 但内容没变"的空转 patch
+  if (input.type === 'alias_add' && !(Array.isArray(input.proposed_diff?.questions_add) && input.proposed_diff.questions_add.length)) {
+    throw new ValidationError('alias_add 的 proposed_diff 必须是 { "questions_add": [问句, …] }——写错字段名会在 apply 时被静默忽略');
+  }
+  if (input.type === 'block_edit' && !input.proposed_diff?.new_body) {
+    throw new ValidationError('block_edit 的 proposed_diff 必须含 new_body');
+  }
   // target 存在性 + base_revision/hash 校验（block_add/gap_add/fact_conflict 不要求块存在）
   if (needsTarget) {
     const block = readBlockById(root, input.target_id);

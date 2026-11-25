@@ -365,9 +365,14 @@ async function startVoicePractice() {
     return;
   }
   const audioCtx = new AudioContext();
+  if (audioCtx.state === 'suspended') await audioCtx.resume(); // 无 resume 则 worklet 永不运行 → 无转写
   await audioCtx.audioWorklet.addModule('worklet.js');
   const src = audioCtx.createMediaStreamSource(stream);
   const node = new AudioWorkletNode(audioCtx, 'pcm-16k');
+  // AudioWorkletNode 必须连 destination 才会被拉动；零增益防止采集音回放形成回声回路
+  const mute = audioCtx.createGain();
+  mute.gain.value = 0;
+  node.connect(mute).connect(audioCtx.destination);
   const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(`${wsProto}//${location.host}/ws/capture?token=${encodeURIComponent(sessionStorage.getItem(TOKEN_KEY) || '')}`);
   voiceState = { ws, audioCtx, stream, node, state: 'permission_pending' };
@@ -378,20 +383,33 @@ async function startVoicePractice() {
     <button id="vc-lock">🔒 锁定当前定位</button>
     <button id="vc-stop">⏹ 停止采集</button>
   `;
-  const setState = (s) => { voiceState.state = s; const el = view.querySelector('#vc-state'); if (el) el.innerHTML = `状态：<b>${esc(s)}</b>`; };
+  const setState = (s, extra = '') => {
+    if (voiceState) voiceState.state = s;
+    const el = view.querySelector('#vc-state');
+    if (el) el.innerHTML = `状态：<b>${esc(s)}</b>${extra}`;
+  };
   ws.addEventListener('open', () => {
     setState('connecting');
     ws.send(JSON.stringify({ type: 'start', mode }));
-    src.connect(node).connect(audioCtx.destination);
+    src.connect(node);
   });
   node.port.onmessage = (e) => {
-    if (e.data?.type === 'pcm' && ws.readyState === WebSocket.OPEN && voiceState.state === 'recording') {
-      ws.send(JSON.stringify({ type: 'pcm', data: e.data.data }));
+    if (e.data?.type === 'pcm' && ws.readyState === WebSocket.OPEN && voiceState?.state === 'recording') {
+      // worklet 传的是 ArrayBuffer（worklet 作用域无 btoa）；主线程编码 base64
+      const bytes = new Uint8Array(e.data.data);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      }
+      ws.send(JSON.stringify({ type: 'pcm', data: btoa(binary) }));
     }
   };
   ws.addEventListener('message', (e) => {
     const m = JSON.parse(e.data);
-    if (m.type === 'state') setState(m.state);
+    if (m.type === 'state') {
+      if (m.state) setState(m.state);
+      if (m.locked !== undefined) setState(voiceState?.state || 'recording', m.locked ? ' · 🔒 已锁定' : '');
+    }
     if (m.type === 'asr' && m.event?.text) {
       const live = view.querySelector('#vc-live');
       if (live) live.textContent = `${m.event.type === 'final' ? '🟢' : '⏳'} ${m.event.text}`;
@@ -399,16 +417,16 @@ async function startVoicePractice() {
     if (m.type === 'hint') renderVoiceHint(m);
     if (m.type === 'error') {
       const live = view.querySelector('#vc-live');
-      if (live) live.textContent = `✗ ${esc(m.message)}（降级为文本模式：${esc(m.message)}）`;
+      if (live) live.textContent = `✗ ${esc(m.message)}`;
     }
   });
   view.querySelector('#vc-lock').addEventListener('click', () => {
-    ws.send(JSON.stringify({ type: 'lock', locked: true }));
+    try { ws.send(JSON.stringify({ type: 'lock', locked: true })); } catch { setState('error', ' · 连接已断开'); }
   });
-  view.querySelector('#vc-stop').addEventListener('click', async () => {
-    ws.send(JSON.stringify({ type: 'stop' }));
-    stopVoice();
+  view.querySelector('#vc-stop').addEventListener('click', () => {
+    try { ws.send(JSON.stringify({ type: 'stop' })); } catch { /* 已断开也要走本地收尾 */ }
     setState('finished');
+    stopVoice();
   });
 
   function renderVoiceHint(hint) {

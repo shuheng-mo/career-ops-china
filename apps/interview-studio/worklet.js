@@ -36,13 +36,9 @@ class Pcm16kProcessor extends AudioWorkletProcessor {
         pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
       }
       this.seq += 1;
-      // Int16 → base64（分帧传输）
-      const bytes = new Uint8Array(pcm.buffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i += 0x8000) {
-        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-      }
-      this.port.postMessage({ type: 'pcm', seq: this.seq, sampleRate: this.targetRate, data: btoa(binary) });
+      // AudioWorkletGlobalScope 没有 btoa/base64——传 ArrayBuffer（结构化克隆 + transfer 零拷贝），
+      // 编码交给主线程
+      this.port.postMessage({ type: 'pcm', seq: this.seq, sampleRate: this.targetRate, data: pcm.buffer }, [pcm.buffer]);
     }
     return true;
   }

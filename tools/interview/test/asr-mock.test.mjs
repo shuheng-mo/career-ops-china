@@ -80,3 +80,19 @@ test('[P4.1] mock provider error 脚本 + close 幂等', async () => {
   await provider.close(); // 幂等
   await assert.rejects(() => provider.pushScript([{ type: 'final', text: 'x' }]), /已关闭/);
 });
+
+test('[M-drill] push 真实音频：每 3s 吐 partial+final 预设问题（UI 演练转写）', async () => {
+  const { createMockAsrProvider } = await import('../providers/asr/mock.mjs');
+  const provider = createMockAsrProvider();
+  const events = [];
+  await provider.start({ sessionId: 's1', channel: 'mic', sampleRate: 16000 }, (e) => events.push(e));
+  const frame3200 = Buffer.alloc(3200); // 100ms
+  for (let i = 0; i < 10; i++) await provider.push(frame3200); // 1s：无事件
+  assert.equal(events.length, 0, '1 秒内不应吐句');
+  for (let i = 0; i < 25; i++) await provider.push(frame3200); // 累计 3.5s
+  assert.ok(events.length >= 2, `3 秒后应有演练事件：${events.length}`);
+  assert.ok(events.some((e) => e.type === 'partial' && e.text.includes('？') || e.text.includes('?')), '应吐问题文本');
+  assert.ok(events.some((e) => e.type === 'final'), '应有 final');
+  await provider.close();
+  await provider.push(frame3200).catch(() => {}); // close 后 push 不炸
+});

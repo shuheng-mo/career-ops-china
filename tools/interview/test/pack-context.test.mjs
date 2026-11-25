@@ -126,3 +126,9 @@ test('[P2.R] trackerRows 注入（真实 tracker 路径，无需 fixtures 文件
   });
   assert.equal(ctx.application.company, '虚构公司');
 });
+
+test('[P2.R] report 日期 >30 天 → 过期降级 warning（真实面试 e2e 修复）', () => {
+  const t = tmpRoot({ reportDate: '2026-09-01' });
+  const ctx = gather(t, 901);
+  assert.ok((ctx.warnings || []).some((w) => /评估报告日期 2026-09-01.*过期/.test(w)), `应有过期提示：${ctx.warnings}`);
+});

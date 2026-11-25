@@ -62,6 +62,12 @@ export function gatherContext(root, { applicationNum, round, trackerFile, tracke
     const content = rf(reportPath, 'utf8');
     const meta = parseReportFrontMatter(content);
     report = { found: true, content, path: reportRel, date: meta.date, track: meta.track || row.track || null, url: meta.url };
+    // report 本身的日期也参与 freshness（真实面试 e2e：10-16 的报告 40 天无任何提示）
+    if (meta.date) {
+      const rf = freshnessOf(meta.date, new Date(now).getTime());
+      if (rf === 'stale') warnings.push(`评估报告日期 ${meta.date}（>7 天）：面试前建议再核对公司与岗位的最新动态`);
+      if (rf === 'expired') warnings.push(`评估报告日期 ${meta.date}（>30 天，已过期）：面试前必须重查，本包内容仅作历史参考`);
+    }
   } else if (reportRel) {
     warnings.push(`report 文件缺失：${reportRel}（公司资料降级为空，不编造）`);
   }

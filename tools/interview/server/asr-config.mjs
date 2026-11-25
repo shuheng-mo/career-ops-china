@@ -9,10 +9,14 @@ export const DEFAULT_ASR_KEY_ENV = 'CAREER_OPS_ASR_API_KEY';
 export function buildAsrProviderFactory(asrCfg = {}, env = process.env) {
   const provider = asrCfg.provider || 'none';
   if (provider === 'none' || provider === 'replay') {
+    const keyEnv = asrCfg.api_key_env || DEFAULT_ASR_KEY_ENV;
+    const hasKey = !!env[keyEnv];
     return {
       provider: 'mock',
       createProvider: () => createMockAsrProvider(),
-      detail: 'mock（未配置云端 ASR，语音模式仅演练，不产生费用）',
+      detail: hasKey
+        ? `mock（已检测到环境变量 ${keyEnv}，但 provider 仍为 none——切真实识别需把 interview.asr.provider 改为 aliyun-fun-asr 并填 endpoint）`
+        : 'mock（未配置云端 ASR，语音模式仅演练，不产生费用）',
     };
   }
   if (provider === 'aliyun-fun-asr') {

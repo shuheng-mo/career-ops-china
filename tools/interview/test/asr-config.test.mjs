@@ -12,6 +12,13 @@ test('[AC1] 未配置 / none / replay → mock 工厂（演练可用，不花钱
   }
 });
 
+test('[AC1b] provider none 但 key 环境变量已存在 → detail 明确提示还差 provider/endpoint', () => {
+  const f = buildAsrProviderFactory({ provider: 'none' }, { CAREER_OPS_ASR_API_KEY: 'sk-x' });
+  assert.equal(f.provider, 'mock');
+  assert.match(f.detail, /CAREER_OPS_ASR_API_KEY/);
+  assert.match(f.detail, /provider 仍为 none/);
+});
+
 test('[AC2] aliyun-fun-asr 完整配置 → AliyunFunAsrProvider 实例', () => {
   const f = buildAsrProviderFactory(
     { provider: 'aliyun-fun-asr', endpoint: 'wss://stub', model: 'fun-asr-realtime', vocabulary_id: 'vid' },

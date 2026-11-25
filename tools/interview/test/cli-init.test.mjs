@@ -104,8 +104,23 @@ test('doctor root 不可写 → exit 2 中文提示', () => {
 test('config 无 interview 段不算失败，报 default (disabled)', () => {
   const t = tmpRoot();
   runCli(['init', '--root', t]);
-  const r = runCli(['doctor', '--root', t, '--json']);
+  // 不读真实 profile.yml（用户配置随时会加 interview 段）——fixture 注入
+  const cfgFixture = join(t, 'profile-fixture.yml');
+  writeFileSync(cfgFixture, 'name: fixture\n');
+  const r = runCli(['doctor', '--root', t, '--config', cfgFixture, '--json']);
   const j = JSON.parse(r.out);
   assert.equal(j.ok, true);
   assert.match(j.checks.config.detail, /default \(disabled\)|默认/);
+});
+
+test('config 有 interview 段且 enabled → doctor 报 enabled 且 asr 检查存在', () => {
+  const t = tmpRoot();
+  runCli(['init', '--root', t]);
+  const cfgFixture = join(t, 'profile-fixture.yml');
+  writeFileSync(cfgFixture, 'interview:\n  enabled: true\n  asr:\n    provider: none\n');
+  const r = runCli(['doctor', '--root', t, '--config', cfgFixture, '--json']);
+  const j = JSON.parse(r.out);
+  assert.equal(j.ok, true);
+  assert.match(j.checks.config.detail, /enabled/);
+  assert.ok(j.checks.asr, 'doctor 应有 asr 检查项');
 });

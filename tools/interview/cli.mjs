@@ -255,7 +255,7 @@ const commands = {
     const { root } = resolveRoot(flags.root);
     const port = flags.port && flags.port !== true ? Number(flags.port) : 8790;
     const token = randomToken();
-    const cfg = readInterviewConfig();
+    const cfg = readInterviewConfig(flags.config);
     if (!cfg.ok) return fail(EXIT.VALIDATION, cfg.detail);
     let asr;
     try {
@@ -670,7 +670,7 @@ const commands = {
       } catch {}
     }
     checks.writable = { ok: writableOk, detail: writableOk ? root : (existsSync(root) ? `${root} 不可写` : `${root} 不存在（先运行 init）`) };
-    const cfg = readInterviewConfig();
+    const cfg = readInterviewConfig(flags.config);
     checks.config = cfg;
     try {
       const asrF = buildAsrProviderFactory(cfg.raw?.asr || {});

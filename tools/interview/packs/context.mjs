@@ -28,14 +28,13 @@ function parseReportFrontMatter(text) {
   return { date, track, url };
 }
 
-function loadTracker(trackerFile, applicationNum) {
+function loadTracker(trackerFile, applicationNum, trackerRows) {
   let rows;
-  if (trackerFile) {
+  if (trackerRows) {
+    rows = trackerRows; // 真实 tracker：cli 层经 tracker-backend listApplications() 异步拉取后注入（只读）
+  } else if (trackerFile) {
     rows = JSON.parse(rf(trackerFile, 'utf8'));
   } else {
-    // 真实 tracker（只读）：动态 import 避免 P1 测试触发 Bitable/md 读取
-    //（同步上下文里无法 await → 由 cli 层保证：未注入 fixtures 时 pack 命令才走到这里，
-    //  且 cli 以 --allow-real-tracker 显式开启）
     throw new ValidationError('未提供 --fixtures-tracker，且真实 tracker 读取需 --allow-real-tracker（P2 默认关闭）');
   }
   const row = rows.find((r) => Number(r.num) === Number(applicationNum));
@@ -45,14 +44,17 @@ function loadTracker(trackerFile, applicationNum) {
   return row;
 }
 
-export function gatherContext(root, { applicationNum, round, trackerFile, roundsFile, reportsDir, cvFile, now = new Date().toISOString() } = {}) {
+export function gatherContext(root, { applicationNum, round, trackerFile, trackerRows, roundsFile, reportsDir, cvFile, now = new Date().toISOString() } = {}) {
   const { paths } = resolveRoot(root);
   const warnings = [];
-  const row = loadTracker(trackerFile, applicationNum);
+  const row = loadTracker(trackerFile, applicationNum, trackerRows);
 
-  // report 文件：row.report 形如 local:../reports-fixture/xxx.md 或 reports/xxx.md
+  // report 文件：row.report 形如 local:../reports-fixture/xxx.md、reports/xxx.md，
+  // 或真实 tracker md 行的 markdown 链接 [461](reports/xxx.md)
   let report = { found: false, content: null, path: row.report || null, date: null, track: row.track || null, url: null };
-  const reportRel = String(row.report || '').replace(/^local:/, '');
+  const rawReport = String(row.report || '').replace(/^local:/, '');
+  const linkMatch = rawReport.match(/\]\(([^)]+)\)/);
+  const reportRel = linkMatch ? linkMatch[1] : rawReport;
   const reportPath = reportsDir
     ? join(reportsDir, reportRel.split('/').pop())
     : resolve(join(paths.root, '..'), reportRel);

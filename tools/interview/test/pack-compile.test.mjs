@@ -147,3 +147,21 @@ test('[P2.2] CLI pack build 端到端', () => {
   assert.equal(j.status, 'draft');
   assert.ok(existsSync(join(t, 'packs', j.pack_id, 'pack.json')));
 });
+
+test('[P2.R] 跨 track：非命中块仍进包，track 命中块排最前；report 支持 markdown 链接', () => {
+  const t = mkdtempSync(join(tmpdir(), 'ib-pk-'));
+  runCli(['init', '--root', t]);
+  writeBlock(t, blockFm('demo.other-track', { track: 'ai-data-bridge' }), '## 30 秒版\n命中 track 的块。\n');
+  writeBlock(t, blockFm('demo.cross-track', { track: 'ai-app' }), '## 30 秒版\n跨 track 通用块。\n');
+  const ctx = buildCtx(t, { track: 'ai-data-bridge' });
+  ctx.trackerFile = null;
+  ctx.trackerRows = [{
+    num: 901, date: new Date().toISOString().slice(0, 10), company: '虚构公司', role: 'AI工程师',
+    status: 'Applied', score: '4.2/5', pdf: '✅',
+    report: '[901](901-fakeco.md)', notes: '', track: 'ai-data-bridge', // 真实 md 链接格式
+  }];
+  const pack = compilePack(t, gatherContext(t, ctx), { prepMinutes: 60 });
+  assert.equal(pack.selected_blocks.length, 2, `跨 track 块应进包：${JSON.stringify(pack.selected_blocks.map((b) => b.id))}`);
+  assert.equal(pack.selected_blocks[0].id, 'demo.other-track', 'track 命中块应排第一');
+  assert.ok(pack.report_source, 'markdown 链接格式的 report 应被解析');
+});

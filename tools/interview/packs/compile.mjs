@@ -22,11 +22,15 @@ export function compilePack(root, ctx, { prepMinutes = 60, now = new Date().toIS
   const stats = computeStats(root, { track: track || undefined });
   const statByBlock = new Map(stats.blocks.map((b) => [b.block_id, b]));
 
-  const all = readBlocks(root).filter((b) => !track || (b.frontMatter.tracks || []).includes(track));
+  // track 命中优先（非排他）：跨 track 通用块（自我介绍/项目故事）仍进包，命中块排前
+  const all = readBlocks(root);
   const gated = all.filter((b) => statByBlock.get(b.block_id)?.needs_review);
   const candidates = all.filter((b) => !statByBlock.get(b.block_id)?.needs_review);
+  const trackHit = (b) => (track && (b.frontMatter.tracks || []).includes(track)) ? 1 : 0;
 
   candidates.sort((a, b) => {
+    const tha = trackHit(a), thb = trackHit(b);
+    if (thb !== tha) return thb - tha;
     const pa = statByBlock.get(a.block_id)?.priority ?? -1;
     const pb = statByBlock.get(b.block_id)?.priority ?? -1;
     if (pb !== pa) return pb - pa;
@@ -62,10 +66,15 @@ export function compilePack(root, ctx, { prepMinutes = 60, now = new Date().toIS
     reason: '存在未解决的事实冲突（复盘 needs_review）——练习前先核对口径，不得按本块内容作答',
   }));
 
-  // coverage_gaps：同 track 的 queued 种子按意图优先级取 ≤5
+  // coverage_gaps：同 track 的 queued 种子优先，跨 track 通用种子补足，取 ≤5
   const queued = listSeeds(root)
-    .filter((s) => s.status === 'queued' && (!track || s.tracks.includes(track)))
-    .sort((a, b) => a.intent_key.localeCompare(b.intent_key));
+    .filter((s) => s.status === 'queued')
+    .sort((a, b) => {
+      const ha = track && a.tracks.includes(track) ? 1 : 0;
+      const hb = track && b.tracks.includes(track) ? 1 : 0;
+      if (hb !== ha) return hb - ha;
+      return a.intent_key.localeCompare(b.intent_key);
+    });
   const coverageGaps = queued.slice(0, 5).map((s) => s.question);
 
   const kbRev = currentKbRevision(root);

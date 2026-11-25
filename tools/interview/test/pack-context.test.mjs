@@ -112,3 +112,17 @@ test('[P2.1] 前轮反馈 fixtures 注入', () => {
   assert.equal(ctx.rounds_feedback.length, 1);
   assert.equal(ctx.rounds_feedback[0].result, '通过');
 });
+
+test('[P2.R] trackerRows 注入（真实 tracker 路径，无需 fixtures 文件）', () => {
+  const t = tmpRoot({ reportDate: new Date().toISOString().slice(0, 10) });
+  const ctx = gatherContext(t, {
+    applicationNum: 901,
+    round: '一面',
+    trackerRows: [
+      { num: 901, date: '2026-01-01', company: '虚构公司', role: 'AI Agent工程师', status: 'Applied', score: '4.2/5', pdf: '✅', report: 'local:../reports-fixture/fake-report.md', notes: '', track: 'ai-app' },
+    ],
+    reportsDir: join(t, '..', 'reports-fixture'),
+    cvFile: join(t, 'fixtures-cv.md'),
+  });
+  assert.equal(ctx.application.company, '虚构公司');
+});

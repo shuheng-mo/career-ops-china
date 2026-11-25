@@ -186,18 +186,28 @@ const commands = {
     });
   },
 
-  pack({ flags, jsonFlag, fail, output, positional }) {
+  async pack({ flags, jsonFlag, fail, output, positional }) {
     const { root } = resolveRoot(flags.root);
     const sub = positional[0] || 'build';
     if (sub === 'build') {
       if (!flags.application || flags.application === true) {
-        return fail(EXIT.USAGE, '用法：pack build --application <num> [--round 一面] [--minutes 60] [--fixtures-tracker <json>] [--reports-dir <dir>] [--cv-file <md>]');
+        return fail(EXIT.USAGE, '用法：pack build --application <num> [--round 一面] [--minutes 60] [--fixtures-tracker <json>] [--reports-dir <dir>] [--cv-file <md>] [--allow-real-tracker]');
+      }
+      // 真实 tracker（只读）：--allow-real-tracker 显式授权后经统一后端拉取注入（core 保持同步）
+      let trackerRows;
+      if (!flags['fixtures-tracker'] || flags['fixtures-tracker'] === true) {
+        if (!flags['allow-real-tracker']) {
+          return fail(EXIT.VALIDATION, '未提供 --fixtures-tracker，且真实 tracker 读取需 --allow-real-tracker（P2 默认关闭）');
+        }
+        const { listApplications } = await import('../tracker-backend.mjs');
+        trackerRows = await listApplications();
       }
       try {
         const pack = compilePack(root, gatherContext(root, {
           applicationNum: Number(flags.application),
           round: flags.round && flags.round !== true ? flags.round : null,
           trackerFile: flags['fixtures-tracker'] && flags['fixtures-tracker'] !== true ? flags['fixtures-tracker'] : undefined,
+          trackerRows,
           roundsFile: flags['fixtures-rounds'] && flags['fixtures-rounds'] !== true ? flags['fixtures-rounds'] : undefined,
           reportsDir: flags['reports-dir'] && flags['reports-dir'] !== true ? flags['reports-dir'] : join(REPO_ROOT, 'reports'),
           cvFile: flags['cv-file'] && flags['cv-file'] !== true ? flags['cv-file'] : undefined,
@@ -737,7 +747,12 @@ function main() {
   if (!cmd) {
     fail(EXIT.USAGE, `未知命令「${command}」。可用命令：${Object.keys(commands).join(', ')}`);
   }
-  cmd({ flags, positional: positional.slice(1), jsonFlag, fail, output });
+  // async 命令（如 pack 的真实 tracker 拉取）的 rejection 统一走未预期错误出口
+  Promise.resolve(cmd({ flags, positional: positional.slice(1), jsonFlag, fail, output })).catch((e) => {
+    if (jsonFlag) console.log(JSON.stringify({ ok: false, message: e.message }, null, 2));
+    else console.error(`未预期错误：${e.message}`);
+    process.exit(EXIT.UNEXPECTED);
+  });
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {

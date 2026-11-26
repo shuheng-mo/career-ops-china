@@ -109,6 +109,14 @@ summary { cursor: pointer; }
 .vc-done p { margin: 4px 0; }
 .vc-done button { margin-top: 8px; }
 
+/* Replay 列表：标题化 + 检索/类型过滤 */
+.rp-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.rp-bar input { flex: 1; min-width: 240px; max-width: 460px; }
+
+/* 热度图：树节点上的频率徽标 */
+.hm-badge { font-size: 10.5px; font-weight: 700; }
+.hm-legend { font-size: 12.5px; }
+
 .kb-meta { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .kb-meta .muted { flex-basis: 100%; margin: 2px 0 0; }
 .kb-edit-btn { margin-left: auto; font-size: 12.5px; padding: 3px 10px; }

@@ -144,3 +144,28 @@ test('语音有转写的场 stop → 保留 + session.finished 落盘', async ()
 // ws 库的句柄在 keep-alive/半关连接下会挂住测试进程——全部测试完成后强制收尾
 import { after } from 'node:test';
 after(() => { setTimeout(() => process.exit(0), 300); });
+
+test('/api/sessions：人性化标题 + 事件计数 + 时间倒序', async () => {
+  const t = preparedRoot();
+  const real = createSession(t, { mode: 'historical_import', source: 'import', applicationNum: 461, round: '一面' });
+  const older = createSession(t, { mode: 'mock_assisted', source: 'studio-practice' });
+  const { appendEvent } = await import('../core/sessions.mjs');
+  appendEvent(t, older.session_id, { type: 'question.detected', payload: { question_text: '测试' } }); // 有内容才不会被空场过滤
+  // 让 older 时间戳更早：直接改写 created_at
+  const { writeFileSync } = await import('node:fs');
+  const sess = JSON.parse((await import('node:fs')).readFileSync(join(t, 'sessions', older.session_id, 'session.json'), 'utf8'));
+  sess.created_at = '2026-01-01T00:00:00.000Z';
+  writeFileSync(join(t, 'sessions', older.session_id, 'session.json'), JSON.stringify(sess));
+  const srv = await createStudioServer(t, { port: 0, token: 'tok' });
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  const r = await jsonFetch(base, '/api/sessions', { token: 'tok' });
+  const list = r.json.sessions;
+  assert.equal(list.length, 2);
+  const bySrc = Object.fromEntries(list.map((s) => [s.source, s]));
+  assert.match(bySrc.import.title, /真实面试 · #461 · 一面/, `标题应人性化：${bySrc.import.title}`);
+  assert.match(bySrc['studio-practice'].title, /文字练习 · 完整提词/, `练习标题：${bySrc['studio-practice'].title}`);
+  assert.ok(list[0].created_at >= list[1].created_at, '应按时间倒序');
+  assert.deepEqual(bySrc.import.counts, { q: 0, rate: 0, finals: 0, finished: false });
+  srv.closeAllConnections();
+  await new Promise((res) => srv.close(res));
+});

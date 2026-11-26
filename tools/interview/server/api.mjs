@@ -23,6 +23,33 @@ const BLIND_MODES = ['mock_blind'];
 const ANCHOR_MODES = ['mock_anchor'];
 const PRACTICE_MODES = ['mock_assisted', 'mock_anchor', 'mock_blind', 'real_record_only'];
 
+const MODE_LABEL = { mock_assisted: '完整提词', mock_anchor: '锚点', mock_blind: '盲测', real_record_only: '仅记录' };
+
+// 公司名从 tracker md 快照取（bitable 后端也有此快照）；读不到不阻塞，标题降级为 #num
+function trackerCompanyOf(root) {
+  const cache = {};
+  try {
+    const md = readFileSync(join(root, '..', 'data', 'applications.md'), 'utf8');
+    for (const line of md.split('\n')) {
+      const m = line.match(/^\|\s*(\d+)\s*\|[^|]*\|([^|]+)\|/);
+      if (m) cache[Number(m[1])] = m[2].trim();
+    }
+  } catch { /* 快照缺失不阻塞 */ }
+  return (num) => cache[num] || null;
+}
+
+function sessionTitle(s, companyOf) {
+  if (s.retrospective || s.source === 'historical_import') {
+    const app = s.application_num
+      ? `#${s.application_num}` + (companyOf(s.application_num) ? ` ${companyOf(s.application_num)}` : '')
+      : '';
+    return `真实面试${app ? ' · ' + app : ''}${s.round ? ' · ' + s.round : ''}`;
+  }
+  const channel = s.source === 'studio-voice' ? '语音' : '文字';
+  if (s.mode === 'real_record_only') return `真实面试记录（${channel}）`;
+  return `${channel}练习 · ${MODE_LABEL[s.mode] || s.mode}`;
+}
+
 // Practice 服务端内存态：question_ref → {blockId, revealed, candidateIds}（单用户本地，重启即清）
 const practiceState = new Map();
 const sessionMode = new Map();
@@ -246,13 +273,25 @@ export function registerCoreApi(root) {
 
       // ---------- replay ----------
       if (path === '/api/sessions' && m === 'GET') {
-        // 空场过滤：用户没点结束就关页的 studio 遗留场不含任何可复盘内容，不展示
+        // 空场过滤 + 人性化标题 + 事件计数，按时间倒序（此前按 uuid 排序≈随机）
+        const companyOf = trackerCompanyOf(root);
         const sessions = listSessions(root)
           .filter((s) => !['studio-practice', 'studio-voice'].includes(s.source) || sessionHasContent(root, s.session_id))
-          .map((s) => ({
-            session_id: s.session_id, mode: s.mode, round: s.round,
-            application_num: s.application_num, created_at: s.created_at, retrospective: s.retrospective || false,
-          }));
+          .map((s) => {
+            const events = readEvents(root, s.session_id);
+            const counts = {
+              q: events.filter((e) => e.type === 'question.detected').length,
+              rate: events.filter((e) => e.type === 'rating.self').length,
+              finals: events.filter((e) => e.type === 'asr.final').length,
+              finished: events.some((e) => e.type === 'session.finished'),
+            };
+            return {
+              session_id: s.session_id, mode: s.mode, round: s.round, source: s.source,
+              application_num: s.application_num, created_at: s.created_at, retrospective: s.retrospective || false,
+              title: sessionTitle(s, companyOf), counts,
+            };
+          })
+          .sort((a, b) => b.created_at.localeCompare(a.created_at));
         return json(res, 200, { ok: true, sessions });
       }
       mm = path.match(/^\/api\/sessions\/([^/]+)$/);

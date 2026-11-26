@@ -302,24 +302,98 @@ async function pagePacks() {
 }
 
 async function pageHeatmap() {
-  const stats = await api('/api/stats');
-  view.innerHTML = `
-    <h1>Heatmap</h1>
-    <p>${stats.real_samples === 0 ? '🚫 暂无真实面试样本（频率/掌握度为 null，预测信号不填补热度）' : `真实样本 ${stats.real_samples} 场`}</p>
-    ${stats.note ? `<p class="muted">${esc(stats.note)}</p>` : ''}
-    <table><thead><tr><th>块</th><th>频率</th><th>掌握</th><th>辅助掌握</th><th>优先级</th><th>状态</th></tr></thead>
-    <tbody>
-    ${stats.blocks.map((b) => `<tr>
-      <td>${esc(b.block_id)}</td>
-      <td>${pct(b.frequency)}</td>
-      <td>${pct(b.mastery)}</td>
-      <td>${pct(b.mastery_assisted)}</td>
-      <td>${pct(b.priority)}</td>
-      <td>${b.needs_review ? '⛔ 事实冲突' : b.low_sample ? '样本&lt;5' : ''}</td>
-    </tr>`).join('')}
-    </tbody></table>
+  const [statsRes, blocksRes, bootRes] = await Promise.all([api('/api/stats'), api('/api/blocks'), api('/api/bootstrap')]);
+  const statById = new Map((statsRes.blocks || []).map((b) => [b.block_id, b]));
+  const active = (blocksRes.blocks || []).filter((b) => b.status === 'active');
+  const tree = blockTree(active);
+  const openState = new Map(tree.projects.map((p) => [p.key, true]));
+  view.classList.add('view-wide');
+  const headNote = statsRes.real_samples === 0
+    ? '暂无真实面试样本——频率/掌握度为空，节点呈中性灰'
+    : `真实样本 ${statsRes.real_samples} 场`;
+  const noteHtml = statsRes.note ? `<p class="muted">${esc(statsRes.note)}</p>` : '';
+  const tpl = `
+    <div class="kb-topbar">
+      <span class="kb-root-name">热度图</span>
+      <span class="muted">${esc(headNote)}</span>
+      <span class="muted hm-legend">冷 🟩（0%）→ 热 🟥（100%），按真实面试命中频率</span>
+    </div>
+    ${noteHtml}
+    <div id="hm-graph" class="kb-graph"></div>
+    <div id="hm-detail" class="kb-empty"><p class="muted">点击叶子节点看该块的频率 / 掌握 / 优先级。</p></div>
   `;
-  function pct(v) { return v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`; }
+  view.innerHTML = tpl;
+
+  const hmColor = (f) => {
+    if (f == null) return null;
+    const h = Math.round(120 * (1 - Math.max(0, Math.min(1, f))));
+    return `hsl(${h}, 62%, 42%)`;
+  };
+  const pct = (v) => (v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`);
+
+  function renderGraphHm() {
+    const host = view.querySelector('#hm-graph');
+    const { nodes, edges, height } = layoutGraph(tree, openState);
+    const W = G.x2 + 240;
+    const svgEdges = edges.map((e) => `<path d="${graphSvgPath(e.from.x + (e.from.isRoot ? 60 : 96), e.from.y + G.rowH / 2, e.to.x + 6, e.to.y + G.rowH / 2)}" class="kg-edge" />`).join('');
+    const html = nodes.map((n) => {
+      if (n.isRoot) return '';
+      const st = n.block ? statById.get(n.block.block_id) : null;
+      const f = st ? st.frequency : null;
+      const color = hmColor(f);
+      const badgeText = f == null ? '—' : pct(f);
+      const styleAttr = color ? `border-color:${color};background:color-mix(in srgb, ${color} 22%, var(--card))` : '';
+      const badgeAttr = color ? ` style="color:${color}"` : '';
+      const cls = ['kg-node', n.isProj ? 'kg-proj' : 'kg-leaf', n.open === false ? 'kg-closed' : ''].filter(Boolean).join(' ');
+      const meta = n.period ? `<span class="kg-period">${esc(n.period)}</span>` : '';
+      return `<button class="${cls}" style="left:${n.x}px;top:${n.y}px;${styleAttr}" data-id="${esc(n.block?.block_id || '')}" data-key="${esc(n.key || '')}" data-proj="${n.isProj ? 1 : 0}" data-open="${n.open === false ? 0 : 1}">
+        ${esc(n.label)}${meta}<span class="hm-badge"${badgeAttr}>${esc(badgeText)}</span>${n.isProj ? `<span class="kg-arrow">${n.open === false ? '▸' : '▾'}</span>` : ''}
+      </button>`;
+    }).join('');
+    const rootY = nodes.find((n) => n.isRoot)?.y ?? 0;
+    const svgBlock = `<svg width="${W}" height="${height}" class="kg-svg">${svgEdges}</svg>`;
+    const rootNodeHtml = `<div class="kg-rootnode" style="top:${rootY}px">${esc(bootRes.candidateName || '我')}</div>`;
+    host.innerHTML = svgBlock + rootNodeHtml + html;
+    host.style.height = height + 6 + 'px';
+    host.querySelectorAll('.kg-node').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.proj === '1') {
+          openState.set(btn.dataset.key, openState.get(btn.dataset.key) === false);
+          renderGraphHm();
+          return;
+        }
+        if (btn.dataset.id) showDetail(btn.dataset.id, btn);
+      });
+    });
+  }
+
+  function showDetail(id, btn) {
+    view.querySelectorAll('.kg-node').forEach((b) => b.classList.toggle('selected', b === btn));
+    const st = statById.get(id) || {};
+    const blk = active.find((b) => b.block_id === id);
+    const samples = statsRes.real_samples === 0 ? '—' : `${st.hits || 0}/${statsRes.real_samples} 场`;
+    const status = st.needs_review ? '⛔ 事实冲突（掌握度不计）' : (st.low_sample ? '样本 <5' : '—');
+    const rows = [
+      ['命中频率', `${pct(st.frequency)}（${samples}）`],
+      ['掌握度', `${pct(st.mastery)}（独立样本 ${st.mastery_samples ?? 0}）`],
+      ['辅助掌握', pct(st.mastery_assisted)],
+      ['优先级', pct(st.priority)],
+      ['状态', status],
+    ].map((r) => `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join('');
+    const qs = (blk?.questions || []).map((q) => esc(q)).join('<br>') || '—';
+    const detail = `
+      <div class="kb-meta">
+        <b>${esc(id)}</b> · ${esc(blk?.kind || '')} · ${esc(blk?.criticality || '')}
+        <p class="muted">${qs}</p>
+      </div>
+      <table><tbody>${rows}</tbody></table>
+    `;
+    const host = view.querySelector('#hm-detail');
+    host.className = 'kb-work';
+    host.innerHTML = detail;
+  }
+
+  renderGraphHm();
 }
 
 let practice = null;
@@ -440,16 +514,72 @@ async function pagePractice() {
 
 async function pageReplay() {
   const { sessions } = await api('/api/sessions');
-  view.innerHTML = `
+  const fdate = (iso) => iso.slice(5, 10);
+  const kindOf = (s) => (s.retrospective || s.source === 'historical_import' || s.mode === 'real_record_only')
+    ? 'real'
+    : (s.source === 'studio-voice' ? 'voice' : 'text');
+  const bar = `
     <h1>Replay</h1>
-    ${sessions.length ? sessions.map((s) => `
-      <details><summary>${esc(s.session_id.slice(0, 8))}… ${esc(s.mode)} ${s.round ? '· ' + esc(s.round) : ''} ${s.retrospective ? '· 历史' : ''}</summary>
-        <div class="replay-body" data-sid="${esc(s.session_id)}"><p class="muted">加载中…</p></div>
-      </details>`).join('') : '<p class="muted">还没有 session。真实面试走 CLI import，模拟练习走练习页。</p>'}
+    <div class="rp-bar">
+      <input id="rp-q" placeholder="搜索标题 / 公司 / 模式 / ID…" autocomplete="off">
+      <select id="rp-kind">
+        <option value="">全部</option>
+        <option value="real">真实面试</option>
+        <option value="voice">语音练习</option>
+        <option value="text">文字练习</option>
+      </select>
+      <span class="muted" id="rp-count"></span>
+    </div>
+    <div id="rp-list"></div>
   `;
-  for (const s of sessions) {
+  view.innerHTML = bar;
+
+  function summaryLine(s) {
+    const c = s.counts || {};
+    const parts = [fdate(s.created_at)];
+    if (c.q) parts.push(`${c.q} 问`);
+    if (c.rate) parts.push(`${c.rate} 评分`);
+    if (c.finals) parts.push(`${c.finals} 句转写`);
+    if (!c.finished && String(s.source || '').startsWith('studio')) parts.push('未收尾');
+    parts.push(s.session_id.slice(0, 8));
+    return parts.join(' · ');
+  }
+
+  function renderList() {
+    const q = (view.querySelector('#rp-q').value || '').trim().toLowerCase();
+    const kind = view.querySelector('#rp-kind').value;
+    const rows = sessions.filter((s) => {
+      if (kind && kindOf(s) !== kind) return false;
+      if (!q) return true;
+      const hay = `${s.title} ${s.mode} ${s.round || ''} ${s.session_id}`.toLowerCase();
+      return hay.includes(q);
+    });
+    view.querySelector('#rp-count').textContent = `${rows.length}/${sessions.length} 条`;
+    const items = rows.map((s) => {
+      const metaHtml = `<span class="muted">${esc(summaryLine(s))}</span>`;
+      return `<details><summary><b>${esc(s.title)}</b>　${metaHtml}</summary>
+        <div class="replay-body" data-sid="${esc(s.session_id)}"><p class="muted">加载中…</p></div>
+      </details>`;
+    }).join('');
+    const host = view.querySelector('#rp-list');
+    host.innerHTML = rows.length ? items : '<p class="muted">没有匹配的记录。</p>';
+    for (const s of rows) loadBody(s);
+  }
+
+  const bodyCache = new Map();
+  function loadBody(s) {
+    if (bodyCache.has(s.session_id)) {
+      paintBody(s.session_id, bodyCache.get(s.session_id));
+      return;
+    }
     api(`/api/sessions/${s.session_id}`).then((d) => {
-      const el = view.querySelector(`.replay-body[data-sid="${s.session_id}"]`);
+      bodyCache.set(s.session_id, d);
+      paintBody(s.session_id, d);
+    }).catch(() => {});
+  }
+
+  function paintBody(sessionId, d) {
+      const el = view.querySelector(`.replay-body[data-sid="${sessionId}"]`);
       if (!el) return;
       const qs = d.questions || [];
       const rv = d.review;
@@ -489,7 +619,7 @@ async function pageReplay() {
       el.querySelectorAll('.confirm-align').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const q = qs.find((x) => x.question_id === btn.dataset.qid);
-          await api(`/api/sessions/${s.session_id}/confirm-alignment`, {
+          await api(`/api/sessions/${sessionId}/confirm-alignment`, {
             method: 'POST',
             body: { question_id: q.question_id, status: q.alignment?.status || 'unmatched', matched_block_ids: q.alignment?.matched_block_ids || [] },
           });
@@ -498,12 +628,19 @@ async function pageReplay() {
       });
       el.querySelectorAll('.role-fix').forEach((sel) => {
         sel.addEventListener('change', async () => {
-          await api(`/api/sessions/${s.session_id}/correct`, { method: 'POST', body: { utterance_id: sel.dataset.uid, role: sel.value } });
+          await api(`/api/sessions/${sessionId}/correct`, { method: 'POST', body: { utterance_id: sel.dataset.uid, role: sel.value } });
           sel.classList.add('saved');
         });
       });
-    }).catch(() => {});
   }
+
+  let debounce = null;
+  view.querySelector('#rp-q').addEventListener('input', () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(renderList, 180);
+  });
+  view.querySelector('#rp-kind').addEventListener('change', renderList);
+  renderList();
 }
 
 async function pageSettings() {

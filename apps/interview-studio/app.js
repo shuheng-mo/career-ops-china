@@ -338,16 +338,25 @@ async function pageHeatmap() {
     const svgEdges = edges.map((e) => `<path d="${graphSvgPath(e.from.x + (e.from.isRoot ? 60 : 96), e.from.y + G.rowH / 2, e.to.x + 6, e.to.y + G.rowH / 2)}" class="kg-edge" />`).join('');
     const html = nodes.map((n) => {
       if (n.isRoot) return '';
-      const st = n.block ? statById.get(n.block.block_id) : null;
-      const f = st ? st.frequency : null;
+      // 项目节点颜色 = 子节点按命中数（贡献率）加权平均；热力图只说话，不放装饰图标
+      let f = null;
+      if (n.isProj && n.children?.length) {
+        const kids = n.children.map((c) => statById.get(c.block.block_id)).filter(Boolean);
+        const totalHits = kids.reduce((s, k) => s + (k.hits || 0), 0);
+        if (totalHits > 0) f = kids.reduce((s, k) => s + (k.hits || 0) * (k.frequency || 0), 0) / totalHits;
+        else f = kids.some((k) => k.frequency != null) ? 0 : null;
+      } else if (n.block) {
+        f = statById.get(n.block.block_id)?.frequency ?? null;
+      }
       const color = hmColor(f);
       const badgeText = f == null ? '—' : pct(f);
       const styleAttr = color ? `border-color:${color};background:color-mix(in srgb, ${color} 22%, var(--card))` : '';
       const badgeAttr = color ? ` style="color:${color}"` : '';
       const cls = ['kg-node', n.isProj ? 'kg-proj' : 'kg-leaf', n.open === false ? 'kg-closed' : ''].filter(Boolean).join(' ');
       const meta = n.period ? `<span class="kg-period">${esc(n.period)}</span>` : '';
+      const label = n.label.replace(/^[📁👤]\s*/u, '');
       return `<button class="${cls}" style="left:${n.x}px;top:${n.y}px;${styleAttr}" data-id="${esc(n.block?.block_id || '')}" data-key="${esc(n.key || '')}" data-proj="${n.isProj ? 1 : 0}" data-open="${n.open === false ? 0 : 1}">
-        ${esc(n.label)}${meta}<span class="hm-badge"${badgeAttr}>${esc(badgeText)}</span>${n.isProj ? `<span class="kg-arrow">${n.open === false ? '▸' : '▾'}</span>` : ''}
+        ${esc(label)}${meta}<span class="hm-badge"${badgeAttr}>${esc(badgeText)}</span>${n.isProj ? `<span class="kg-arrow">${n.open === false ? '▸' : '▾'}</span>` : ''}
       </button>`;
     }).join('');
     const rootY = nodes.find((n) => n.isRoot)?.y ?? 0;

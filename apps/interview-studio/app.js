@@ -1,5 +1,6 @@
 // Interview Studio UI（P3）：hash 路由 + fetch 封装 + escapeHtml。
 // 安全：所有动态内容经 esc() 后再进 innerHTML；token 存 sessionStorage 不落盘。
+import { parseSections, sectionsToText, textToMd } from './md-editor.mjs';
 
 const TOKEN_KEY = 'studio-token';
 // 启动 URL 带 token（CLI 打印的地址）→ 存 sessionStorage 并清掉地址栏，缩短 token 暴露时间
@@ -86,7 +87,9 @@ async function pageKb() {
     <div id="search-result"></div>
     <h2>编辑块</h2>
     <select id="edit-select"><option value="">选择块…</option>${blocks.map((b) => `<option value="${esc(b.block_id)}">${esc(b.block_id)}</option>`).join('')}</select>
-    <textarea id="edit-body" rows="10" placeholder="选块后载入正文"></textarea>
+    <p class="muted">【小标题】分区；区内空行分组——单行组是段落，多行组每行一条要点。不用写任何语法。</p>
+    <textarea id="edit-body" rows="14" placeholder="选块后载入（纯文本，自动转换格式）"></textarea>
+    <details style="margin-top:4px"><summary class="muted">预览（保存后的效果）</summary><div id="edit-preview" class="md-body"></div></details>
     <button id="edit-save">保存（走 schema 校验，revision +1）</button>
     <div id="edit-msg"></div>
   `;
@@ -113,16 +116,23 @@ async function pageKb() {
   });
 
   const sel = view.querySelector('#edit-select');
+  const editBody = () => view.querySelector('#edit-body');
+  const refreshPreview = () => {
+    const pv = view.querySelector('#edit-preview');
+    if (pv) pv.innerHTML = mdRender(textToMd(editBody().value));
+  };
   sel.addEventListener('change', async () => {
     if (!sel.value) return;
     const b = await api(`/api/blocks/${encodeURIComponent(sel.value)}`);
-    view.querySelector('#edit-body').value = b.body;
+    editBody().value = sectionsToText(parseSections(b.body)); // md → 纯文本（语法隐藏）
+    refreshPreview();
   });
+  editBody().addEventListener('input', refreshPreview);
   view.querySelector('#edit-save').addEventListener('click', async () => {
     const msg = view.querySelector('#edit-msg');
     try {
       const b = await api(`/api/blocks/${encodeURIComponent(sel.value)}`);
-      const r = await api(`/api/blocks/${encodeURIComponent(sel.value)}`, { method: 'POST', body: { frontMatter: b.frontMatter, body: view.querySelector('#edit-body').value } });
+      const r = await api(`/api/blocks/${encodeURIComponent(sel.value)}`, { method: 'POST', body: { frontMatter: b.frontMatter, body: textToMd(editBody().value) } });
       msg.textContent = `✓ 已保存，revision ${r.revision}`;
     } catch (err) {
       msg.textContent = `✗ ${err.message}`;

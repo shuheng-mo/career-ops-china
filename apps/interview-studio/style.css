@@ -80,3 +80,18 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 .utt.saved { color: var(--accent); }
 details { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); }
 summary { cursor: pointer; }
+
+/* markdown 渲染区（mdRender 输出） */
+.md-body { margin: 6px 0 2px; }
+.md-body h2 { font-size: 16px; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 1px solid var(--border); }
+.md-body h3 { font-size: 14.5px; margin: 14px 0 5px; color: var(--accent); }
+.md-body h4 { font-size: 13.5px; margin: 10px 0 4px; }
+.md-body p { margin: 4px 0; }
+.md-body ul, .md-body ol { margin: 4px 0; padding-left: 22px; }
+.md-body li { margin: 3px 0; }
+.md-body blockquote {
+  margin: 6px 0; padding: 4px 12px; border-left: 3px solid var(--accent);
+  background: var(--bg); border-radius: 0 4px 4px 0; color: var(--fg);
+}
+.md-body hr { border: 0; border-top: 1px dashed var(--border); margin: 12px 0; }
+.md-body code { font-size: 12.5px; }

@@ -17,6 +17,33 @@ function esc(s) {
   }[c]));
 }
 
+// 极简 markdown 渲染（零依赖，CSP self）：先全文 HTML 转义再加格式标签——内容即使含 <script> 也只当文本
+function mdRender(src) {
+  const inline = (s) => esc(s)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  const out = [];
+  let list = null;
+  const closeList = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  for (const raw of String(src ?? '').split('\n')) {
+    const line = raw.trimEnd();
+    if (/^###\s+/.test(line)) { closeList(); out.push(`<h4>${inline(line.replace(/^###\s+/, ''))}</h4>`); continue; }
+    if (/^##\s+/.test(line)) { closeList(); out.push(`<h3>${inline(line.replace(/^##\s+/, ''))}</h3>`); continue; }
+    if (/^#\s+/.test(line)) { closeList(); out.push(`<h2>${inline(line.replace(/^#\s+/, ''))}</h2>`); continue; }
+    if (/^-{3,}$/.test(line.trim())) { closeList(); out.push('<hr>'); continue; }
+    if (/^>\s?/.test(line)) { closeList(); out.push(`<blockquote>${inline(line.replace(/^>\s?/, ''))}</blockquote>`); continue; }
+    const ul = line.match(/^[-*]\s+(.*)$/);
+    if (ul) { if (list !== 'ul') { closeList(); out.push('<ul>'); list = 'ul'; } out.push(`<li>${inline(ul[1])}</li>`); continue; }
+    const ol = line.match(/^\d+[.、)]\s+(.*)$/);
+    if (ol) { if (list !== 'ol') { closeList(); out.push('<ol>'); list = 'ol'; } out.push(`<li>${inline(ol[1])}</li>`); continue; }
+    if (!line.trim()) { closeList(); continue; }
+    closeList();
+    out.push(`<p>${inline(line)}</p>`);
+  }
+  closeList();
+  return out.join('');
+}
+
 async function api(path, { method = 'GET', body } = {}) {
   const res = await fetch(path, {
     method,
@@ -68,6 +95,7 @@ async function pageKb() {
     <details><summary>${esc(b.block_id)}（${esc(b.kind)} · ${esc(b.criticality)}）</summary>
       <p>${(b.questions || []).map((q) => esc(q)).join('<br>')}</p>
       <p class="muted">锚点：${(b.anchors || []).map((a) => esc('#' + a)).join(' ')}</p>
+      <div class="md-body">${mdRender(b.body)}</div>
     </details>`).join('');
 
   view.querySelector('#search-form').addEventListener('submit', async (e) => {
@@ -76,7 +104,7 @@ async function pageKb() {
     const r = await api(`/api/search?q=${encodeURIComponent(q)}`);
     const box = view.querySelector('#search-result');
     if (r.decision === 'hit') {
-      box.innerHTML = `<p>✅ 命中 <b>${esc(r.block.block_id)}</b></p><pre>${esc(r.block.body)}</pre>`;
+      box.innerHTML = `<p>✅ 命中 <b>${esc(r.block.block_id)}</b></p><div class="md-body">${mdRender(r.block.body)}</div>`;
     } else if (r.decision === 'candidates') {
       box.innerHTML = `<p>❓ 候选（不自动跳）：${r.results.map((x) => esc(x.blockId)).join('、')}</p>`;
     } else {
@@ -109,13 +137,13 @@ async function pagePacks() {
     <p class="muted">编译走 CLI：<code>npm run interview:kb -- pack build --application &lt;num&gt; --round &lt;轮次&gt;</code></p>
     ${packs.length ? packs.map((p) => `
       <details><summary>[${esc(p.status)}] ${esc(p.pack_id)} · #${esc(p.application_num)} · ${esc(p.round || '')}</summary>
-        <pre id="md-${esc(p.pack_id)}">加载中…</pre>
+        <div class="md-body" id="md-${esc(p.pack_id)}">加载中…</div>
       </details>`).join('') : '<p class="muted">还没有编译过面试包。</p>'}
   `;
   for (const p of packs) {
     api(`/api/packs/${p.pack_id}`).then((r) => {
       const el = view.querySelector(`#md-${CSS.escape(p.pack_id)}`);
-      if (el) el.textContent = r.markdown;
+      if (el) el.innerHTML = mdRender(r.markdown);
     }).catch(() => {});
   }
 }
@@ -210,7 +238,7 @@ async function pagePractice() {
     if (r.decision === 'hit') {
       const b = r.block;
       if (b.body !== undefined) {
-        resultBox.innerHTML = `<p>✅ 命中 <b>${esc(b.block_id)}</b></p><pre>${esc(b.body)}</pre>`;
+        resultBox.innerHTML = `<p>✅ 命中 <b>${esc(b.block_id)}</b></p><div class="md-body">${mdRender(b.body)}</div>`;
         actions.innerHTML = ratingHtml(r.question_ref, false);
         wireRating();
       } else {
@@ -247,7 +275,7 @@ async function pagePractice() {
   async function doReveal(ref) {
     const r = await api(`/api/practice/${practice.session_id}/reveal`, { method: 'POST', body: { question_ref: ref } });
     const resultBox = view.querySelector('#q-result');
-    resultBox.innerHTML = `<p>👁 已揭示（该次不进独立掌握度）：${r.block ? `<b>${esc(r.block.block_id)}</b>` : '无命中'}</p><pre>${esc(r.block ? r.block.body : r.candidates?.map((c) => esc(c)).join('、') || '（无候选）')}</pre>`;
+    resultBox.innerHTML = `<p>👁 已揭示（该次不进独立掌握度）：${r.block ? `<b>${esc(r.block.block_id)}</b>` : '无命中'}</p><div class="md-body">${r.block ? mdRender(r.block.body) : esc((r.candidates || []).join('、') || '（无候选）')}</div>`;
     view.querySelector('#q-actions').innerHTML = ratingHtml(ref, true);
     wireRating();
   }
@@ -267,8 +295,22 @@ async function pageReplay() {
       const el = view.querySelector(`.replay-body[data-sid="${s.session_id}"]`);
       if (!el) return;
       const qs = d.questions || [];
+      const rv = d.review;
+      const rvRows = Array.isArray(rv) ? rv : (rv?.questions || []);
+      const finals = (d.events || []).filter((e) => e.type === 'asr.final');
       el.innerHTML = `
-        <p class="muted">utterances ${d.utterances.length} · 问题 ${qs.length} · ${d.review ? '已复盘' : '未复盘'}</p>
+        <p class="muted">utterances ${d.utterances.length} · 问题 ${qs.length} · ${rvRows.length ? '已复盘' : '未复盘'}</p>
+        ${finals.length ? `<h3>转写记录（asr.final ${finals.length} 句）</h3>
+          <div class="md-body">${finals.map((e) => `<p>🟢 ${esc(e.payload?.text || '')}</p>`).join('')}</div>` : ''}
+        ${rvRows.length ? `<h3>复盘摘要</h3>
+          <table><thead><tr><th>问题</th><th>块</th><th>五维分</th><th>冲突</th></tr></thead><tbody>
+          ${rvRows.map((r) => `<tr>
+            <td>${esc((qs.find((q) => q.question_id === r.question_id)?.text || r.question_id).slice(0, 40))}</td>
+            <td>${esc(r.block_id || '—')}</td>
+            <td>${esc(Object.entries(r.dimensions || {}).map(([k, v]) => `${k[0].toUpperCase()}${v.score}`).join(' '))}</td>
+            <td>${(r.fact_conflicts || []).length ? '⛔' : ''}</td>
+          </tr>`).join('')}
+        </tbody></table>` : ''}
         <h3>问题对齐（人工确认）</h3>
         ${qs.length ? `<table><thead><tr><th>问题</th><th>状态</th><th>块</th><th>确认</th></tr></thead><tbody>
           ${qs.map((q) => `<tr>
@@ -437,7 +479,7 @@ async function startVoicePractice() {
       return;
     }
     if (hint.decision === 'hit' && hint.block) {
-      box.innerHTML = `<p>✅ 命中 <b>${esc(hint.block.block_id)}</b></p><pre>${esc(hint.block.body)}</pre>`;
+      box.innerHTML = `<p>✅ 命中 <b>${esc(hint.block.block_id)}</b></p><div class="md-body">${mdRender(hint.block.body)}</div>`;
     } else if (hint.decision === 'candidates') {
       box.innerHTML = `<p>❓ 候选：${(hint.candidates || []).map((c) => esc(c.blockId)).join('、')}</p>`;
     } else {

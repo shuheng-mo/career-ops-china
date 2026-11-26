@@ -98,6 +98,9 @@ pids/
 interview-prep/*
 config/track-backfill.json
 
+# HANDOFF 交接文档（含面试进度等个人信息；.example 模板无 PII 可入库）
+HANDOFF.md
+
 # follow-up task state (company names)
 data/followup-tasks.json
 

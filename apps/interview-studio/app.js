@@ -144,19 +144,32 @@ function graphSvgPath(x1, y1, x2, y2) {
   return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
 }
 
+// 热度着色：绿(0%)→红(100%)，无真实样本为中性（知识库树与统计共用）
+function hmColor(f) {
+  if (f == null) return null;
+  const h = Math.round(120 * (1 - Math.max(0, Math.min(1, f))));
+  return `hsl(${h}, 62%, 42%)`;
+}
+const pctStr = (v) => (v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`);
+
 async function pageKb() {
-  const [blocksRes, bootRes] = await Promise.all([api('/api/blocks'), api('/api/bootstrap')]);
+  const [blocksRes, bootRes, statsRes] = await Promise.all([api('/api/blocks'), api('/api/bootstrap'), api('/api/stats')]);
   const { blocks } = blocksRes;
   const active = blocks.filter((b) => b.status === 'active');
   const drafts = blocks.filter((b) => b.status !== 'active');
   const seeds = (bootRes.seeds || []).filter((s) => s.status === 'queued');
+  const statById = new Map((statsRes.blocks || []).map((b) => [b.block_id, b]));
   const tree = blockTree(active);
   const openState = new Map(tree.projects.map((p) => [p.key, true]));
   view.classList.add('view-wide');
   const rootName = bootRes.candidateName || '我';
+  const heatNote = statsRes.real_samples === 0
+    ? '暂无真实面试样本（节点灰色 = 无热度数据）'
+    : `真实样本 ${statsRes.real_samples} 场 · 冷 🟩 → 热 🟥`;
   view.innerHTML = `
     <div class="kb-topbar">
       <span class="kb-root-name">${esc(bootRes.candidateName || '我的知识库')}</span>
+      <span class="muted hm-legend">${esc(heatNote)}</span>
       <button id="kg-expand" class="kb-mini">全部展开</button>
       <button id="kg-collapse" class="kb-mini">全部折叠</button>
       <form id="search-form" class="kb-search"><input id="search-q" placeholder="输入面试问题，回车定位…" autocomplete="off"><button>定位</button></form>
@@ -175,10 +188,24 @@ async function pageKb() {
     const svgEdges = edges.map((e) => `<path d="${graphSvgPath(e.from.x + (e.from.isRoot ? 60 : 96), e.from.y + G.rowH / 2, e.to.x + 6, e.to.y + G.rowH / 2)}" class="kg-edge" />`).join('');
     const html = nodes.map((n) => {
       if (n.isRoot) return '';
+      // 热度：叶子用自身频率；项目节点 = 子节点按命中数（贡献率）加权平均
+      let f = null;
+      if (n.isProj && n.children?.length) {
+        const kids = n.children.map((c) => statById.get(c.block.block_id)).filter(Boolean);
+        const totalHits = kids.reduce((s, k) => s + (k.hits || 0), 0);
+        if (totalHits > 0) f = kids.reduce((s, k) => s + (k.hits || 0) * (k.frequency || 0), 0) / totalHits;
+        else f = kids.some((k) => k.frequency != null) ? 0 : null;
+      } else if (n.block) {
+        f = statById.get(n.block.block_id)?.frequency ?? null;
+      }
+      const color = hmColor(f);
+      const badgeText = f == null ? '' : pctStr(f);
+      const styleAttr = color ? `border-color:${color};background:color-mix(in srgb, ${color} 22%, var(--card))` : '';
+      const badgeHtml = badgeText ? `<span class="hm-badge"${color ? ` style="color:${color}"` : ''}>${esc(badgeText)}</span>` : '';
       const cls = ['kg-node', n.isProj ? 'kg-proj' : 'kg-leaf', n.open === false ? 'kg-closed' : ''].filter(Boolean).join(' ');
       const meta = n.period ? `<span class="kg-period">${esc(n.period)}</span>` : '';
-      return `<button class="${cls}" style="left:${n.x}px;top:${n.y}px" data-id="${esc(n.block?.block_id || '')}" data-key="${esc(n.key || '')}" data-proj="${n.isProj ? 1 : 0}" data-open="${n.open === false ? 0 : 1}">
-        ${esc(n.label)}${meta}${n.isProj ? `<span class="kg-arrow">${n.open === false ? '▸' : '▾'}</span>` : ''}
+      return `<button class="${cls}" style="left:${n.x}px;top:${n.y}px;${styleAttr}" data-id="${esc(n.block?.block_id || '')}" data-key="${esc(n.key || '')}" data-proj="${n.isProj ? 1 : 0}" data-open="${n.open === false ? 0 : 1}">
+        ${esc(n.label)}${meta}${badgeHtml}${n.isProj ? `<span class="kg-arrow">${n.open === false ? '▸' : '▾'}</span>` : ''}
       </button>`;
     }).join('');
     const rootYpx = nodes.find((n) => n.isRoot)?.y ?? 0;
@@ -208,11 +235,15 @@ async function pageKb() {
     const b = await api(`/api/blocks/${encodeURIComponent(id)}`);
     const work = view.querySelector('#kb-work');
     work.className = 'kb-work';
+    const st = statById.get(id) || {};
+    const samples = statsRes.real_samples === 0 ? '无真实样本' : `${st.hits || 0}/${statsRes.real_samples} 场`;
+    const heatLine = `热度 ${pctStr(st.frequency)}（${samples}）· 掌握 ${pctStr(st.mastery)} · 辅助 ${pctStr(st.mastery_assisted)} · 优先级 ${pctStr(st.priority)}${st.needs_review ? ' · ⛔ 事实冲突' : ''}`;
     work.innerHTML = `
       <div class="kb-meta">
         <b>${esc(b.block_id)}</b> · ${esc(b.kind)} · ${esc(b.criticality)}
         <button id="kb-edit-toggle" class="kb-edit-btn">✏️ 编辑</button>
         <p class="muted">${(b.questions || []).map((q) => esc(q)).join('<br>')}　锚点：${(b.anchors || []).map((a) => esc('#' + a)).join(' ')}</p>
+        <p class="muted">🔥 ${esc(heatLine)}</p>
       </div>
       <div class="kb-cols kb-preview-only">
         <div class="kb-pane"><div id="edit-preview" class="md-body"></div></div>
@@ -300,112 +331,6 @@ async function pagePacks() {
     }).catch(() => {});
   }
 }
-
-async function pageHeatmap() {
-  const [statsRes, blocksRes, bootRes] = await Promise.all([api('/api/stats'), api('/api/blocks'), api('/api/bootstrap')]);
-  const statById = new Map((statsRes.blocks || []).map((b) => [b.block_id, b]));
-  const active = (blocksRes.blocks || []).filter((b) => b.status === 'active');
-  const tree = blockTree(active);
-  const openState = new Map(tree.projects.map((p) => [p.key, true]));
-  view.classList.add('view-wide');
-  const headNote = statsRes.real_samples === 0
-    ? '暂无真实面试样本——频率/掌握度为空，节点呈中性灰'
-    : `真实样本 ${statsRes.real_samples} 场`;
-  const noteHtml = statsRes.note ? `<p class="muted">${esc(statsRes.note)}</p>` : '';
-  const tpl = `
-    <div class="kb-topbar">
-      <span class="kb-root-name">热度图</span>
-      <span class="muted">${esc(headNote)}</span>
-      <span class="muted hm-legend">冷 🟩（0%）→ 热 🟥（100%），按真实面试命中频率</span>
-    </div>
-    ${noteHtml}
-    <div id="hm-graph" class="kb-graph"></div>
-    <div id="hm-detail" class="kb-empty"><p class="muted">点击叶子节点看该块的频率 / 掌握 / 优先级。</p></div>
-  `;
-  view.innerHTML = tpl;
-
-  const hmColor = (f) => {
-    if (f == null) return null;
-    const h = Math.round(120 * (1 - Math.max(0, Math.min(1, f))));
-    return `hsl(${h}, 62%, 42%)`;
-  };
-  const pct = (v) => (v === null || v === undefined ? '—' : `${Math.round(v * 100)}%`);
-
-  function renderGraphHm() {
-    const host = view.querySelector('#hm-graph');
-    const { nodes, edges, height } = layoutGraph(tree, openState);
-    const W = G.x2 + 240;
-    const svgEdges = edges.map((e) => `<path d="${graphSvgPath(e.from.x + (e.from.isRoot ? 60 : 96), e.from.y + G.rowH / 2, e.to.x + 6, e.to.y + G.rowH / 2)}" class="kg-edge" />`).join('');
-    const html = nodes.map((n) => {
-      if (n.isRoot) return '';
-      // 项目节点颜色 = 子节点按命中数（贡献率）加权平均；热力图只说话，不放装饰图标
-      let f = null;
-      if (n.isProj && n.children?.length) {
-        const kids = n.children.map((c) => statById.get(c.block.block_id)).filter(Boolean);
-        const totalHits = kids.reduce((s, k) => s + (k.hits || 0), 0);
-        if (totalHits > 0) f = kids.reduce((s, k) => s + (k.hits || 0) * (k.frequency || 0), 0) / totalHits;
-        else f = kids.some((k) => k.frequency != null) ? 0 : null;
-      } else if (n.block) {
-        f = statById.get(n.block.block_id)?.frequency ?? null;
-      }
-      const color = hmColor(f);
-      const badgeText = f == null ? '—' : pct(f);
-      const styleAttr = color ? `border-color:${color};background:color-mix(in srgb, ${color} 22%, var(--card))` : '';
-      const badgeAttr = color ? ` style="color:${color}"` : '';
-      const cls = ['kg-node', n.isProj ? 'kg-proj' : 'kg-leaf', n.open === false ? 'kg-closed' : ''].filter(Boolean).join(' ');
-      const meta = n.period ? `<span class="kg-period">${esc(n.period)}</span>` : '';
-      const label = n.label.replace(/^[📁👤]\s*/u, '');
-      return `<button class="${cls}" style="left:${n.x}px;top:${n.y}px;${styleAttr}" data-id="${esc(n.block?.block_id || '')}" data-key="${esc(n.key || '')}" data-proj="${n.isProj ? 1 : 0}" data-open="${n.open === false ? 0 : 1}">
-        ${esc(label)}${meta}<span class="hm-badge"${badgeAttr}>${esc(badgeText)}</span>${n.isProj ? `<span class="kg-arrow">${n.open === false ? '▸' : '▾'}</span>` : ''}
-      </button>`;
-    }).join('');
-    const rootY = nodes.find((n) => n.isRoot)?.y ?? 0;
-    const svgBlock = `<svg width="${W}" height="${height}" class="kg-svg">${svgEdges}</svg>`;
-    const rootNodeHtml = `<div class="kg-rootnode" style="top:${rootY}px">${esc(bootRes.candidateName || '我')}</div>`;
-    host.innerHTML = svgBlock + rootNodeHtml + html;
-    host.style.height = height + 6 + 'px';
-    host.querySelectorAll('.kg-node').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (btn.dataset.proj === '1') {
-          openState.set(btn.dataset.key, openState.get(btn.dataset.key) === false);
-          renderGraphHm();
-          return;
-        }
-        if (btn.dataset.id) showDetail(btn.dataset.id, btn);
-      });
-    });
-  }
-
-  function showDetail(id, btn) {
-    view.querySelectorAll('.kg-node').forEach((b) => b.classList.toggle('selected', b === btn));
-    const st = statById.get(id) || {};
-    const blk = active.find((b) => b.block_id === id);
-    const samples = statsRes.real_samples === 0 ? '—' : `${st.hits || 0}/${statsRes.real_samples} 场`;
-    const status = st.needs_review ? '⛔ 事实冲突（掌握度不计）' : (st.low_sample ? '样本 <5' : '—');
-    const rows = [
-      ['命中频率', `${pct(st.frequency)}（${samples}）`],
-      ['掌握度', `${pct(st.mastery)}（独立样本 ${st.mastery_samples ?? 0}）`],
-      ['辅助掌握', pct(st.mastery_assisted)],
-      ['优先级', pct(st.priority)],
-      ['状态', status],
-    ].map((r) => `<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td></tr>`).join('');
-    const qs = (blk?.questions || []).map((q) => esc(q)).join('<br>') || '—';
-    const detail = `
-      <div class="kb-meta">
-        <b>${esc(id)}</b> · ${esc(blk?.kind || '')} · ${esc(blk?.criticality || '')}
-        <p class="muted">${qs}</p>
-      </div>
-      <table><tbody>${rows}</tbody></table>
-    `;
-    const host = view.querySelector('#hm-detail');
-    host.className = 'kb-work';
-    host.innerHTML = detail;
-  }
-
-  renderGraphHm();
-}
-
-let practice = null;
 
 async function pagePractice() {
   view.innerHTML = `
@@ -674,7 +599,6 @@ async function pageSettings() {
 const routes = {
   '/kb': pageKb,
   '/packs': pagePacks,
-  '/heatmap': pageHeatmap,
   '/practice': pagePractice,
   '/replay': pageReplay,
   '/settings': pageSettings,

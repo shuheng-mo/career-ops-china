@@ -1,0 +1,35 @@
+# HANDOFF
+
+## Goal
+
+当前任务是什么。
+
+## Completed
+
+- 已完成 A
+- 已完成 B
+
+## Current State
+
+目前停在什么位置。
+
+## Remaining
+
+- [ ] C
+- [ ] D
+
+## Key Decisions
+
+- 为什么采用方案 X
+- 哪些方案已经排除
+
+## Files Changed
+
+- src/a.py
+- tests/test_a.py
+
+## Verification
+
+- pytest xxx: PASS
+- lint: PASS
+- 尚未执行：integration test

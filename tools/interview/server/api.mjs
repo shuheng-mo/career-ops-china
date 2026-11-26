@@ -90,7 +90,7 @@ export function registerCoreApi(root) {
         const q = url.searchParams.get('q') || '';
         if (!q.trim()) return json(res, 400, { ok: false, message: '缺少 q' });
         const { results, threshold } = await runSearch(root, q, { topK: 5 });
-        const decision = decide(q, results, { autoThreshold: threshold });
+        const decision = decide(q, results, { autoThreshold: threshold, mode });
         let block = null;
         if (decision === 'hit') {
           const blk = readBlockById(root, results[0].blockId);
@@ -162,7 +162,7 @@ export function registerCoreApi(root) {
           return json(res, 200, { ok: true, question_ref: ref, record_only: true });
         }
         const { results, threshold } = await runSearch(root, q, { topK: 5 });
-        const decision = decide(q, results, { autoThreshold: threshold });
+        const decision = decide(q, results, { autoThreshold: threshold, mode });
         const questionRef = `pq-${randomUUID().slice(0, 8)}`;
         const top = results[0];
         if (BLIND_MODES.includes(mode)) {

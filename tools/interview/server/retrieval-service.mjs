@@ -46,11 +46,11 @@ export async function runSearch(root, query, { topK = 5 } = {}) {
     try {
       const hybridIndex = await buildHybridIndex(blocks, { provider: r.provider });
       const results = await hybridSearch(hybridIndex, query, { provider: r.provider, topK });
-      return { results, threshold };
+      return { results, threshold, mode: 'hybrid' };
     } catch (e) {
       r.lastError = e.message; // 降级不静默：诊断时可查
-      return { results: search(lexicalIndex, query, { topK }), threshold, degraded: true };
+      return { results: search(lexicalIndex, query, { topK }), threshold, mode: 'lexical', degraded: true };
     }
   }
-  return { results: search(lexicalIndex, query, { topK }), threshold };
+  return { results: search(lexicalIndex, query, { topK }), threshold, mode: 'lexical' };
 }

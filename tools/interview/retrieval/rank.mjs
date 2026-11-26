@@ -27,7 +27,7 @@ function looseMatches(query, results) {
   });
 }
 
-export function decide(query, results, { autoThreshold = 1.5 } = {}) {
+export function decide(query, results, { autoThreshold = 1.5, mode = 'lexical' } = {}) {
   if (!results.length) return 'unknown';
   const normQuery = exactKey(query);
   const exactMatches = results.filter((r) => r.matchedQuestion === normQuery);
@@ -36,6 +36,16 @@ export function decide(query, results, { autoThreshold = 1.5 } = {}) {
   const loose = looseMatches(query, results);
   if (loose.length === 1 && loose[0] === results[0]) return 'hit'; // 唯一且与 BM25 top1 一致（防错位）
   if (loose.length > 1) return 'candidates';
+  // hybrid：语义相似度判定（RRF 融合分是 ~0.016 量纲，与 BM25 阈值不可比——
+  // 曾因此把所有 hybrid 结果误判 unknown，语义检索形同虚设）。
+  // 同义改写（如「做一个简单的自我介绍」vs「请做一个 1 分钟自我介绍」）cosine 通常 0.6+，
+  // 不相关内容 0.4 以下；阈值待真实语料校准。
+  if (mode === 'hybrid' && results[0].vecScore != null) {
+    const [t1, t2] = results;
+    if (t1.vecScore >= 0.65 && t1.vecScore - (t2?.vecScore ?? 0) >= 0.1) return 'hit';
+    if (t1.vecScore >= 0.45) return 'candidates';
+    return 'unknown';
+  }
   const [t1, t2] = results;
   if ((t1.score || 0) >= 6 && (t1.score || 0) >= (t2?.score || 0) * 3) return 'hit';
   if ((t1.score || 0) < autoThreshold) return 'unknown';

@@ -80,3 +80,19 @@ test('[RS4] profile embedding 段 + stub provider → hybrid 检索走通', asyn
   configureRetrieval(null, {});
   srv.close();
 });
+
+test('[RS5] hybrid 同义改写判定：vecScore 量纲（用户实测场景）', async () => {
+  const { decide } = await import('../retrieval/rank.mjs');
+  // 模拟 hybrid 结果：intro 块 vecScore 0.72 领先，另一块 0.5——同义改写应 hit
+  const results = [
+    { blockId: 'mo.intro-self', score: 0.018, vecScore: 0.72, matchedQuestion: null },
+    { blockId: 'mo.x', score: 0.016, vecScore: 0.5, matchedQuestion: null },
+  ];
+  assert.equal(decide('做一个简单的自我介绍', results, { mode: 'hybrid' }), 'hit');
+  // 中等相关 → candidates
+  assert.equal(decide('q', [{ blockId: 'a', score: 0.01, vecScore: 0.55, matchedQuestion: null }, { blockId: 'b', score: 0.01, vecScore: 0.52, matchedQuestion: null }], { mode: 'hybrid' }), 'candidates');
+  // 低相关 → unknown（不再被 BM25 阈值误杀，也不瞎命中）
+  assert.equal(decide('q', [{ blockId: 'a', score: 0.01, vecScore: 0.3, matchedQuestion: null }], { mode: 'hybrid' }), 'unknown');
+  // 词法模式不受影响
+  assert.equal(decide('q', [{ blockId: 'a', score: 2.0, matchedQuestion: null }], { mode: 'lexical', autoThreshold: 1.5 }), 'candidates');
+});

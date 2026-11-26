@@ -117,8 +117,8 @@ export async function hybridSearch(index, query, { provider, topK = 5 } = {}) {
   if (!provider || !index.vectors) return lexicalResults; // 默认 lexical
   const [qvec] = await provider.embed([query]);
   const vecRanked = [...index.vectors.entries()]
-    .map(([blockId, vec]) => ({ blockId, score: cosine(qvec, vec) }))
-    .sort((a, b) => b.score - a.score);
+    .map(([blockId, vec]) => ({ blockId, vecScore: cosine(qvec, vec) }))
+    .sort((a, b) => b.vecScore - a.vecScore);
   const scores = new Map();
   lexicalResults.forEach((r, rank) => {
     scores.set(r.blockId, (scores.get(r.blockId) || 0) + 1 / (RRF_K + rank + 1));
@@ -127,7 +127,11 @@ export async function hybridSearch(index, query, { provider, topK = 5 } = {}) {
     scores.set(r.blockId, (scores.get(r.blockId) || 0) + 1 / (RRF_K + rank + 1));
   });
   return [...scores.entries()]
-    .map(([blockId, score]) => ({ blockId, score, matchedQuestion: lexicalResults.find((r) => r.blockId === blockId)?.matchedQuestion ?? null }))
+    .map(([blockId, score]) => ({
+      blockId, score, // RRF 融合分（排序用；不能与 BM25 阈值比较）
+      vecScore: vecRanked.find((r) => r.blockId === blockId)?.vecScore ?? null, // 原始 cosine（decision 用）
+      matchedQuestion: lexicalResults.find((r) => r.blockId === blockId)?.matchedQuestion ?? null,
+    }))
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);
 }

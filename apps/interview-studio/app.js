@@ -186,8 +186,10 @@ async function pageKb() {
         ${esc(n.label)}${meta}${n.isProj ? `<span class="kg-arrow">${n.open === false ? '▸' : '▾'}</span>` : ''}
       </button>`;
     }).join('');
-    host.innerHTML = `<svg width="${W}" height="${height}" class="kg-svg">${svgEdges}</svg>
-      <div class="kg-rootnode" style="top:${nodes.find((n) => n.isRoot)?.y ?? 0}px">${esc(bootRes.candidateName || '我的知识库')}</div>${html}`;
+    const rootYpx = nodes.find((n) => n.isRoot)?.y ?? 0;
+    const svgBlock = `<svg width="${W}" height="${height}" class="kg-svg">${svgEdges}</svg>`;
+    const rootNodeHtml = `<div class="kg-rootnode" style="top:${rootYpx}px">${esc(bootRes.candidateName || '我的知识库')}</div>`;
+    host.innerHTML = svgBlock + rootNodeHtml + html;
     host.querySelectorAll('.kg-node').forEach((btn) => {
       btn.addEventListener('click', () => {
         if (btn.dataset.proj === '1') {

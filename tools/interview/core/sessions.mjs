@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { resolveRoot, atomicWriteJson, appendJsonl, readJsonlSafe, withLock } from './storage.mjs';
@@ -100,6 +100,26 @@ export function appendEvent(root, sessionId, { type, payload = {} }) {
 
 export function readEvents(root, sessionId) {
   return readJsonlSafe(join(sessionDir(root, sessionId), 'events.jsonl')).rows;
+}
+
+// 空场判定：一场「奏效」的练习至少有一次提问/评分/揭示/转写/发言。
+// 只有 created/finished 骨架事件的空场在结束或断连时直接删除，不进 Replay。
+const CONTENT_EVENT_TYPES = new Set(['question.detected', 'rating.self', 'hint.revealed', 'asr.final']);
+
+export function sessionHasContent(root, sessionId) {
+  if (readEvents(root, sessionId).some((e) => CONTENT_EVENT_TYPES.has(e.type))) return true;
+  if (readUtterances(root, sessionId).length > 0) return true;
+  if (readQuestions(root, sessionId).length > 0) return true;
+  return false;
+}
+
+// 删除 session（uuid 守卫在 sessionDir 内，目录限定在 sessions/ 下）。
+// 只允许 studio 空场兜底路径调用；真实复盘等外部来源不经过它。
+export function deleteSession(root, sessionId) {
+  const dir = sessionDir(root, sessionId);
+  if (!existsSync(join(dir, 'session.json'))) return false;
+  rmSync(dir, { recursive: true, force: true });
+  return true;
 }
 
 export function recoverEvents(root, sessionId) {

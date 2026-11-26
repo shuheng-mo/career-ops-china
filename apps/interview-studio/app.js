@@ -367,8 +367,10 @@ async function pagePractice() {
     `;
     view.querySelector('#q-form').addEventListener('submit', onQuestion);
     view.querySelector('#pr-finish').addEventListener('click', async () => {
-      await api(`/api/practice/${practice.session_id}/finish`, { method: 'POST' });
-      view.querySelector('#pr-area').innerHTML = '<p>练习已结束（事件已落盘）。</p>';
+      const r = await api(`/api/practice/${practice.session_id}/finish`, { method: 'POST' });
+      view.querySelector('#pr-area').innerHTML = r.discarded
+        ? '<p>本场没有提问、评分或录音——已丢弃，不进 Replay。</p>'
+        : '<p>练习已结束（事件已落盘）。</p>';
     });
   }
 
@@ -604,6 +606,7 @@ async function startVoicePractice() {
     const m = JSON.parse(e.data);
     if (m.type === 'state') {
       if (m.state) setState(m.state);
+      if (m.discarded) setState(voiceState?.state || 'finished', ' · 本场无内容，已丢弃（不进 Replay）');
       if (m.locked !== undefined) setState(voiceState?.state || 'recording', m.locked ? ' · 🔒 已锁定' : '');
     }
     if (m.type === 'asr' && m.event?.text) {

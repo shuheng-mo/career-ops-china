@@ -108,7 +108,7 @@ export function createStudioServer(root, { port = 8790, token = randomToken(), h
 import { WebSocketServer } from 'ws';
 import { FastPath } from './capture-fastpath.mjs';
 import { CaptureSession, STATES as CAP_STATES } from './capture.mjs';
-import { createSession, appendEvent } from '../core/sessions.mjs';
+import { createSession, appendEvent, getSession, sessionHasContent, deleteSession } from '../core/sessions.mjs';
 import { createMockAsrProvider } from '../providers/asr/mock.mjs';
 import { readBlockById } from '../core/blocks.mjs';
 import { AliyunFunAsrProvider } from '../providers/asr/aliyun-fun-asr.mjs';
@@ -261,7 +261,18 @@ export function attachWs(server, { token, root, asrConfig, createProvider: creat
           await provider?.finish();
           await provider?.close();
           await capture?.stop();
-          send({ type: 'state', state: 'finished', gaps: capture?.gapCount || 0 });
+          // 空场兜底：零问题零转写的语音练习直接删，不进 Replay（provider finish 的
+          // 尾段事件已在上面的 await 中落盘，此处检查不会误删有转写的场）
+          let discarded = false;
+          if (practiceSessionId) {
+            const sess = getSession(root, practiceSessionId);
+            if (sess && sess.source === 'studio-voice' && !sessionHasContent(root, practiceSessionId)) {
+              deleteSession(root, practiceSessionId);
+              discarded = true;
+              practiceSessionId = null;
+            }
+          }
+          send({ type: 'state', state: 'finished', gaps: capture?.gapCount || 0, ...(discarded ? { discarded: true } : {}) });
           return;
         }
         send({ type: 'error', message: `未知消息类型 ${msg.type}` });
@@ -275,6 +286,14 @@ export function attachWs(server, { token, root, asrConfig, createProvider: creat
       capture?.stop();
       provider?.close();
       fastPath?.dispose();
+      // 断连兜底：没点停止就关页的空语音场不留垃圾（stop 已处理过的场此处幂等跳过）
+      if (practiceSessionId) {
+        const sess = getSession(root, practiceSessionId);
+        if (sess && sess.source === 'studio-voice' && !sessionHasContent(root, practiceSessionId)) {
+          deleteSession(root, practiceSessionId);
+        }
+        practiceSessionId = null;
+      }
     });
   });
   return wss;

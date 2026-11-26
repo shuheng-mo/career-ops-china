@@ -16,7 +16,7 @@ import { runSearch } from './retrieval-service.mjs';
 
 import { computeStats } from '../core/stats.mjs';
 import { loadBootstrap, listSeeds } from '../core/bootstrap.mjs';
-import { createSession, getSession, listSessions, readUtterances, readQuestions, saveQuestions, saveUtterances, appendEvent, readEvents } from '../core/sessions.mjs';
+import { createSession, getSession, listSessions, readUtterances, readQuestions, saveQuestions, saveUtterances, appendEvent, readEvents, sessionHasContent, deleteSession } from '../core/sessions.mjs';
 import { readPack } from '../packs/render.mjs';
 
 const BLIND_MODES = ['mock_blind'];
@@ -232,16 +232,27 @@ export function registerCoreApi(root) {
       }
       mm = path.match(/^\/api\/practice\/([^/]+)\/finish$/);
       if (mm && m === 'POST') {
-        appendEvent(root, mm[1], { type: 'session.finished', payload: {} });
+        const sid = mm[1];
+        const sess = getSession(root, sid);
+        if (!sess) return json(res, 404, { ok: false, message: 'session 不存在' });
+        // 空场兜底：零提问零评分零转写的练习是无效场，直接删，不进 Replay（联调发现）
+        if (sess.source === 'studio-practice' && !sessionHasContent(root, sid)) {
+          deleteSession(root, sid);
+          return json(res, 200, { ok: true, discarded: true });
+        }
+        appendEvent(root, sid, { type: 'session.finished', payload: {} });
         return json(res, 200, { ok: true });
       }
 
       // ---------- replay ----------
       if (path === '/api/sessions' && m === 'GET') {
-        const sessions = listSessions(root).map((s) => ({
-          session_id: s.session_id, mode: s.mode, round: s.round,
-          application_num: s.application_num, created_at: s.created_at, retrospective: s.retrospective || false,
-        }));
+        // 空场过滤：用户没点结束就关页的 studio 遗留场不含任何可复盘内容，不展示
+        const sessions = listSessions(root)
+          .filter((s) => !['studio-practice', 'studio-voice'].includes(s.source) || sessionHasContent(root, s.session_id))
+          .map((s) => ({
+            session_id: s.session_id, mode: s.mode, round: s.round,
+            application_num: s.application_num, created_at: s.created_at, retrospective: s.retrospective || false,
+          }));
         return json(res, 200, { ok: true, sessions });
       }
       mm = path.match(/^\/api\/sessions\/([^/]+)$/);

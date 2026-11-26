@@ -69,19 +69,52 @@ async function api(path, { method = 'GET', body } = {}) {
 
 // ---------- 页面 ----------
 
+// 知识库树：块 → 项目分组。block_id 约定 mo.<project>-<intent>；intro 特判
+const INTENT_LABEL = { story: '故事', contribution: '贡献', decision: '决策', result: '结果', boundary: '边界', self: '自我介绍' };
+function blockTree(blocks) {
+  const projects = new Map(); // projectKey → {name, period, blocks: Map(intent → block)}
+  const root = { intro: null, projects: [] };
+  for (const b of blocks) {
+    if (b.kind === 'intro' || b.block_id.endsWith('intro-self')) { root.intro = b; continue; }
+    const parts = b.block_id.split('.');
+    // id 形如 mo.elytra-story：第二段含 intent 后缀，剥掉得项目名
+    const m = parts[1]?.match(/^(.*)-(story|contribution|decision|result|boundary)$/);
+    const intent = m ? m[2] : (parts[2] || 'story');
+    const projName = m ? m[1] : (parts[1] || '其他');
+    const projKey = b.frontMatter?.project || projName;
+    let proj = projects.get(projKey);
+    if (!proj) {
+      proj = { key: projKey, name: projName, period: b.frontMatter?.project || '', blocks: new Map() };
+      projects.set(projKey, proj);
+      root.projects.push(proj);
+    }
+    proj.blocks.set(intent, b);
+  }
+  root.projects.sort((a, b) => String(b.period).localeCompare(String(a.period)));
+  return root;
+}
+
 async function pageKb() {
   const [blocksRes, bootRes] = await Promise.all([api('/api/blocks'), api('/api/bootstrap')]);
   const { blocks } = blocksRes;
   const active = blocks.filter((b) => b.status === 'active');
   const drafts = blocks.filter((b) => b.status !== 'active');
   const seeds = (bootRes.seeds || []).filter((s) => s.status === 'queued');
+  const tree = blockTree(active);
   view.classList.add('view-wide');
   view.innerHTML = `
     <div class="kb-layout">
       <aside class="kb-side">
-        <h2>活跃块（${active.length}）</h2>
-        <div id="block-list" class="kb-blocklist">
-          ${active.map((b) => `<button class="kb-item" data-id="${esc(b.block_id)}">${esc(b.block_id)}</button>`).join('')}
+        <div class="kb-tree">
+          <div class="kb-root">${esc(bootRes.candidateName || '我的知识库')}</div>
+          ${tree.intro ? `<button class="kb-item kb-leaf" data-id="${esc(tree.intro.block_id)}">👤 ${esc(INTENT_LABEL.self || '自我介绍')}</button>` : ''}
+          ${tree.projects.map((p) => `
+            <details open class="kb-proj">
+              <summary>📁 ${esc(p.name)}${p.period ? ` <span class="muted">${esc(p.period)}</span>` : ''}</summary>
+              <div class="kb-proj-blocks">
+                ${[...p.blocks.entries()].map(([intent, b]) => `<button class="kb-item kb-leaf" data-id="${esc(b.block_id)}">${esc(INTENT_LABEL[intent] || intent)}</button>`).join('')}
+              </div>
+            </details>`).join('')}
         </div>
         ${drafts.length ? `<p class="muted">非活跃 ${drafts.length}：${drafts.map((b) => esc(b.block_id)).join('、')}</p>` : ''}
         ${seeds.length ? `<details><summary class="muted">待回答种子（${seeds.length}）</summary><ul>${seeds.map((s) => `<li>${esc(s.question)}</li>`).join('')}</ul></details>` : ''}
@@ -90,14 +123,13 @@ async function pageKb() {
         <form id="search-form" class="kb-search"><input id="search-q" placeholder="输入面试问题，回车定位…" autocomplete="off"><button>定位</button></form>
         <div id="search-result"></div>
         <div id="kb-work" class="kb-empty">
-          <p class="muted">← 点击左侧块查看与编辑；或在上方检索问题。</p>
+          <p class="muted">← 点击左侧节点查看；或在上方检索问题。</p>
         </div>
       </div>
     </div>
   `;
-  const current = () => view.querySelector('.kb-item.selected')?.dataset.id || '';
 
-  async function openBlock(id, { scroll = true } = {}) {
+  async function openBlock(id) {
     view.querySelectorAll('.kb-item').forEach((b) => b.classList.toggle('selected', b.dataset.id === id));
     const b = await api(`/api/blocks/${encodeURIComponent(id)}`);
     const work = view.querySelector('#kb-work');
@@ -105,11 +137,12 @@ async function pageKb() {
     work.innerHTML = `
       <div class="kb-meta">
         <b>${esc(b.block_id)}</b> · ${esc(b.kind)} · ${esc(b.criticality)}
+        <button id="kb-edit-toggle" class="kb-edit-btn">✏️ 编辑</button>
         <p class="muted">${(b.questions || []).map((q) => esc(q)).join('<br>')}　锚点：${(b.anchors || []).map((a) => esc('#' + a)).join(' ')}</p>
       </div>
-      <div class="kb-cols">
-        <div class="kb-pane"><h3>预览</h3><div id="edit-preview" class="md-body"></div></div>
-        <div class="kb-pane"><h3>编辑（纯文本，自动转格式）</h3>
+      <div class="kb-cols kb-preview-only">
+        <div class="kb-pane"><div id="edit-preview" class="md-body"></div></div>
+        <div class="kb-pane kb-edit-pane" hidden>
           <p class="muted">【小标题】分区；区内空行分组——单行组是段落，多行组每行一条要点。</p>
           <textarea id="edit-body" rows="18"></textarea>
           <button id="edit-save">保存（revision +1）</button> <span id="edit-msg"></span>
@@ -117,21 +150,36 @@ async function pageKb() {
       </div>
     `;
     const editBody = () => view.querySelector('#edit-body');
-    editBody().value = sectionsToText(parseSections(b.body)); // md → 纯文本（语法隐藏）
     const refresh = () => { view.querySelector('#edit-preview').innerHTML = mdRender(textToMd(editBody().value)); };
-    refresh();
-    editBody().addEventListener('input', refresh);
+    view.querySelector('#edit-preview').innerHTML = mdRender(b.body); // 默认纯预览
+    view.querySelector('#kb-edit-toggle').addEventListener('click', () => {
+      const pane = view.querySelector('.kb-edit-pane');
+      const cols = view.querySelector('.kb-cols');
+      if (pane.hidden) {
+        if (!editBody().value) editBody().value = sectionsToText(parseSections(b.body)); // md → 纯文本（语法隐藏）
+        refresh();
+        pane.hidden = false;
+        cols.classList.remove('kb-preview-only');
+        view.querySelector('#kb-edit-toggle').textContent = '✓ 完成编辑';
+        editBody().focus();
+      } else {
+        pane.hidden = true;
+        cols.classList.add('kb-preview-only');
+        view.querySelector('#kb-edit-toggle').textContent = '✏️ 编辑';
+      }
+    });
     view.querySelector('#edit-save').addEventListener('click', async () => {
       const msg = view.querySelector('#edit-msg');
       try {
         const fresh = await api(`/api/blocks/${encodeURIComponent(id)}`);
         const r = await api(`/api/blocks/${encodeURIComponent(id)}`, { method: 'POST', body: { frontMatter: fresh.frontMatter, body: textToMd(editBody().value) } });
         msg.textContent = `✓ 已保存，revision ${r.revision}`;
+        b.body = textToMd(editBody().value);
+        view.querySelector('#edit-preview').innerHTML = mdRender(b.body);
       } catch (err) {
         msg.textContent = `✗ ${err.message}`;
       }
     });
-    if (scroll) work.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   view.querySelectorAll('.kb-item').forEach((btn) => {
@@ -164,7 +212,6 @@ async function pageKb() {
       box.innerHTML = '<p>🚫 未知问题（知识库未覆盖——复盘后可补 alias 或建新块）</p>';
     }
   });
-  void current;
 }
 
 async function pagePacks() {

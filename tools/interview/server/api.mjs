@@ -7,6 +7,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { resolveRoot } from '../core/storage.mjs';
+import { loadYamlSafe } from '../core/yaml.mjs';
 import { ValidationError } from '../core/validation.mjs';
 import { readBlocks, readBlockById, writeBlock } from '../core/blocks.mjs';
 import { buildIndex, search } from '../retrieval/bm25.mjs';
@@ -111,7 +112,13 @@ export function registerCoreApi(root) {
       if (path === '/api/bootstrap' && m === 'GET') {
         const st = loadBootstrap(root);
         const seeds = listSeeds(root);
-        return json(res, 200, { ok: true, ...st, seeds: seeds.map((s) => ({ seed_id: s.seed_id, intent_key: s.intent_key, question: s.question, status: s.status, missing_fields: s.missing_fields })) });
+        // 候选人名（知识库树的根节点）：profile.yml 顶层 name，读不到用中性词
+        let candidateName = null;
+        try {
+          const profPath = join(root, '..', 'config', 'profile.yml');
+          candidateName = loadYamlSafe(readFileSync(profPath, 'utf8')).name || null;
+        } catch { /* name 缺失不阻塞 */ }
+        return json(res, 200, { ok: true, ...st, candidateName, seeds: seeds.map((s) => ({ seed_id: s.seed_id, intent_key: s.intent_key, question: s.question, status: s.status, missing_fields: s.missing_fields })) });
       }
       if (path === '/api/seeds' && m === 'GET') {
         return json(res, 200, { ok: true, seeds: listSeeds(root) });

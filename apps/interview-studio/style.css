@@ -81,6 +81,21 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 details { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); }
 summary { cursor: pointer; }
 
+/* 知识库树（根=候选人 → 项目 → 结构化块） */
+.kb-tree .kb-root { font-weight: 700; font-size: 14px; padding: 4px 2px 8px; color: var(--accent); }
+.kb-tree details.kb-proj { margin: 2px 0; }
+.kb-tree details.kb-proj > summary { cursor: pointer; font-size: 13px; font-weight: 600; padding: 4px 2px; list-style: none; }
+.kb-tree details.kb-proj > summary::before { content: '▾ '; color: var(--muted); }
+.kb-tree details.kb-proj:not([open]) > summary::before { content: '▸ '; }
+.kb-tree details.kb-proj[open] > summary { list-style: none; }
+.kb-proj-blocks { display: flex; flex-direction: column; gap: 3px; padding-left: 14px; margin: 2px 0 6px; border-left: 2px solid var(--border); }
+.kb-leaf { font-size: 12.5px; padding: 4px 8px; }
+.kb-meta { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.kb-meta .muted { flex-basis: 100%; margin: 2px 0 0; }
+.kb-edit-btn { margin-left: auto; font-size: 12.5px; padding: 3px 10px; }
+.kb-cols.kb-preview-only { grid-template-columns: minmax(0, 1fr); }
+.kb-cols.kb-preview-only .md-body { max-width: 760px; }
+
 /* 知识库页：左栏块列表 + 顶部检索 + 预览/编辑双栏（全宽 + 弹性，窄屏自动堆叠） */
 .view-wide { max-width: none !important; padding: 16px 20px 40px; }
 .kb-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 18px; align-items: start; }

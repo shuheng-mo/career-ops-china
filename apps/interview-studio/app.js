@@ -153,30 +153,25 @@ async function pageKb() {
   const tree = blockTree(active);
   const openState = new Map(tree.projects.map((p) => [p.key, true]));
   view.classList.add('view-wide');
+  const rootName = bootRes.candidateName || '我';
   view.innerHTML = `
-    <div class="kb-layout">
-      <aside class="kb-side">
-        <div class="kb-graph-bar">
-          <span class="kb-root-name">${esc(bootRes.candidateName || '我的知识库')}</span>
-          <button id="kg-expand" class="kb-mini">全部展开</button>
-          <button id="kg-collapse" class="kb-mini">全部折叠</button>
-        </div>
-        <div id="kb-graph" class="kb-graph"></div>
-        ${drafts.length ? `<p class="muted">非活跃 ${drafts.length}：${drafts.map((b) => esc(b.block_id)).join('、')}</p>` : ''}
-        ${seeds.length ? `<details><summary class="muted">待回答种子（${seeds.length}）</summary><ul>${seeds.map((s) => `<li>${esc(s.question)}</li>`).join('')}</ul></details>` : ''}
-      </aside>
-      <div class="kb-main">
-        <form id="search-form" class="kb-search"><input id="search-q" placeholder="输入面试问题，回车定位…" autocomplete="off"><button>定位</button></form>
-        <div id="search-result"></div>
-        <div id="kb-work" class="kb-empty"><p class="muted">← 点击树上的块节点查看；或在上方检索问题。</p></div>
-      </div>
+    <div class="kb-topbar">
+      <span class="kb-root-name">${esc(bootRes.candidateName || '我的知识库')}</span>
+      <button id="kg-expand" class="kb-mini">全部展开</button>
+      <button id="kg-collapse" class="kb-mini">全部折叠</button>
+      <form id="search-form" class="kb-search"><input id="search-q" placeholder="输入面试问题，回车定位…" autocomplete="off"><button>定位</button></form>
     </div>
+    <div id="search-result"></div>
+    <div id="kb-graph" class="kb-graph"></div>
+    <div id="kb-work" class="kb-empty"><p class="muted">↑ 点击树上的块节点；或在上方检索框输入问题定位。</p></div>
+    ${drafts.length ? `<p class="muted">非活跃 ${drafts.length}：${drafts.map((b) => esc(b.block_id)).join('、')}</p>` : ''}
+    ${seeds.length ? `<details><summary class="muted">待回答种子（${seeds.length}）</summary><ul>${seeds.map((s) => `<li>${esc(s.question)}</li>`).join('')}</ul></details>` : ''}
   `;
 
   function renderGraph() {
     const host = view.querySelector('#kb-graph');
     const { nodes, edges, height } = layoutGraph(tree, openState);
-    const W = G.x2 + 90;
+    const W = G.x2 + 240; // 叶子起点 360 + 节点最大宽 210 + 余量：画布内容宽度
     const svgEdges = edges.map((e) => `<path d="${graphSvgPath(e.from.x + (e.from.isRoot ? 60 : 96), e.from.y + G.rowH / 2, e.to.x + 6, e.to.y + G.rowH / 2)}" class="kg-edge" />`).join('');
     const html = nodes.map((n) => {
       if (n.isRoot) return '';
@@ -188,8 +183,10 @@ async function pageKb() {
     }).join('');
     const rootYpx = nodes.find((n) => n.isRoot)?.y ?? 0;
     const svgBlock = `<svg width="${W}" height="${height}" class="kg-svg">${svgEdges}</svg>`;
-    const rootNodeHtml = `<div class="kg-rootnode" style="top:${rootYpx}px">${esc(bootRes.candidateName || '我的知识库')}</div>`;
+    const rootNodeHtml = `<div class="kg-rootnode" style="top:${rootYpx}px">${esc(rootName)}</div>`;
     host.innerHTML = svgBlock + rootNodeHtml + html;
+    // 绝对定位子元素不撑容器：画布高度显式跟随布局，否则永远停在 min-height
+    host.style.height = height + 6 + 'px';
     host.querySelectorAll('.kg-node').forEach((btn) => {
       btn.addEventListener('click', () => {
         if (btn.dataset.proj === '1') {

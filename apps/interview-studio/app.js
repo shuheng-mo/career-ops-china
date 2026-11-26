@@ -342,11 +342,13 @@ async function pagePractice() {
     <div id="pr-area"></div>
   `;
   view.querySelector('#pr-begin').addEventListener('click', async () => {
+    if (voiceState) stopVoice(); // 语音进行中切文字练习：先拆旧场，别让麦克风/连接变孤儿
     const mode = view.querySelector('#pr-mode').value;
     practice = await api('/api/practice/start', { method: 'POST', body: { mode } });
     renderPracticeInput(`已开始：${practice.mode}`);
   });
   view.querySelector('#pr-voice').addEventListener('click', () => {
+    if (voiceState) { alert('语音采集还在进行中——请先点「⏹ 停止采集」结束本场。'); return; }
     // 云连接披露闸门（spec §9.1/§10）：音频将发往配置的 ASR 服务，按量计费
     const confirmed = confirm(
       '🎙 即将开始麦克风采集。\n\n' +
@@ -552,6 +554,7 @@ route();
 let voiceState = null; // {ws, audioCtx, stream, workletNode, captureState}
 
 async function startVoicePractice() {
+  if (voiceState) return; // 双击/重复进入兜底：一场语音一个 voiceState
   const mode = view.querySelector('#pr-mode').value;
   const area = view.querySelector('#pr-area');
   area.innerHTML = '<p class="muted">请求麦克风权限…</p>';
@@ -586,6 +589,25 @@ async function startVoicePractice() {
     const el = view.querySelector('#vc-state');
     if (el) el.innerHTML = `状态：<b>${esc(s)}</b>${extra}`;
   };
+  let finalCount = 0;
+  let stopTimer = null;
+  // 收尾摘要：停止后给用户明确的「结束感」——转写句数 + 本场去向（保留/丢弃），
+  // 不再留一具只有状态小字变化的"尸体面板"（联调实测：用户感知为点了没反应）
+  const finishUp = (discarded) => {
+    if (!voiceState) return;
+    clearTimeout(stopTimer);
+    try { ws.close(); } catch {}
+    voiceState = null;
+    area.innerHTML = `
+      <div class="vc-done">
+        <p><b>✅ 采集已结束</b></p>
+        ${discarded
+          ? '<p class="muted">本场没有提问、转写或评分——已丢弃，不进 Replay。</p>'
+          : `<p class="muted">转写 ${finalCount} 句、事件已落盘。本场已保留，可在 Replay 页回看完整文字记录。</p>`}
+        <button id="vc-again">再练一场</button>
+      </div>`;
+    view.querySelector('#vc-again').addEventListener('click', () => route());
+  };
   ws.addEventListener('open', () => {
     setState('connecting');
     ws.send(JSON.stringify({ type: 'start', mode }));
@@ -606,10 +628,11 @@ async function startVoicePractice() {
     const m = JSON.parse(e.data);
     if (m.type === 'state') {
       if (m.state) setState(m.state);
-      if (m.discarded) setState(voiceState?.state || 'finished', ' · 本场无内容，已丢弃（不进 Replay）');
+      if (m.state === 'finished' && voiceState?.stopping) { finishUp(!!m.discarded); return; }
       if (m.locked !== undefined) setState(voiceState?.state || 'recording', m.locked ? ' · 🔒 已锁定' : '');
     }
     if (m.type === 'asr' && m.event?.text) {
+      if (m.event.type === 'final') finalCount += 1;
       const live = view.querySelector('#vc-live');
       if (live) live.textContent = `${m.event.type === 'final' ? '🟢' : '⏳'} ${m.event.text}`;
     }
@@ -623,9 +646,16 @@ async function startVoicePractice() {
     try { ws.send(JSON.stringify({ type: 'lock', locked: true })); } catch { setState('error', ' · 连接已断开'); }
   });
   view.querySelector('#vc-stop').addEventListener('click', () => {
-    try { ws.send(JSON.stringify({ type: 'stop' })); } catch { /* 已断开也要走本地收尾 */ }
-    setState('finished');
-    stopVoice();
+    if (!voiceState || voiceState.stopping) return;
+    voiceState.stopping = true;
+    // 立即停麦克风（不再采音）；ws 故意留着：等服务端收尾（尾段转写 + finished/丢弃判定）
+    try { voiceState.stream.getTracks().forEach((t) => t.stop()); } catch {}
+    try { voiceState.audioCtx.close(); } catch {}
+    setState('stopping', ' · 正在收尾…');
+    try {
+      ws.send(JSON.stringify({ type: 'stop' }));
+    } catch { /* 已断开直接走本地收尾 */ finishUp(false); return; }
+    stopTimer = setTimeout(() => finishUp(false), 8000); // provider finish 上限 5s，兜底 8s
   });
 
   function renderVoiceHint(hint) {

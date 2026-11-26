@@ -114,6 +114,33 @@ test('Replay 列表过滤未结束的空场（用户直接关页的遗留）', a
   await new Promise((r) => srv.close(r));
 });
 
+test('语音有转写的场 stop → 保留 + session.finished 落盘', async () => {
+  const t = preparedRoot();
+  const srv = await createStudioServer(t, { port: 0, token: 'tok' });
+  let providerRef = null;
+  srv.attachWs({ token: 'tok', root: t, asrConfig: { createProvider: () => { const p = createMockAsrProvider(); providerRef = p; return p; } } });
+  const port = srv.address().port;
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws/capture?token=tok`);
+  const msgs = [];
+  ws.on('message', (raw) => msgs.push(JSON.parse(raw.toString())));
+  await new Promise((r) => ws.on('open', r));
+  ws.send(JSON.stringify({ type: 'start', mode: 'mock_assisted' }));
+  await wait(200);
+  await providerRef.pushScript([{ type: 'final', text: '你如何限制查询权限？', segmentId: 'seg1' }]);
+  await wait(300);
+  ws.send(JSON.stringify({ type: 'stop' }));
+  await wait(400);
+  const { readdirSync } = await import('node:fs');
+  const sid = readdirSync(join(t, 'sessions')).find((d) => d.includes('-'));
+  assert.ok(sid, '有内容的语音场应保留');
+  const types = readEvents(t, sid).map((e) => e.type);
+  assert.ok(types.includes('asr.final'));
+  assert.ok(types.includes('session.finished'), `stop 应落 session.finished，实际事件：${types.join(',')}`);
+  ws.close();
+  srv.closeAllConnections();
+  await new Promise((r) => srv.close(r));
+});
+
 // ws 库的句柄在 keep-alive/半关连接下会挂住测试进程——全部测试完成后强制收尾
 import { after } from 'node:test';
 after(() => { setTimeout(() => process.exit(0), 300); });

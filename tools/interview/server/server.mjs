@@ -272,6 +272,11 @@ export function attachWs(server, { token, root, asrConfig, createProvider: creat
               practiceSessionId = null;
             }
           }
+          if (!discarded && practiceSessionId) {
+            try {
+              appendEvent(root, practiceSessionId, { type: 'session.finished', payload: {} });
+            } catch { /* 落盘失败不阻塞收尾 */ }
+          }
           send({ type: 'state', state: 'finished', gaps: capture?.gapCount || 0, ...(discarded ? { discarded: true } : {}) });
           return;
         }

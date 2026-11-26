@@ -104,6 +104,11 @@ summary { cursor: pointer; }
   background: var(--accent); color: #fff; font-weight: 700; font-size: 13px;
   border-radius: 16px; max-width: 140px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;
 }
+/* 语音采集收尾摘要卡 */
+.vc-done { border: 1px solid var(--border); border-radius: 8px; background: var(--card); padding: 14px 16px; max-width: 560px; }
+.vc-done p { margin: 4px 0; }
+.vc-done button { margin-top: 8px; }
+
 .kb-meta { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .kb-meta .muted { flex-basis: 100%; margin: 2px 0 0; }
 .kb-edit-btn { margin-left: auto; font-size: 12.5px; padding: 3px 10px; }

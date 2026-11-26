@@ -75,6 +75,7 @@ async function pageKb() {
   const active = blocks.filter((b) => b.status === 'active');
   const drafts = blocks.filter((b) => b.status !== 'active');
   const seeds = (bootRes.seeds || []).filter((s) => s.status === 'queued');
+  view.classList.add('view-wide');
   view.innerHTML = `
     <div class="kb-layout">
       <aside class="kb-side">
@@ -140,14 +141,25 @@ async function pageKb() {
   view.querySelector('#search-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const q = view.querySelector('#search-q').value;
-    const r = await api(`/api/search?q=${encodeURIComponent(q)}`);
+    const btn = view.querySelector('.kb-search button');
     const box = view.querySelector('#search-result');
+    btn.classList.add('loading'); btn.textContent = '检索中…'; btn.disabled = true;
+    box.innerHTML = '<p class="muted">检索中…（hybrid 模式含一次向量计算）</p>';
+    let r;
+    try {
+      r = await api(`/api/search?q=${encodeURIComponent(q)}`);
+    } catch (err) {
+      box.innerHTML = `<p>✗ 检索失败：${esc(err.message)}</p>`;
+      return;
+    } finally {
+      btn.classList.remove('loading'); btn.textContent = '定位'; btn.disabled = false;
+    }
     if (r.decision === 'hit') {
       box.innerHTML = `<button class="kb-item selected" data-id="${esc(r.block.block_id)}">✅ 命中：${esc(r.block.block_id)}（点击打开）</button>`;
       box.querySelector('.kb-item').addEventListener('click', () => openBlock(r.block.block_id));
     } else if (r.decision === 'candidates') {
       box.innerHTML = `<p>❓ 候选：${(r.results || []).map((x) => `<button class="kb-item" data-id="${esc(x.blockId)}">${esc(x.blockId)}</button>`).join(' ')}</p>`;
-      box.querySelectorAll('.kb-item').forEach((btn) => btn.addEventListener('click', () => openBlock(btn.dataset.id)));
+      box.querySelectorAll('.kb-item').forEach((b) => b.addEventListener('click', () => openBlock(b.dataset.id)));
     } else {
       box.innerHTML = '<p>🚫 未知问题（知识库未覆盖——复盘后可补 alias 或建新块）</p>';
     }
@@ -405,6 +417,7 @@ const routes = {
 async function route() {
   const hash = location.hash.replace('#', '') || '/kb';
   const page = routes[hash] || pageKb;
+  view.className = 'view'; // 页面自定布局类（如 view-wide）在各自 page() 里加
   view.innerHTML = '<p class="muted">加载中…</p>';
   try {
     await page();

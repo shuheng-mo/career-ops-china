@@ -67,8 +67,8 @@ export class FastPath {
       return null;
     }
 
-    const { results, threshold } = await runSearch(this.root, text, { topK: 5 });
-    const decision = decide(text, results, { autoThreshold: threshold, mode });
+    const { results, threshold, mode: retrievalMode } = await runSearch(this.root, text, { topK: 5 });
+    const decision = decide(text, results, { autoThreshold: threshold, mode: retrievalMode });
     const token = randomUUID();
     this.currentGenerationToken = token;
     // 盲测：handle 不携带 decision/块信息（泄漏即违规）

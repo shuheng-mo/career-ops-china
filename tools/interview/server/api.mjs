@@ -89,8 +89,8 @@ export function registerCoreApi(root) {
       if (path === '/api/search' && m === 'GET') {
         const q = url.searchParams.get('q') || '';
         if (!q.trim()) return json(res, 400, { ok: false, message: '缺少 q' });
-        const { results, threshold } = await runSearch(root, q, { topK: 5 });
-        const decision = decide(q, results, { autoThreshold: threshold, mode });
+        const { results, threshold, mode: retrievalMode } = await runSearch(root, q, { topK: 5 });
+        const decision = decide(q, results, { autoThreshold: threshold, mode: retrievalMode });
         let block = null;
         if (decision === 'hit') {
           const blk = readBlockById(root, results[0].blockId);
@@ -161,8 +161,8 @@ export function registerCoreApi(root) {
           appendEvent(root, sid, { type: 'question.detected', payload: { question_ref: ref, record_only: true } });
           return json(res, 200, { ok: true, question_ref: ref, record_only: true });
         }
-        const { results, threshold } = await runSearch(root, q, { topK: 5 });
-        const decision = decide(q, results, { autoThreshold: threshold, mode });
+        const { results, threshold, mode: retrievalMode } = await runSearch(root, q, { topK: 5 });
+        const decision = decide(q, results, { autoThreshold: threshold, mode: retrievalMode });
         const questionRef = `pq-${randomUUID().slice(0, 8)}`;
         const top = results[0];
         if (BLIND_MODES.includes(mode)) {

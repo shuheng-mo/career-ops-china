@@ -81,15 +81,29 @@ button:hover { border-color: var(--accent); color: var(--accent); }
 details { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); }
 summary { cursor: pointer; }
 
-/* 知识库树（根=候选人 → 项目 → 结构化块） */
-.kb-tree .kb-root { font-weight: 700; font-size: 14px; padding: 4px 2px 8px; color: var(--accent); }
-.kb-tree details.kb-proj { margin: 2px 0; }
-.kb-tree details.kb-proj > summary { cursor: pointer; font-size: 13px; font-weight: 600; padding: 4px 2px; list-style: none; }
-.kb-tree details.kb-proj > summary::before { content: '▾ '; color: var(--muted); }
-.kb-tree details.kb-proj:not([open]) > summary::before { content: '▸ '; }
-.kb-tree details.kb-proj[open] > summary { list-style: none; }
-.kb-proj-blocks { display: flex; flex-direction: column; gap: 3px; padding-left: 14px; margin: 2px 0 6px; border-left: 2px solid var(--border); }
-.kb-leaf { font-size: 12.5px; padding: 4px 8px; }
+/* 知识库图形树（思维导图式节点 + SVG 贝塞尔连线） */
+.kb-graph-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.kb-root-name { font-weight: 700; font-size: 13.5px; color: var(--accent); flex: 1; }
+.kb-mini { font-size: 11.5px; padding: 2px 8px; border-radius: 10px; }
+.kb-graph { position: relative; overflow-x: auto; min-height: 120px; }
+.kg-svg { position: absolute; inset: 0; pointer-events: none; }
+.kg-edge { fill: none; stroke: var(--border); stroke-width: 1.5; }
+.kg-node {
+  position: absolute; height: 28px; padding: 0 10px; font-size: 12.5px; font-family: inherit;
+  background: var(--card); color: var(--fg); border: 1px solid var(--border); border-radius: 14px;
+  cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; max-width: 210px; overflow: hidden; text-overflow: ellipsis;
+}
+.kg-node:hover { border-color: var(--accent); }
+.kg-node.selected { border-color: var(--accent); color: var(--accent); font-weight: 600; box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent); }
+.kg-node.kg-proj { font-weight: 600; border-radius: 8px; height: 30px; }
+.kg-node.kg-closed { opacity: 0.75; }
+.kg-period { font-size: 10.5px; color: var(--muted); font-weight: 400; }
+.kg-arrow { font-size: 10px; color: var(--muted); }
+.kg-rootnode {
+  position: absolute; left: 10px; padding: 6px 14px; transform: translateY(calc(50% - 14px));
+  background: var(--accent); color: #fff; font-weight: 700; font-size: 13px;
+  border-radius: 16px; max-width: 90px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;
+}
 .kb-meta { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .kb-meta .muted { flex-basis: 100%; margin: 2px 0 0; }
 .kb-edit-btn { margin-left: auto; font-size: 12.5px; padding: 3px 10px; }
@@ -98,7 +112,7 @@ summary { cursor: pointer; }
 
 /* 知识库页：左栏块列表 + 顶部检索 + 预览/编辑双栏（全宽 + 弹性，窄屏自动堆叠） */
 .view-wide { max-width: none !important; padding: 16px 20px 40px; }
-.kb-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 18px; align-items: start; }
+.kb-layout { display: grid; grid-template-columns: minmax(320px, 380px) minmax(0, 1fr); gap: 18px; align-items: start; }
 .kb-side { position: sticky; top: 12px; max-height: calc(100vh - 40px); overflow-y: auto; }
 .kb-side h2 { margin-top: 4px; }
 .kb-blocklist { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }

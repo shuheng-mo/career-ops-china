@@ -72,12 +72,11 @@ async function api(path, { method = 'GET', body } = {}) {
 // 知识库树：块 → 项目分组。block_id 约定 mo.<project>-<intent>；intro 特判
 const INTENT_LABEL = { story: '故事', contribution: '贡献', decision: '决策', result: '结果', boundary: '边界', self: '自我介绍' };
 function blockTree(blocks) {
-  const projects = new Map(); // projectKey → {name, period, blocks: Map(intent → block)}
+  const projects = new Map();
   const root = { intro: null, projects: [] };
   for (const b of blocks) {
     if (b.kind === 'intro' || b.block_id.endsWith('intro-self')) { root.intro = b; continue; }
     const parts = b.block_id.split('.');
-    // id 形如 mo.elytra-story：第二段含 intent 后缀，剥掉得项目名
     const m = parts[1]?.match(/^(.*)-(story|contribution|decision|result|boundary)$/);
     const intent = m ? m[2] : (parts[2] || 'story');
     const projName = m ? m[1] : (parts[1] || '其他');
@@ -94,6 +93,57 @@ function blockTree(blocks) {
   return root;
 }
 
+// 布局：叶子均分纵轴，父居中于子；返回 nodes + edges（svg path 用）
+const G = { x0: 10, x1: 130, x2: 360, rowH: 40, pad: 8 };
+function layoutGraph(tree, openState) {
+  const nodes = [];
+  const edges = [];
+  // 一级行：intro（若开）与各项目（开则子叶占多行，关则占一行）
+  const rows = [];
+  if (tree.intro) rows.push({ type: 'intro', key: 'intro', label: '👤 ' + (INTENT_LABEL.self || '自我介绍'), block: tree.intro, children: null });
+  for (const p of tree.projects) {
+    rows.push({
+      type: 'proj', key: p.key, label: `📁 ${p.name}`, period: p.period,
+      children: [...p.blocks.entries()].map(([intent, b]) => ({ label: INTENT_LABEL[intent] || intent, block: b })),
+    });
+  }
+  let y = G.pad;
+  const rootChildren = [];
+  for (const r of rows) {
+    const open = r.type !== 'proj' || openState.get(r.key) !== false;
+    if (open && r.children?.length) {
+      const childYs = [];
+      const leafNodes = [];
+      for (const c of r.children) {
+        const leaf = { x: G.x2, y, ...c, isLeaf: true };
+        nodes.push(leaf); leafNodes.push(leaf);
+        childYs.push(y + G.rowH / 2);
+        y += G.rowH;
+      }
+      const py = (childYs[0] + childYs[childYs.length - 1]) / 2 - G.rowH / 2;
+      const node = { x: G.x1, y: py, ...r, isProj: true, open: true };
+      nodes.push(node);
+      rootChildren.push(node);
+      for (const leaf of leafNodes) edges.push({ from: node, to: leaf });
+    } else {
+      const node = { x: G.x1, y, ...r, isProj: r.type === 'proj', open: false };
+      nodes.push(node);
+      rootChildren.push(node);
+      y += G.rowH;
+    }
+  }
+  const rootY = rootChildren.length ? ((rootChildren[0].y + rootChildren[rootChildren.length - 1].y) / 2) : G.pad;
+  const root = { x: G.x0, y: rootY, label: 'ROOT', isRoot: true };
+  nodes.push(root);
+  for (const c of rootChildren) edges.push({ from: root, to: c });
+  return { nodes, edges, height: y + G.pad };
+}
+
+function graphSvgPath(x1, y1, x2, y2) {
+  const mx = (x1 + x2) / 2;
+  return `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+}
+
 async function pageKb() {
   const [blocksRes, bootRes] = await Promise.all([api('/api/blocks'), api('/api/bootstrap')]);
   const { blocks } = blocksRes;
@@ -101,36 +151,61 @@ async function pageKb() {
   const drafts = blocks.filter((b) => b.status !== 'active');
   const seeds = (bootRes.seeds || []).filter((s) => s.status === 'queued');
   const tree = blockTree(active);
+  const openState = new Map(tree.projects.map((p) => [p.key, true]));
   view.classList.add('view-wide');
   view.innerHTML = `
     <div class="kb-layout">
       <aside class="kb-side">
-        <div class="kb-tree">
-          <div class="kb-root">${esc(bootRes.candidateName || '我的知识库')}</div>
-          ${tree.intro ? `<button class="kb-item kb-leaf" data-id="${esc(tree.intro.block_id)}">👤 ${esc(INTENT_LABEL.self || '自我介绍')}</button>` : ''}
-          ${tree.projects.map((p) => `
-            <details open class="kb-proj">
-              <summary>📁 ${esc(p.name)}${p.period ? ` <span class="muted">${esc(p.period)}</span>` : ''}</summary>
-              <div class="kb-proj-blocks">
-                ${[...p.blocks.entries()].map(([intent, b]) => `<button class="kb-item kb-leaf" data-id="${esc(b.block_id)}">${esc(INTENT_LABEL[intent] || intent)}</button>`).join('')}
-              </div>
-            </details>`).join('')}
+        <div class="kb-graph-bar">
+          <span class="kb-root-name">${esc(bootRes.candidateName || '我的知识库')}</span>
+          <button id="kg-expand" class="kb-mini">全部展开</button>
+          <button id="kg-collapse" class="kb-mini">全部折叠</button>
         </div>
+        <div id="kb-graph" class="kb-graph"></div>
         ${drafts.length ? `<p class="muted">非活跃 ${drafts.length}：${drafts.map((b) => esc(b.block_id)).join('、')}</p>` : ''}
         ${seeds.length ? `<details><summary class="muted">待回答种子（${seeds.length}）</summary><ul>${seeds.map((s) => `<li>${esc(s.question)}</li>`).join('')}</ul></details>` : ''}
       </aside>
       <div class="kb-main">
         <form id="search-form" class="kb-search"><input id="search-q" placeholder="输入面试问题，回车定位…" autocomplete="off"><button>定位</button></form>
         <div id="search-result"></div>
-        <div id="kb-work" class="kb-empty">
-          <p class="muted">← 点击左侧节点查看；或在上方检索问题。</p>
-        </div>
+        <div id="kb-work" class="kb-empty"><p class="muted">← 点击树上的块节点查看；或在上方检索问题。</p></div>
       </div>
     </div>
   `;
 
+  function renderGraph() {
+    const host = view.querySelector('#kb-graph');
+    const { nodes, edges, height } = layoutGraph(tree, openState);
+    const W = G.x2 + 90;
+    const svgEdges = edges.map((e) => `<path d="${graphSvgPath(e.from.x + (e.from.isRoot ? 60 : 96), e.from.y + G.rowH / 2, e.to.x + 6, e.to.y + G.rowH / 2)}" class="kg-edge" />`).join('');
+    const html = nodes.map((n) => {
+      if (n.isRoot) return '';
+      const cls = ['kg-node', n.isProj ? 'kg-proj' : 'kg-leaf', n.open === false ? 'kg-closed' : ''].filter(Boolean).join(' ');
+      const meta = n.period ? `<span class="kg-period">${esc(n.period)}</span>` : '';
+      return `<button class="${cls}" style="left:${n.x}px;top:${n.y}px" data-id="${esc(n.block?.block_id || '')}" data-key="${esc(n.key || '')}" data-proj="${n.isProj ? 1 : 0}" data-open="${n.open === false ? 0 : 1}">
+        ${esc(n.label)}${meta}${n.isProj ? `<span class="kg-arrow">${n.open === false ? '▸' : '▾'}</span>` : ''}
+      </button>`;
+    }).join('');
+    host.innerHTML = `<svg width="${W}" height="${height}" class="kg-svg">${svgEdges}</svg>
+      <div class="kg-rootnode" style="top:${nodes.find((n) => n.isRoot)?.y ?? 0}px">${esc(bootRes.candidateName || '我的知识库')}</div>${html}`;
+    host.querySelectorAll('.kg-node').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.proj === '1') {
+          const key = btn.dataset.key;
+          openState.set(key, openState.get(key) === false);
+          renderGraph();
+          return;
+        }
+        if (btn.dataset.id) openBlock(btn.dataset.id);
+      });
+    });
+  }
+  view.querySelector('#kg-expand').addEventListener('click', () => { for (const p of tree.projects) openState.set(p.key, true); renderGraph(); });
+  view.querySelector('#kg-collapse').addEventListener('click', () => { for (const p of tree.projects) openState.set(p.key, false); renderGraph(); });
+  renderGraph();
+
   async function openBlock(id) {
-    view.querySelectorAll('.kb-item').forEach((b) => b.classList.toggle('selected', b.dataset.id === id));
+    view.querySelectorAll('.kg-node').forEach((b) => b.classList.toggle('selected', b.dataset.id === id));
     const b = await api(`/api/blocks/${encodeURIComponent(id)}`);
     const work = view.querySelector('#kb-work');
     work.className = 'kb-work';
@@ -150,14 +225,13 @@ async function pageKb() {
       </div>
     `;
     const editBody = () => view.querySelector('#edit-body');
-    const refresh = () => { view.querySelector('#edit-preview').innerHTML = mdRender(textToMd(editBody().value)); };
-    view.querySelector('#edit-preview').innerHTML = mdRender(b.body); // 默认纯预览
+    view.querySelector('#edit-preview').innerHTML = mdRender(b.body);
     view.querySelector('#kb-edit-toggle').addEventListener('click', () => {
       const pane = view.querySelector('.kb-edit-pane');
       const cols = view.querySelector('.kb-cols');
       if (pane.hidden) {
-        if (!editBody().value) editBody().value = sectionsToText(parseSections(b.body)); // md → 纯文本（语法隐藏）
-        refresh();
+        if (!editBody().value) editBody().value = sectionsToText(parseSections(b.body));
+        view.querySelector('#edit-preview').innerHTML = mdRender(textToMd(editBody().value));
         pane.hidden = false;
         cols.classList.remove('kb-preview-only');
         view.querySelector('#kb-edit-toggle').textContent = '✓ 完成编辑';
@@ -181,10 +255,6 @@ async function pageKb() {
       }
     });
   }
-
-  view.querySelectorAll('.kb-item').forEach((btn) => {
-    btn.addEventListener('click', () => openBlock(btn.dataset.id));
-  });
 
   view.querySelector('#search-form').addEventListener('submit', async (e) => {
     e.preventDefault();

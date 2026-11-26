@@ -72,7 +72,7 @@ export function createStudioServer(root, { port = 8790, token = randomToken(), h
     if (r.status === 200) {
       const headers = {
         'Content-Type': r.contentType,
-        'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:",
+        'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:",
         'X-Content-Type-Options': 'nosniff',
         'Cache-Control': 'no-store',
       };

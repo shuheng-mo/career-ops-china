@@ -122,3 +122,12 @@ test('[F.lock] 锁定后 onAsrEvent 直接返回 null（hint 不外发，e2e 实
   assert.ok(fp.suppressed.some((s) => s.reason === 'locked'), '应记 suppressed');
   fp.dispose();
 });
+
+test('[P4.4] real_record_only：真实面试仅记录——问题不触发检索/提词/提交', async () => {
+  const t = preparedRoot();
+  const fp = new FastPath(t, { mode: 'real_record_only' });
+  const r = await fp.onAsrEvent({ ...finalEvent('你如何限制查询权限？'), channel: 'mic' });
+  assert.equal(r, null, 'real_record_only 不返回 handle（不产生 hint）');
+  await new Promise((res) => setTimeout(res, 2100));
+  assert.equal(fp.lastSubmission, null, 'real_record_only 不提交定位');
+});

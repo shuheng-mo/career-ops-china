@@ -42,6 +42,8 @@ export class FastPath {
   // 返回 null（未触发）或 {generationToken, ...}（稳定期后异步提交，此处返回提交句柄）。
   // async：检索经 retrieval-service（embedding hybrid 配置时走远端，失败降级词法）
   async onAsrEvent(event) {
+    // 真实面试仅记录：不做实时定位/提词/提交（spec §9.2 模式闸门；文本路径同语义已关，此处补齐）
+    if (this.mode === 'real_record_only') return null;
     if (event.type !== 'final') return null; // partial 永不定位
     // 重连去重：同一 (streamId, segmentId, revision) 只提交一次
     const dedupKey = `${event.streamId}:${event.segmentId}:${event.revision}`;
